@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+@import './variables.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  
+  body {
+    @apply bg-light text-dark;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+}
+
+@layer components {
+  .container-custom {
+    @apply container mx-auto px-4 py-6;
+  }
+  
+  .fade-in {
+    animation: fadeIn 0.5s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* 참고 HTML에서 가져온 스타일 */
+  .progress-ring__circle {
+    transition: stroke-dashoffset 0.35s;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+  
+  .workout-card:hover .workout-overlay {
+    opacity: 1;
+  }
+  
+  .workout-overlay {
+    transition: opacity 0.3s ease;
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-in;
+  }
+  
+  .welcome-bg {
+    background: linear-gradient(135deg, #fd8c3f, #FC4E00);
+  }
+  
+  .option-card {
+    transition: all 0.3s ease;
+  }
+  
+  .option-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .option-card.selected {
+    border-color: #FC4E00;
+    box-shadow: 0 10px 15px -3px rgba(252, 78, 0, 0.1);
+  }
+} 
