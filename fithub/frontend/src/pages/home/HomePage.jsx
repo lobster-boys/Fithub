@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import Card from '../components/common/Card';
+import Card from '../../components/common/Card';
+import ProductCardList from '../../components/ecommerce/ProductCardList';
 
-const HomePage = () => {
+function HomePage() {
   // 실제 인증 상태에 따라 동적으로 변경됩니다
   const isAuthenticated = true;
   const user = {
@@ -256,84 +257,58 @@ const HomePage = () => {
 
       {/* 쇼핑 섹션 */}
       <section className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">추천 용품</h2>
-          <Link to="/shop" className="text-primary font-medium">
-            모두 보기
-          </Link>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* 상품 1 */}
-          <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-            <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1595079835353-a57d9648f3e8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80"
-                alt="Resistance Bands"
-                className="w-full h-40 object-cover"
-              />
-              <button className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md hover:bg-gray-100">
-                <i className="fas fa-heart text-gray-400"></i>
-              </button>
-            </div>
-            <div className="p-3">
-              <h3 className="font-medium text-sm mb-1">프리미엄 저항 밴드 세트</h3>
-              <div className="flex items-center mb-1">
-                <div className="flex text-yellow-400 text-xs">
-                  <i className="fas fa-star"></i>
-                  <i className="fas fa-star"></i>
-                  <i className="fas fa-star"></i>
-                  <i className="fas fa-star"></i>
-                  <i className="fas fa-star-half-alt"></i>
-                </div>
-                <span className="text-xs text-gray-500 ml-1">(1.2k)</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-primary">₩24,900</span>
-                <Link to="/shop/1" className="text-xs bg-primary text-white px-2 py-1 rounded-full">
-                  <i className="fas fa-shopping-cart mr-1"></i> 담기
-                </Link>
-              </div>
-            </div>
-          </div>
-          
-          {/* 상품 2 */}
-          <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-            <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1579751626657-72bc17010498?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80"
-                alt="Yoga Mat"
-                className="w-full h-40 object-cover"
-              />
-              <button className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md hover:bg-gray-100">
-                <i className="fas fa-heart text-gray-400"></i>
-              </button>
-            </div>
-            <div className="p-3">
-              <h3 className="font-medium text-sm mb-1">미끄럼 방지 요가 매트</h3>
-              <div className="flex items-center mb-1">
-                <div className="flex text-yellow-400 text-xs">
-                  <i className="fas fa-star"></i>
-                  <i className="fas fa-star"></i>
-                  <i className="fas fa-star"></i>
-                  <i className="fas fa-star"></i>
-                  <i className="fas fa-star"></i>
-                </div>
-                <span className="text-xs text-gray-500 ml-1">(2.4k)</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-primary">₩29,900</span>
-                <Link to="/shop/2" className="text-xs bg-primary text-white px-2 py-1 rounded-full">
-                  <i className="fas fa-shopping-cart mr-1"></i> 담기
-                </Link>
-              </div>
-            </div>
-          </div>
-          
-          {/* 추가 상품은 필요에 따라 계속 추가 가능 */}
-        </div>
+        <ProductCardList
+          title="추천 용품"
+          viewAllLink={
+            <Link to="/shop" className="text-primary font-medium">
+              모두 보기
+            </Link>
+          }
+          products={[
+            {
+              id: 1,
+              name: "프리미엄 요가 매트",
+              price: 39000,
+              discount: 10,
+              rating: 4.8,
+              reviewCount: 124,
+              image: "https://images.unsplash.com/photo-1599447292461-38fb53fb0fee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+              isBestseller: true
+            },
+            {
+              id: 3,
+              name: "운동용 저항 밴드 세트",
+              price: 25000,
+              discount: 20,
+              rating: 4.6,
+              reviewCount: 245,
+              image: "https://images.unsplash.com/photo-1598550480917-1c485268a92a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+              isBestseller: false
+            },
+            {
+              id: 4,
+              name: "프로틴 쉐이커 보틀",
+              price: 15000,
+              rating: 4.5,
+              reviewCount: 156,
+              image: "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1480&q=80",
+              isBestseller: false
+            },
+            {
+              id: 5,
+              name: "프리미엄 웨이트 프로틴",
+              price: 59000,
+              discount: 5,
+              rating: 4.7,
+              reviewCount: 312,
+              image: "https://images.unsplash.com/photo-1579722821273-0f6c1b933c0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+              isBestseller: true
+            }
+          ]}
+          compact={true}
+        />
       </section>
-      
+
       {/* 커뮤니티 섹션 */}
       <section className="mb-8">
         <div className="flex justify-between items-center mb-4">
@@ -405,6 +380,6 @@ const HomePage = () => {
       </section>
     </div>
   );
-};
+}
 
 export default HomePage; 
