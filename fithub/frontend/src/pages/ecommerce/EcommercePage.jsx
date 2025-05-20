@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import ProductCardList from '../../components/ecommerce/ProductCardList';
 
-const ShopPage = () => {
+const EcommercePage = () => {
   // 카테고리 상태
   const [activeCategory, setActiveCategory] = useState('all');
 
-  // 상품 데이터
+  // 상품 데이터 - ProductDetailPage와 일치시킴
   const products = [
     {
       id: 1,
@@ -14,7 +15,7 @@ const ShopPage = () => {
       price: 39000,
       discount: 10,
       rating: 4.8,
-      reviews: 124,
+      reviewCount: 124,
       image: 'https://images.unsplash.com/photo-1599447292461-38fb53fb0fee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
       isBestseller: true
     },
@@ -25,7 +26,7 @@ const ShopPage = () => {
       price: 150000,
       discount: 0,
       rating: 4.9,
-      reviews: 89,
+      reviewCount: 89,
       image: 'https://images.unsplash.com/photo-1638536532686-d610adba8c7c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
       isBestseller: true
     },
@@ -36,7 +37,7 @@ const ShopPage = () => {
       price: 25000,
       discount: 20,
       rating: 4.6,
-      reviews: 245,
+      reviewCount: 245,
       image: 'https://images.unsplash.com/photo-1598550480917-1c485268a92a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
       isBestseller: false
     },
@@ -47,7 +48,7 @@ const ShopPage = () => {
       price: 15000,
       discount: 0,
       rating: 4.5,
-      reviews: 156,
+      reviewCount: 156,
       image: 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1480&q=80',
       isBestseller: false
     },
@@ -58,7 +59,7 @@ const ShopPage = () => {
       price: 59000,
       discount: 5,
       rating: 4.7,
-      reviews: 312,
+      reviewCount: 312,
       image: 'https://images.unsplash.com/photo-1579722821273-0f6c1b933c0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
       isBestseller: true
     },
@@ -69,11 +70,16 @@ const ShopPage = () => {
       price: 12000,
       discount: 0,
       rating: 4.3,
-      reviews: 68,
+      reviewCount: 68,
       image: 'https://images.unsplash.com/photo-1531917115039-473db54f8482?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
       isBestseller: false
     }
   ];
+
+  // 디버깅 목적으로 상품 ID 확인
+  useEffect(() => {
+    console.log("EcommercePage에서 사용 가능한 상품 ID:", products.map(p => `${p.id} (${typeof p.id})`));
+  }, []);
 
   // 카테고리 필터링
   const filteredProducts = activeCategory === 'all' 
@@ -130,62 +136,13 @@ const ShopPage = () => {
       </div>
 
       {/* 상품 그리드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredProducts.map((product) => (
-          <Link to={`/shop/${product.id}`} key={product.id} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="relative">
-              <img 
-                src={product.image} 
-                alt={product.name} 
-                className="w-full h-48 object-cover"
-              />
-              {product.discount > 0 && (
-                <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                  {product.discount}% 할인
-                </span>
-              )}
-              {product.isBestseller && (
-                <span className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded">
-                  베스트셀러
-                </span>
-              )}
-            </div>
-            
-            <div className="p-4">
-              <h3 className="font-bold text-gray-900 mb-1">{product.name}</h3>
-              
-              <div className="flex items-center mb-2">
-                <div className="flex text-yellow-400">
-                  {[...Array(5)].map((_, i) => (
-                    <i key={i} className={`fas fa-star ${i < Math.floor(product.rating) ? '' : 'text-gray-300'}`}></i>
-                  ))}
-                </div>
-                <span className="text-xs text-gray-500 ml-1">({product.reviews})</span>
-              </div>
-              
-              <div className="flex items-center">
-                {product.discount > 0 ? (
-                  <>
-                    <span className="font-bold text-lg">{Math.round(product.price * (1 - product.discount / 100)).toLocaleString()}원</span>
-                    <span className="text-sm text-gray-500 line-through ml-2">{product.price.toLocaleString()}원</span>
-                  </>
-                ) : (
-                  <span className="font-bold text-lg">{product.price.toLocaleString()}원</span>
-                )}
-              </div>
-            </div>
-            
-            <div className="px-4 pb-4">
-              <button className="w-full bg-primary text-white py-2 rounded-lg font-medium hover:bg-orange-600 flex items-center justify-center">
-                <i className="fas fa-shopping-cart mr-2"></i>
-                장바구니에 담기
-              </button>
-            </div>
-          </Link>
-        ))}
-      </div>
+      <ProductCardList 
+        products={filteredProducts} 
+        gridCols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        emptyMessage={`'${activeCategory}' 카테고리에 상품이 없습니다.`}
+      />
     </div>
   );
 };
 
-export default ShopPage; 
+export default EcommercePage; 

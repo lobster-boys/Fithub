@@ -10,3 +10,10 @@
 - 작업완료_김규학
 - 작업완료_김유찬
 - 작업완료_박재정
+
+## 깃 클로닝 후 npm 문제 발생하면 아래의 명령어를 터미널에 입력해주세요요
+cd fithub/frontend
+     npm cache clean --force
+     rmdir /s /q node_modules
+     del package-lock.json
+     npm install
