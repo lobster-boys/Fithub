@@ -100,14 +100,14 @@ function HomePage() {
       <section className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">맞춤 추천 운동</h2>
-          <Link to="/workouts" className="text-primary font-medium">
+          <Link to="/workouts/log" className="text-primary font-medium">
             더보기
           </Link>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* 운동 카드 1 */}
-          <div className="bg-white rounded-xl overflow-hidden shadow-sm relative workout-card">
+          <Link to="/workouts/1" className="bg-white rounded-xl overflow-hidden shadow-sm relative workout-card">
             <img
               src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
               alt="Full Body Workout"
@@ -124,20 +124,20 @@ function HomePage() {
                   <i className="fas fa-user-circle text-gray-400 mr-1"></i>
                   <span className="text-xs text-gray-500">12,400명 참여</span>
                 </div>
-                <Link to="/workouts/1" className="text-primary font-medium text-sm">
+                <span className="text-primary font-medium text-sm">
                   시작하기
-                </Link>
+                </span>
               </div>
             </div>
             <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 workout-overlay">
-              <Link to="/workouts/1" className="bg-primary text-white px-4 py-2 rounded-full font-medium">
+              <span className="bg-primary text-white px-4 py-2 rounded-full font-medium">
                 <i className="fas fa-play mr-1"></i> 운동 시작하기
-              </Link>
+              </span>
             </div>
-          </div>
+          </Link>
 
           {/* 운동 카드 2 */}
-          <div className="bg-white rounded-xl overflow-hidden shadow-sm relative workout-card">
+          <Link to="/workouts/2" className="bg-white rounded-xl overflow-hidden shadow-sm relative workout-card">
             <img
               src="https://images.unsplash.com/photo-1538805060514-97d9cc87630a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80"
               alt="Core Workout"
@@ -154,20 +154,20 @@ function HomePage() {
                   <i className="fas fa-user-circle text-gray-400 mr-1"></i>
                   <span className="text-xs text-gray-500">8,700명 참여</span>
                 </div>
-                <Link to="/workouts/2" className="text-primary font-medium text-sm">
+                <span className="text-primary font-medium text-sm">
                   시작하기
-                </Link>
+                </span>
               </div>
             </div>
             <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 workout-overlay">
-              <Link to="/workouts/2" className="bg-primary text-white px-4 py-2 rounded-full font-medium">
+              <span className="bg-primary text-white px-4 py-2 rounded-full font-medium">
                 <i className="fas fa-play mr-1"></i> 운동 시작하기
-              </Link>
+              </span>
             </div>
-          </div>
+          </Link>
 
           {/* 운동 카드 3 */}
-          <div className="bg-white rounded-xl overflow-hidden shadow-sm relative workout-card">
+          <Link to="/workouts/3" className="bg-white rounded-xl overflow-hidden shadow-sm relative workout-card">
             <img
               src="https://images.unsplash.com/photo-1571019614242-c95595902d5c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
               alt="Yoga Flow"
@@ -184,17 +184,17 @@ function HomePage() {
                   <i className="fas fa-user-circle text-gray-400 mr-1"></i>
                   <span className="text-xs text-gray-500">15,200명 참여</span>
                 </div>
-                <Link to="/workouts/3" className="text-primary font-medium text-sm">
+                <span className="text-primary font-medium text-sm">
                   시작하기
-                </Link>
+                </span>
               </div>
             </div>
             <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 workout-overlay">
-              <Link to="/workouts/3" className="bg-primary text-white px-4 py-2 rounded-full font-medium">
+              <span className="bg-primary text-white px-4 py-2 rounded-full font-medium">
                 <i className="fas fa-play mr-1"></i> 운동 시작하기
-              </Link>
+              </span>
             </div>
-          </div>
+          </Link>
         </div>
       </section>
 
