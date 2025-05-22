@@ -664,6 +664,44 @@ const ProductDetailPage = () => {
                 <i className="fas fa-external-link-alt mr-2"></i>
                 구매 사이트로 이동
               </a>
+              <button 
+                onClick={() => {
+                  // 장바구니에 추가
+                  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+                  
+                  // 이미 장바구니에 있는지 확인
+                  const existingItemIndex = cart.findIndex(item => item.id === product.id);
+                  
+                  if (existingItemIndex >= 0) {
+                    // 이미 장바구니에 있으면 수량 증가
+                    cart[existingItemIndex].quantity += quantity;
+                  } else {
+                    // 장바구니에 없으면 새 아이템 추가
+                    cart.push({
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      discount: product.discount,
+                      discountedPrice: discountedPrice,
+                      image: product.image,
+                      quantity: quantity
+                    });
+                  }
+                  
+                  // 로컬 스토리지에 장바구니 저장
+                  localStorage.setItem('cart', JSON.stringify(cart));
+                  
+                  // 장바구니 업데이트 이벤트 발생
+                  window.dispatchEvent(new Event('cartUpdated'));
+                  
+                  // 성공 메시지 표시 (필요시)
+                  alert('장바구니에 상품이 추가되었습니다.');
+                }}
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 text-center"
+              >
+                <i className="fas fa-shopping-cart mr-2"></i>
+                장바구니에 담기
+              </button>
               <button className="w-12 h-12 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100">
                 <i className="far fa-heart text-gray-500"></i>
               </button>
