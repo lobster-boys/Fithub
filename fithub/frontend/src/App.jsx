@@ -13,6 +13,8 @@ import WorkoutLogPage from './pages/WorkoutLogPage';
 import CommunityPage from './pages/CommunityPage';
 import ShopPage from './pages/ShopPage';
 import WelcomePage from './pages/WelcomePage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
 // Placeholder Components - 실제 페이지 컴포넌트가 구현되기 전까지 사용
 const PlaceholderPage = ({ title }) => (
@@ -50,9 +52,8 @@ const AnimatedRoutes = () => {
         
         {/* 인증 관련 페이지 */}
         <Route path="/auth">
-          <Route path="login" element={<AuthPage />} />
-          <Route path="signup" element={<AuthPage />} />
-          <Route path="reset-password" element={<AuthPage />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
         </Route>
         
         {/* 온보딩 페이지 */}
