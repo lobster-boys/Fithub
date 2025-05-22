@@ -65,6 +65,9 @@ const ProductCard = ({
     // 로컬 스토리지에 장바구니 저장
     localStorage.setItem('cart', JSON.stringify(cart));
     
+    // 장바구니 업데이트 이벤트 발생 (헤더의 장바구니 아이콘 업데이트를 위해)
+    window.dispatchEvent(new Event('cartUpdated'));
+    
     // 사용자에게 피드백 제공
     setIsAdded(true);
     setTimeout(() => {
