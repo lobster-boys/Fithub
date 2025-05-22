@@ -16,6 +16,8 @@ import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProductDetailPage from './pages/ecommerce/ProductDetailPage';
+import ShoppingCartPage from './pages/ShoppingCartPage';
+import WorkoutDetailPage from './pages/WorkoutDetailPage';
 
 // Placeholder Components - 실제 페이지 컴포넌트가 구현되기 전까지 사용
 const PlaceholderPage = ({ title }) => (
@@ -29,11 +31,11 @@ const PlaceholderPage = ({ title }) => (
 const AuthPage = () => <PlaceholderPage title="로그인/회원가입" />;
 const OnboardingPage = () => <PlaceholderPage title="온보딩" />;
 const WorkoutPage = () => <PlaceholderPage title="운동" />;
-const WorkoutDetailPage = () => <PlaceholderPage title="운동 상세" />;
+// WorkoutDetailPage는 위에서 import
 const DietPage = () => <PlaceholderPage title="식단" />;
 const CommunityPostPage = () => <PlaceholderPage title="게시글 상세" />;
 // ProductDetailPage는 위에서 import
-const CartPage = () => <PlaceholderPage title="장바구니" />;
+// ShoppingCartPage는 위에서 import
 const CheckoutPage = () => <PlaceholderPage title="결제" />;
 const OrderHistoryPage = () => <PlaceholderPage title="주문 내역" />;
 const ProfilePage = () => <PlaceholderPage title="프로필" />;
@@ -80,7 +82,7 @@ const AnimatedRoutes = () => {
         <Route path="/shop">
           <Route index element={<EcommercePage />} />
           <Route path=":productId" element={<ProductDetailPage />} />
-          <Route path="cart" element={<CartPage />} />
+          <Route path="cart" element={<ShoppingCartPage />} />
           <Route path="checkout" element={<CheckoutPage />} />
           <Route path="orders" element={<OrderHistoryPage />} />
         </Route>

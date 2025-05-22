@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #FC4E00;
+  --primary-dark: #D04000;
+}
+
+/* 워크아웃 카드 호버 효과 */
+.workout-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.workout-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.workout-overlay {
+  transition: opacity 0.3s ease;
+}
+
+.workout-card:hover .workout-overlay {
+  opacity: 1;
+} 
