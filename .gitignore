@@ -174,4 +174,4 @@ cython_debug/
 .pypirc
 
 # frontend 
-node_modules
+node_modules/
