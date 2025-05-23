@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "workouts",
     "challenge",
     "diet",
+    "api",
 ]
 
 MIDDLEWARE = [
