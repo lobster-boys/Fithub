@@ -16,3 +16,10 @@ conda activate fithub
 ```bash
 conda info --envs
 ```
+
+## 2. 라이브러리 & 패키지 버전 목록
+
+```bash
+Python == 3.12
+DRF == 25.1.1
+```
