@@ -15,6 +15,7 @@ import ShopPage from './pages/ShopPage';
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import OnboardingPage from './pages/OnboardingPage';
 
 // Placeholder Components - 실제 페이지 컴포넌트가 구현되기 전까지 사용
 const PlaceholderPage = ({ title }) => (
@@ -24,9 +25,15 @@ const PlaceholderPage = ({ title }) => (
   </div>
 );
 
+// 온보딩
+import ProtectedRoute from './components/common/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
+
+
+
 // 아직 구현되지 않은 페이지들은 플레이스홀더로 대체
 const AuthPage = () => <PlaceholderPage title="로그인/회원가입" />;
-const OnboardingPage = () => <PlaceholderPage title="온보딩" />;
+//const OnboardingPage = () => <PlaceholderPage title="온보딩" />;
 const WorkoutPage = () => <PlaceholderPage title="운동" />;
 const WorkoutDetailPage = () => <PlaceholderPage title="운동 상세" />;
 const DietPage = () => <PlaceholderPage title="식단" />;
@@ -116,7 +123,8 @@ const App = () => {
   }, []);
   
   return (
-    <Router>
+    <AuthProvider>
+     <Router>
       <div className="flex flex-col min-h-screen bg-gray-50">
         {/* 헤더 (고정 상단) */}
         <Header />
@@ -124,7 +132,9 @@ const App = () => {
         {/* 메인 콘텐츠 영역 */}
         <div className="flex-1 pb-16">
           <main className="container mx-auto px-4 py-6">
-            <AnimatedRoutes />
+            <ProtectedRoute>
+              <AnimatedRoutes />
+            </ProtectedRoute>
           </main>
         </div>
         
@@ -139,7 +149,8 @@ const App = () => {
         )}
       </div>
     </Router>
+    </AuthProvider>
   );
 };
 
-export default App; 
+export default App;
