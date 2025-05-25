@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
+import useWorkoutData from '../../hooks/useWorkoutData';
 
 function HomePage() {
   // 실제 인증 상태에 따라 동적으로 변경됩니다
@@ -11,6 +12,15 @@ function HomePage() {
     level: '초급자',
     goals: '체중 감량, 근력 강화'
   };
+
+  // 운동 데이터 훅 사용
+  const { getWeeklyStats, getStreakDays } = useWorkoutData();
+  const weeklyStats = getWeeklyStats();
+  const streakDays = getStreakDays();
+
+  // 목표 값들 (설정 가능)
+  const weeklyWorkoutGoal = 5; // 주 5회 운동 목표
+  const workoutDaysProgress = Math.min((weeklyStats.workoutDays / weeklyWorkoutGoal) * 100, 100);
 
   return (
     <div>
@@ -29,7 +39,7 @@ function HomePage() {
         <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-2xl p-6 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">주간 진행 현황</h2>
-            <Link to="/workouts" className="text-primary font-medium">
+            <Link to="/workouts/log" className="text-primary font-medium">
               자세히 보기
             </Link>
           </div>
@@ -56,13 +66,14 @@ function HomePage() {
                     stroke="#FC4E00"
                     strokeWidth="3"
                     strokeDasharray="100, 100"
-                    strokeDashoffset="40"
+                    strokeDashoffset={100 - workoutDaysProgress}
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold">3/5</span>
+                  <span className="text-lg font-bold">{weeklyStats.workoutDays}/{weeklyWorkoutGoal}</span>
                 </div>
               </div>
+              <p className="text-lg font-bold">{weeklyStats.workoutDays} 일</p>
               <p className="text-sm text-gray-600">운동 일수</p>
             </div>
             
@@ -71,7 +82,7 @@ function HomePage() {
               <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
                 <i className="fas fa-fire text-3xl text-primary"></i>
               </div>
-              <p className="text-lg font-bold">1,240 kcal</p>
+              <p className="text-lg font-bold">{weeklyStats.totalCalories.toLocaleString()} kcal</p>
               <p className="text-sm text-gray-600">소모 칼로리</p>
             </div>
             
@@ -80,7 +91,7 @@ function HomePage() {
               <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
                 <i className="fas fa-clock text-3xl text-primary"></i>
               </div>
-              <p className="text-lg font-bold">85 min</p>
+              <p className="text-lg font-bold">{weeklyStats.totalDuration} min</p>
               <p className="text-sm text-gray-600">활동 시간</p>
             </div>
             
@@ -89,7 +100,7 @@ function HomePage() {
               <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
                 <i className="fas fa-bolt text-3xl text-primary"></i>
               </div>
-              <p className="text-lg font-bold">7 일</p>
+              <p className="text-lg font-bold">{streakDays} 일</p>
               <p className="text-sm text-gray-600">연속 기록</p>
             </div>
           </div>

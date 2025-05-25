@@ -9,15 +9,15 @@ import MobileNavigation from './components/layout/MobileNavigation';
 
 // Pages
 import HomePage from './pages/home/HomePage';
-import WorkoutLogPage from './pages/WorkoutLogPage';
+import WorkoutLogPage from './pages/workout/WorkoutLogPage';
 import CommunityPage from './pages/CommunityPage';
 import EcommercePage from './pages/ecommerce/EcommercePage';
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProductDetailPage from './pages/ecommerce/ProductDetailPage';
-import ShoppingCartPage from './pages/ShoppingCartPage';
-import WorkoutDetailPage from './pages/WorkoutDetailPage';
+import ShoppingCartPage from './pages/ecommerce/ShoppingCartPage';
+import WorkoutDetailPage from './pages/workout/WorkoutDetailPage';
 
 // Placeholder Components - 실제 페이지 컴포넌트가 구현되기 전까지 사용
 const PlaceholderPage = ({ title }) => (
@@ -67,6 +67,7 @@ const AnimatedRoutes = () => {
           <Route index element={<WorkoutPage />} />
           <Route path="log" element={<WorkoutLogPage />} />
           <Route path=":workoutId" element={<WorkoutDetailPage />} />
+          <Route path="exercise/:exerciseId" element={<WorkoutDetailPage />} />
         </Route>
         
         {/* 식단 관련 페이지 */}
