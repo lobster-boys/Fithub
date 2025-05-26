@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
 import useWorkoutData from '../../hooks/useWorkoutData';
+import { useDiet } from '../../hooks/useDiet';
 
 function HomePage() {
   // 실제 인증 상태에 따라 동적으로 변경됩니다
@@ -17,6 +18,9 @@ function HomePage() {
   const { getWeeklyStats, getStreakDays } = useWorkoutData();
   const weeklyStats = getWeeklyStats();
   const streakDays = getStreakDays();
+
+  // 식단 데이터 훅 사용
+  const { todayDiet, loading: dietLoading, error: dietError } = useDiet();
 
   // 목표 값들 (설정 가능)
   const weeklyWorkoutGoal = 5; // 주 5회 운동 목표
@@ -214,55 +218,79 @@ function HomePage() {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">오늘의 식단</h2>
           <Link to="/diet" className="text-primary font-medium">
-            전체 보기
+            더보기
           </Link>
         </div>
         
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {/* 식사 1 */}
-          <div className="p-4 border-b border-gray-100 flex items-center">
-            <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center mr-4">
-              <i className="fas fa-utensils text-primary text-xl"></i>
+          {dietLoading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-gray-500">식단 정보를 불러오는 중...</p>
             </div>
-            <div className="flex-grow">
-              <h3 className="font-bold">아침</h3>
-              <p className="text-sm text-gray-600">그릭 요거트, 베리 및 그래놀라</p>
+          ) : dietError ? (
+            <div className="p-8 text-center">
+              <i className="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
+              <p className="text-gray-500">식단 정보를 불러올 수 없습니다.</p>
             </div>
-            <div className="text-right">
-              <p className="font-bold text-primary">320 kcal</p>
-              <p className="text-xs text-gray-500">고단백</p>
+          ) : todayDiet && todayDiet.meals && todayDiet.meals.length > 0 ? (
+            todayDiet.meals.map((meal, index) => {
+              const mealIcons = {
+                '아침': 'fas fa-utensils',
+                '점심': 'fas fa-drumstick-bite',
+                '저녁': 'fas fa-utensils',
+                '간식': 'fas fa-apple-alt'
+              };
+              
+              const mealTypes = {
+                '아침': '고단백',
+                '점심': '균형 잡힌',
+                '저녁': '저칼로리',
+                '간식': '건강한 지방'
+              };
+
+              return (
+                <Link 
+                  key={index} 
+                  to={`/ingredient/${meal.id || index + 1}`} 
+                  className={`block p-4 hover:bg-gray-50 transition-colors ${
+                    index < todayDiet.meals.length - 1 ? 'border-b border-gray-100' : ''
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center mr-4">
+                      <i className={`${mealIcons[meal.name] || 'fas fa-utensils'} text-primary text-xl`}></i>
+                    </div>
+                    <div className="flex-grow">
+                      <h3 className="font-bold">{meal.name}</h3>
+                      <p className="text-sm text-gray-600">
+                        {meal.foods.join(', ')}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-primary">{meal.calories} kcal</p>
+                      <p className="text-xs text-gray-500">{mealTypes[meal.name] || '영양가 있는'}</p>
+                    </div>
+                    <div className="ml-3">
+                      <i className="fas fa-chevron-right text-gray-400"></i>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          ) : (
+            <div className="p-8 text-center">
+              <i className="fas fa-utensils text-gray-300 text-3xl mb-3"></i>
+              <p className="text-gray-500 mb-3">오늘 등록된 식사가 없습니다.</p>
+              <Link 
+                to="/diet" 
+                className="inline-flex items-center text-primary hover:text-primary-dark font-medium"
+              >
+                <i className="fas fa-plus mr-1"></i>
+                식사 추가하기
+              </Link>
             </div>
-          </div>
-          
-          {/* 식사 2 */}
-          <div className="p-4 border-b border-gray-100 flex items-center">
-            <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center mr-4">
-              <i className="fas fa-apple-alt text-primary text-xl"></i>
-            </div>
-            <div className="flex-grow">
-              <h3 className="font-bold">간식</h3>
-              <p className="text-sm text-gray-600">사과 및 아몬드 버터</p>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-primary">200 kcal</p>
-              <p className="text-xs text-gray-500">건강한 지방</p>
-            </div>
-          </div>
-          
-          {/* 식사 3 */}
-          <div className="p-4 flex items-center">
-            <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center mr-4">
-              <i className="fas fa-drumstick-bite text-primary text-xl"></i>
-            </div>
-            <div className="flex-grow">
-              <h3 className="font-bold">점심</h3>
-              <p className="text-sm text-gray-600">그릴드 치킨, 퀴노아, 야채</p>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-primary">450 kcal</p>
-              <p className="text-xs text-gray-500">균형 잡힌</p>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 

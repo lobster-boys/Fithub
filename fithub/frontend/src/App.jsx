@@ -18,6 +18,8 @@ import RegisterPage from './pages/RegisterPage';
 import ProductDetailPage from './pages/ecommerce/ProductDetailPage';
 import ShoppingCartPage from './pages/ecommerce/ShoppingCartPage';
 import WorkoutDetailPage from './pages/workout/WorkoutDetailPage';
+import IngredientDetailPage from './pages/diet/IngredientDetailPage';
+import DietLogPage from './pages/diet/DietLogPage';
 
 // Placeholder Components - 실제 페이지 컴포넌트가 구현되기 전까지 사용
 const PlaceholderPage = ({ title }) => (
@@ -71,7 +73,8 @@ const AnimatedRoutes = () => {
         </Route>
         
         {/* 식단 관련 페이지 */}
-        <Route path="/diet" element={<DietPage />} />
+        <Route path="/diet" element={<DietLogPage />} />
+        <Route path="/ingredient/:mealId" element={<IngredientDetailPage />} />
         
         {/* 커뮤니티 관련 페이지 */}
         <Route path="/community">
