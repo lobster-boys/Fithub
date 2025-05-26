@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// API 기본 설정
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+// API 기본 설정 (Vite 프록시 사용)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

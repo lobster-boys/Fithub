@@ -4,6 +4,7 @@ import Card from '../../components/common/Card';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
 import useWorkoutData from '../../hooks/useWorkoutData';
 import { useDiet } from '../../hooks/useDiet';
+import useEcommerce from '../../hooks/useEcommerce';
 
 function HomePage() {
   // 실제 인증 상태에 따라 동적으로 변경됩니다
@@ -21,6 +22,10 @@ function HomePage() {
 
   // 식단 데이터 훅 사용
   const { todayDiet, loading: dietLoading, error: dietError } = useDiet();
+
+  // 이커머스 데이터 훅 사용
+  const { getHomePageRecommendations } = useEcommerce();
+  const recommendedProducts = getHomePageRecommendations(4);
 
   // 목표 값들 (설정 가능)
   const weeklyWorkoutGoal = 5; // 주 5회 운동 목표
@@ -303,47 +308,7 @@ function HomePage() {
               모두 보기
             </Link>
           }
-          products={[
-            {
-              id: 1,
-              name: "프리미엄 요가 매트",
-              price: 39000,
-              discount: 10,
-              rating: 4.8,
-              reviewCount: 124,
-              image: "https://images.unsplash.com/photo-1599447292461-38fb53fb0fee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-              isBestseller: true
-            },
-            {
-              id: 3,
-              name: "운동용 저항 밴드 세트",
-              price: 25000,
-              discount: 20,
-              rating: 4.6,
-              reviewCount: 245,
-              image: "https://images.unsplash.com/photo-1598550480917-1c485268a92a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-              isBestseller: false
-            },
-            {
-              id: 4,
-              name: "프로틴 쉐이커 보틀",
-              price: 15000,
-              rating: 4.5,
-              reviewCount: 156,
-              image: "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1480&q=80",
-              isBestseller: false
-            },
-            {
-              id: 5,
-              name: "프리미엄 웨이트 프로틴",
-              price: 59000,
-              discount: 5,
-              rating: 4.7,
-              reviewCount: 312,
-              image: "https://images.unsplash.com/photo-1579722821273-0f6c1b933c0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-              isBestseller: true
-            }
-          ]}
+          products={recommendedProducts}
           compact={true}
         />
       </section>

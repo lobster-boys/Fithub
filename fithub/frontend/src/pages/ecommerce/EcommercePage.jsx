@@ -1,98 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
+import useEcommerce from '../../hooks/useEcommerce';
 
 const EcommercePage = () => {
-  // 카테고리 상태
-  const [activeCategory, setActiveCategory] = useState('all');
+  // 이커머스 훅 사용
+  const { 
+    getAllProducts, 
+    getProductsByCategory, 
+    getCategories, 
+    activeCategory, 
+    setActiveCategory 
+  } = useEcommerce();
 
-  // 상품 데이터 - ProductDetailPage와 일치시킴
-  const products = [
-    {
-      id: 1,
-      name: '프리미엄 요가 매트',
-      category: 'equipment',
-      price: 39000,
-      discount: 10,
-      rating: 4.8,
-      reviewCount: 124,
-      image: 'https://images.unsplash.com/photo-1599447292461-38fb53fb0fee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-      isBestseller: true
-    },
-    {
-      id: 2,
-      name: '조절식 덤벨 세트',
-      category: 'equipment',
-      price: 150000,
-      discount: 0,
-      rating: 4.9,
-      reviewCount: 89,
-      image: 'https://images.unsplash.com/photo-1638536532686-d610adba8c7c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
-      isBestseller: true
-    },
-    {
-      id: 3,
-      name: '운동용 저항 밴드 세트',
-      category: 'equipment',
-      price: 25000,
-      discount: 20,
-      rating: 4.6,
-      reviewCount: 245,
-      image: 'https://images.unsplash.com/photo-1598550480917-1c485268a92a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-      isBestseller: false
-    },
-    {
-      id: 4,
-      name: '프로틴 쉐이커 보틀',
-      category: 'accessories',
-      price: 15000,
-      discount: 0,
-      rating: 4.5,
-      reviewCount: 156,
-      image: 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1480&q=80',
-      isBestseller: false
-    },
-    {
-      id: 5,
-      name: '프리미엄 웨이트 프로틴',
-      category: 'nutrition',
-      price: 59000,
-      discount: 5,
-      rating: 4.7,
-      reviewCount: 312,
-      image: 'https://images.unsplash.com/photo-1579722821273-0f6c1b933c0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-      isBestseller: true
-    },
-    {
-      id: 6,
-      name: '스포츠 손목 밴드',
-      category: 'accessories',
-      price: 12000,
-      discount: 0,
-      rating: 4.3,
-      reviewCount: 68,
-      image: 'https://images.unsplash.com/photo-1531917115039-473db54f8482?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-      isBestseller: false
-    }
-  ];
+  // 상품 데이터
+  const products = getAllProducts();
+  const categories = getCategories();
 
   // 디버깅 목적으로 상품 ID 확인
   useEffect(() => {
     console.log("EcommercePage에서 사용 가능한 상품 ID:", products.map(p => `${p.id} (${typeof p.id})`));
-  }, []);
+  }, [products]);
 
   // 카테고리 필터링
-  const filteredProducts = activeCategory === 'all' 
-    ? products 
-    : products.filter(product => product.category === activeCategory);
-
-  // 카테고리 목록
-  const categories = [
-    { id: 'all', name: '전체 상품' },
-    { id: 'equipment', name: '운동 기구' },
-    { id: 'nutrition', name: '영양 보충제' },
-    { id: 'accessories', name: '악세서리' }
-  ];
+  const filteredProducts = getProductsByCategory(activeCategory);
 
   return (
     <div className="container mx-auto px-4 py-8">
