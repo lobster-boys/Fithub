@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../hooks/useAuth';
 
 import FitnessLevelStep from '../components/onboarding/FitnessLevelStep';
 import BodyInfoStep      from '../components/onboarding/BodyInfoStep';
@@ -29,6 +29,7 @@ export default function OnboardingPage() {
     equipment: [],
   });
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const StepComponent = steps[current].Component;
 
@@ -36,10 +37,20 @@ export default function OnboardingPage() {
     if (current < steps.length - 1) {
       setCurrent(current + 1);
     } else {
-      // 마지막 스텝: 서버에 저장 + 온보딩 완료 플래그 true
-      axios.post('/api/user/profile/onboard/', formData)
-        .then(() => navigate('/'))
-        .catch(err => console.error(err));
+      // 마지막 스텝: 온보딩 완료 처리
+      try {
+        // 온보딩 데이터를 로컬 스토리지에 저장
+        if (user) {
+          localStorage.setItem(`fithub_onboarding_${user.id}`, JSON.stringify(formData));
+          localStorage.setItem(`fithub_onboarded_${user.id}`, 'true');
+        }
+        
+        // 홈페이지로 이동
+        navigate('/');
+      } catch (err) {
+        console.error('온보딩 저장 실패:', err);
+        alert('온보딩 정보 저장에 실패했습니다. 다시 시도해주세요.');
+      }
     }
   };
 

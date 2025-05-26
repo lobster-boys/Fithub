@@ -6,11 +6,14 @@ import useWorkoutData from '../../hooks/useWorkoutData';
 import { useDiet } from '../../hooks/useDiet';
 import useEcommerce from '../../hooks/useEcommerce';
 import useCommunity from '../../hooks/useCommunity';
+import { useAuth } from '../../hooks/useAuth';
 
 function HomePage() {
-  // 실제 인증 상태에 따라 동적으로 변경됩니다
-  const isAuthenticated = true;
-  const user = {
+  // AuthContext에서 실제 인증 상태와 사용자 정보 가져오기
+  const { user, isAuthenticated } = useAuth();
+  
+  // 기본값 설정 (사용자 정보가 없을 때)
+  const userInfo = user || {
     username: '사용자',
     level: '초급자',
     goals: '체중 감량, 근력 강화'
@@ -45,15 +48,15 @@ function HomePage() {
             <i className="fas fa-user text-primary text-xl"></i>
           </div>
           <div>
-            <h2 className="text-xl font-bold">안녕하세요, {user?.username}님!</h2>
-            <p className="text-sm text-gray-600">레벨: {user?.level} • {user?.goals}</p>
+            <h2 className="text-xl font-bold">안녕하세요, {userInfo?.username}님!</h2>
+            <p className="text-sm text-gray-600">레벨: {userInfo?.level} • {userInfo?.goals}</p>
           </div>
         </div>
         
         <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-2xl p-6 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">주간 진행 현황</h2>
-            <Link to="/workouts/log" className="text-primary font-medium">
+            <Link to="/workouts" className="text-primary font-medium">
               자세히 보기
             </Link>
           </div>
@@ -125,7 +128,7 @@ function HomePage() {
       <section className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">맞춤 추천 운동</h2>
-          <Link to="/workouts/log" className="text-primary font-medium">
+          <Link to="/workouts" className="text-primary font-medium">
             더보기
           </Link>
         </div>
@@ -262,7 +265,7 @@ function HomePage() {
               return (
                 <Link 
                   key={index} 
-                  to={`/ingredient/${meal.id || index + 1}`} 
+                  to={`/diet/ingredient/${meal.id || index + 1}`} 
                   className={`block p-4 hover:bg-gray-50 transition-colors ${
                     index < todayDiet.meals.length - 1 ? 'border-b border-gray-100' : ''
                   }`}

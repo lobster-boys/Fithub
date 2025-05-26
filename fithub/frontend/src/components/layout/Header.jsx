@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
 const Header = () => {
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [cartItemsCount, setCartItemsCount] = useState(0);
   const navigate = useNavigate();
   
-  // 실제 인증 상태에 따라 동적으로 변경됩니다
-  const isLoggedIn = false;
+  // AuthContext에서 실제 인증 상태 가져오기
+  const { user, isAuthenticated, logout } = useAuth();
   
   // 장바구니 아이템 수 가져오기
   useEffect(() => {
@@ -39,6 +40,11 @@ const Header = () => {
     setShowSearchBar(false);
   };
   
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+  
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -66,9 +72,32 @@ const Header = () => {
               <button className="p-2 rounded-full hover:bg-gray-100">
                 <i className="fas fa-bell text-gray-600"></i>
               </button>
-              {isLoggedIn ? (
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
-                  <span className="text-sm font-medium">U</span>
+              {isAuthenticated ? (
+                <div className="relative group">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white cursor-pointer">
+                    <span className="text-sm font-medium">{user?.username?.charAt(0).toUpperCase() || 'U'}</span>
+                  </div>
+                  {/* 드롭다운 메뉴 */}
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <Link 
+                      to="/profile" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <i className="fas fa-user mr-2"></i>프로필
+                    </Link>
+                    <Link 
+                      to="/settings" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <i className="fas fa-cog mr-2"></i>설정
+                    </Link>
+                    <button 
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <i className="fas fa-sign-out-alt mr-2"></i>로그아웃
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button 
