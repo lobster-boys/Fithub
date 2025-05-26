@@ -5,6 +5,7 @@ import ProductCardList from '../../components/ecommerce/ProductCardList';
 import useWorkoutData from '../../hooks/useWorkoutData';
 import { useDiet } from '../../hooks/useDiet';
 import useEcommerce from '../../hooks/useEcommerce';
+import useCommunity from '../../hooks/useCommunity';
 
 function HomePage() {
   // 실제 인증 상태에 따라 동적으로 변경됩니다
@@ -26,6 +27,10 @@ function HomePage() {
   // 이커머스 데이터 훅 사용
   const { getHomePageRecommendations } = useEcommerce();
   const recommendedProducts = getHomePageRecommendations(4);
+
+  // 커뮤니티 데이터 훅 사용
+  const { getPopularPosts } = useCommunity();
+  const popularPosts = getPopularPosts(2);
 
   // 목표 값들 (설정 가능)
   const weeklyWorkoutGoal = 5; // 주 5회 운동 목표
@@ -323,63 +328,69 @@ function HomePage() {
         </div>
         
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {/* 게시글 1 */}
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center mb-3">
-              <div className="w-10 h-10 rounded-full bg-gray-200 mr-3 overflow-hidden">
-                <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="User" className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <h4 className="font-medium">Jessica Park</h4>
-                <p className="text-xs text-gray-500">2시간 전</p>
-              </div>
+          {popularPosts.length > 0 ? (
+            popularPosts.map((post, index) => (
+              <Link 
+                key={post.id} 
+                to={`/community/${post.id}`}
+                className={`block p-4 hover:bg-gray-50 transition-colors ${
+                  index < popularPosts.length - 1 ? 'border-b border-gray-100' : ''
+                }`}
+              >
+                <div className="flex items-center mb-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 mr-3 overflow-hidden">
+                    <img 
+                      src={post.author.avatar} 
+                      alt={post.author.name} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-medium">{post.author.name}</h4>
+                    <p className="text-xs text-gray-500">{post.date}</p>
+                  </div>
+                </div>
+                <h3 className="font-bold mb-2">{post.title}</h3>
+                <p className="mb-3 text-gray-700 line-clamp-2">
+                  {post.content.length > 100 
+                    ? `${post.content.substring(0, 100)}...` 
+                    : post.content
+                  }
+                </p>
+                <div className="flex justify-between items-center">
+                  <div className="flex space-x-4">
+                    <div className="flex items-center text-gray-500">
+                      <i className="far fa-heart mr-1"></i>
+                      <span>{post.likes}</span>
+                    </div>
+                    <div className="flex items-center text-gray-500">
+                      <i className="far fa-comment mr-1"></i>
+                      <span>{post.comments}</span>
+                    </div>
+                    <div className="flex items-center text-gray-500">
+                      <i className="far fa-eye mr-1"></i>
+                      <span>{post.views}</span>
+                    </div>
+                  </div>
+                  <div className="text-gray-500">
+                    <i className="fas fa-chevron-right"></i>
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="p-8 text-center">
+              <i className="fas fa-comments text-gray-300 text-3xl mb-3"></i>
+              <p className="text-gray-500 mb-3">아직 게시글이 없습니다.</p>
+              <Link 
+                to="/community" 
+                className="inline-flex items-center text-primary hover:text-primary-dark font-medium"
+              >
+                <i className="fas fa-plus mr-1"></i>
+                첫 번째 글 작성하기
+              </Link>
             </div>
-            <p className="mb-3">30일 전신 챌린지를 완료했어요! 🎉 제 진행 상황이 너무 자랑스럽습니다. 마지막 주는 힘들었지만 완전히 가치가 있었어요!</p>
-            <div className="flex justify-between items-center">
-              <div className="flex space-x-4">
-                <button className="flex items-center text-gray-500 hover:text-primary">
-                  <i className="far fa-heart mr-1"></i>
-                  <span>124</span>
-                </button>
-                <button className="flex items-center text-gray-500 hover:text-primary">
-                  <i className="far fa-comment mr-1"></i>
-                  <span>23</span>
-                </button>
-              </div>
-              <button className="text-gray-500 hover:text-primary">
-                <i className="far fa-bookmark"></i>
-              </button>
-            </div>
-          </div>
-          
-          {/* 게시글 2 */}
-          <div className="p-4">
-            <div className="flex items-center mb-3">
-              <div className="w-10 h-10 rounded-full bg-gray-200 mr-3 overflow-hidden">
-                <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User" className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <h4 className="font-medium">Michael Chen</h4>
-                <p className="text-xs text-gray-500">5시간 전</p>
-              </div>
-            </div>
-            <p className="mb-3">새로운 코어 크러셔 운동을 해보신 분 계신가요? 자전거 크런치 중에 자세를 유지하는 팁이 필요합니다.</p>
-            <div className="flex justify-between items-center">
-              <div className="flex space-x-4">
-                <button className="flex items-center text-gray-500 hover:text-primary">
-                  <i className="far fa-heart mr-1"></i>
-                  <span>87</span>
-                </button>
-                <button className="flex items-center text-gray-500 hover:text-primary">
-                  <i className="far fa-comment mr-1"></i>
-                  <span>15</span>
-                </button>
-              </div>
-              <button className="text-gray-500 hover:text-primary">
-                <i className="far fa-bookmark"></i>
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </section>
     </div>

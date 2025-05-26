@@ -10,7 +10,8 @@ import MobileNavigation from './components/layout/MobileNavigation';
 // Pages
 import HomePage from './pages/home/HomePage';
 import WorkoutLogPage from './pages/workout/WorkoutLogPage';
-import CommunityPage from './pages/CommunityPage';
+import CommunityPage from './pages/community/CommunityPage';
+import ContentDetailPage from './pages/community/ContentDetailPage';
 import EcommercePage from './pages/ecommerce/EcommercePage';
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
@@ -35,7 +36,7 @@ const OnboardingPage = () => <PlaceholderPage title="온보딩" />;
 const WorkoutPage = () => <PlaceholderPage title="운동" />;
 // WorkoutDetailPage는 위에서 import
 const DietPage = () => <PlaceholderPage title="식단" />;
-const CommunityPostPage = () => <PlaceholderPage title="게시글 상세" />;
+// ContentDetailPage는 위에서 import
 // ProductDetailPage는 위에서 import
 // ShoppingCartPage는 위에서 import
 const CheckoutPage = () => <PlaceholderPage title="결제" />;
@@ -79,7 +80,7 @@ const AnimatedRoutes = () => {
         {/* 커뮤니티 관련 페이지 */}
         <Route path="/community">
           <Route index element={<CommunityPage />} />
-          <Route path=":postId" element={<CommunityPostPage />} />
+          <Route path=":postId" element={<ContentDetailPage />} />
         </Route>
         
         {/* 쇼핑 관련 페이지 */}
