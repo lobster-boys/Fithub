@@ -32,16 +32,26 @@ export default function OnboardingPage() {
 
   const StepComponent = steps[current].Component;
 
-  const handleNext = () => {
-    if (current < steps.length - 1) {
-      setCurrent(current + 1);
-    } else {
-      // 마지막 스텝: 서버에 저장 + 온보딩 완료 플래그 true
-      axios.post('/api/user/profile/onboard/', formData)
-        .then(() => navigate('/'))
-        .catch(err => console.error(err));
-    }
-  };
+  const handleNext = async () => {
+  // 아직 남은 스텝이 있으면 다음으로
+  if (current < steps.length - 1) {
+    setCurrent(current + 1);
+    return;
+  }
+
+  // 마지막 스텝: 온보딩 데이터 서버에 저장 + 프로필 페이지로 이동
+  try {
+    const token = localStorage.getItem('token');
+    await axios.patch(
+      '/api/profile/',
+      formData,  // 온보딩에서 모은 전체 데이터 객체
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    navigate('/profile');
+  } catch (err) {
+    console.error('온보딩 저장 오류', err);
+  }
+};
 
   const handlePrev = () => {
     if (current > 0) setCurrent(current - 1);
