@@ -17,9 +17,33 @@ conda activate fithub
 conda info --envs
 ```
 
-## 2. 라이브러리 & 패키지 버전 목록
+## 2. 설치한 라이브러리 & 패키지 버전 목록
 
 ```bash
 Python == 3.12
 DRF == 25.1.1
+dj-rest-auth == 7.0.1
+django-allauth == 65.8.1
+djangi-filter == 25.1
+djangorestframework-simplejwt == 5.5.0
+requests == 2.32.3
+python-decouple == 3.8
+djoser == 2.3.1
+django-cors-headers == 4.7.0
+```
+
+## 3. 마이그레이션
+
+```bash
+# 기존 마이그레이션 파일 삭제 (필요시)
+python manage.py makemigrations users --empty
+
+# 새로운 마이그레이션 생성
+python manage.py makemigrations
+
+# 마이그레이션 적용
+python manage.py migrate
+
+# 슈퍼유저 생성
+python manage.py createsuperuser
 ```
