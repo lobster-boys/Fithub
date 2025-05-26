@@ -22,6 +22,7 @@ import WorkoutDetailPage from './pages/workout/WorkoutDetailPage';
 import IngredientDetailPage from './pages/diet/IngredientDetailPage';
 import DietLogPage from './pages/diet/DietLogPage';
 import OnboardingPage from './pages/OnboardingPage';
+import ProfilePage from './pages/ProfilePage.jsx';
 
 // Context and Hooks
 import { AuthProvider } from './context/AuthContext';
@@ -38,7 +39,6 @@ const PlaceholderPage = ({ title }) => (
 // 아직 구현되지 않은 페이지들은 플레이스홀더로 대체
 const CheckoutPage = () => <PlaceholderPage title="결제" />;
 const OrderHistoryPage = () => <PlaceholderPage title="주문 내역" />;
-const ProfilePage = () => <PlaceholderPage title="프로필" />;
 const SettingsPage = () => <PlaceholderPage title="설정" />;
 
 // 인증이 필요한 페이지들을 보호하는 컴포넌트
