@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,9 +46,20 @@ INSTALLED_APPS = [
     "challenge",
     "diet",
     "api",
+    # back-feat-oauth-login
+    "rest_framework",
+    "django.contrib.sites",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "corsheaders",
+    "rest_framework.authtoken",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware", # CORS Middleware setting
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -55,7 +67,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware"
 ]
+
+# CORS setting
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  
+]
+CORS_ORIGIN_ALLOW_ALL = True  
 
 ROOT_URLCONF = "config.urls"
 
@@ -111,9 +130,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "ko-kr"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Seoul"
 
 USE_I18N = True
 
@@ -129,3 +148,29 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Custom User Model 설정
+AUTH_USER_MODEL = 'users.User'
+
+SITE_ID = 1
+
+# allauth
+AUTHENTICATION_BACKENDS = [
+    # 추가 장고에서 사용자의 이름을 기준으로 로그인하도록 설정
+    "django.contrib.auth.backends.ModelBackend",
+    # 추가 'allauth'의 인증방식 추가
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# 미디어 파일 설정 (프로필 이미지용)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# REST_FRAMWORK, JWT
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
