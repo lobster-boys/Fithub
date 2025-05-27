@@ -5,21 +5,17 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 # 사용자 인증 및 기본 정보를 관리하는 모델
 class User(AbstractUser):
     """
-    Django의 기본 필드(username, password, date_joined, last_login, is_staff 등)들이 포함된 상태
+    AbstractUser를 상송받으면 기본 필드(date_joined, last_login, is_active, is_staff 등)들이 자동으로 포함됨
     """
         
     email = models.EmailField(unique=True, max_length=254)
-    profile_image = models.ImageField(
-        upload_to='profile_images/', 
-        null=True, 
-        blank=True,
-        help_text="사용자 프로필 이미지"
-    )
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+
 
     class Meta:
         db_table = 'user'
-        verbose_name = '사용자'
-        verbose_name_plural = '사용자들'
+        verbose_name_plural = '사용자'
     
     def __str__(self):
         return self.username
@@ -91,13 +87,17 @@ class UserProfile(models.Model):
         null=True, 
         blank=True
     )
+    profile_image = models.URLField(
+        null=True, 
+        blank=True,
+        help_text="사용자 프로필 이미지"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'userprofile'
-        verbose_name = '사용자 프로필'
-        verbose_name_plural = '사용자 프로필들'
+        verbose_name_plural = '사용자 프로필'
     
     def __str__(self):
         return f"{self.user.username}의 프로필"
