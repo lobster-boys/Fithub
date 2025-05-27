@@ -220,10 +220,12 @@ REST_AUTH = {
     'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
 }
 
-# 로그인 방식: username, email
-ACCOUNT_AUTHENTICATION_METHOD = "username_email"
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_EMAIL_REQUIRED = True
+# 로그인 방식: username or email
+# ACCOUNT_AUTHENTICATION_METHOD = "username_email"
+ACCOUNT_LOGIN_METHOD = {"email", "username"}
+# ACCOUNT_USERNAME_REQUIRED = False
+# ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_SIGNUP_FIELDS = ["username", "email*", "password1*", "password2*"]
 ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
 
 # 이메일 인증 설정
