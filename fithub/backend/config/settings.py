@@ -40,7 +40,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-
     # app 등록
     "users",
     "community",
@@ -49,7 +48,6 @@ INSTALLED_APPS = [
     "challenge",
     "diet",
     "api",
-
     # DRF & Auth
     "rest_framework",
     "rest_framework.authtoken",
@@ -58,7 +56,6 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-
     # CORS
     "corsheaders",
 ]
@@ -72,14 +69,37 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware"
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 # CORS setting
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  
+    "http://localhost:5173",
 ]
-CORS_ORIGIN_ALLOW_ALL = True  
+CORS_ORIGIN_ALLOW_ALL = False # 특정 도메인만 허용
+CORS_ALLOW_CREDENTIALS = True # 인증 정보 포함 요청 허용
+
+# 추가 CORS 설정 > 프론트+백엔드 통합 후 사용
+# CORS_ALLOW_HEADERS = [
+#     'accept',
+#     'accept-encoding',
+#     'authorization',
+#     'content-type',
+#     'dnt',
+#     'origin',
+#     'user-agent',
+#     'x-csrftoken',
+#     'x-requested-with',
+# ]
+
+# CORS_ALLOW_METHODS = [
+#     'DELETE',
+#     'GET',
+#     'OPTIONS',
+#     'PATCH',
+#     'POST',
+#     'PUT',
+# ]
 
 ROOT_URLCONF = "config.urls"
 
