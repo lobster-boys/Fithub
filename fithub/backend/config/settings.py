@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,6 +39,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
+
     # app 등록
     "users",
     "community",
@@ -46,16 +49,18 @@ INSTALLED_APPS = [
     "challenge",
     "diet",
     "api",
-    # back-feat-oauth-login
+
+    # DRF & Auth
     "rest_framework",
-    "django.contrib.sites",
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "corsheaders",
     "rest_framework.authtoken",
     "dj_rest_auth",
     "dj_rest_auth.registration",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+
+    # CORS
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
@@ -153,6 +158,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Custom User Model 설정
 AUTH_USER_MODEL = 'users.User'
 
+# 사이트 설정
 SITE_ID = 1
 
 # allauth
@@ -167,10 +173,46 @@ AUTHENTICATION_BACKENDS = [
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# REST_FRAMWORK, JWT
-
+# dj_rest_auth setting
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
     ),
 }
+
+# JWT setting
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# dj-rest-auth setting
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_HTTPONLY": True, 
+    'JWT_AUTH_REFRESH_COOKIE' : "refresh_token", 
+    'SESSION_LOGIN' :False, 
+    'JWT_AUTH_SAMESITE': 'Lax',
+    'JWT_AUTH_COOKIE_USE_CSRF' : False,
+    # users models 커스텀
+    'USER_DETAILS_SERIALIZER': "users.serializers.CustomLoginSerializer", 
+    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
+}
+
+# 로그인 방식: username, email
+ACCOUNT_AUTHENTICATION_METHOD = "username_email"
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
+
+# 이메일 인증 설정
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_LOGOUT_ON_GET = True 
+# SOCIALACCOUNT_LOGIN_ON_GET = True 
+
+# 사용자 인증 방식 정의
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend", # 기본 Django 인증 방식
+    "allauth.account.auth_backends.AuthenticationBackend", # allauth 인증 방식
+]
