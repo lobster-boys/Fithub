@@ -74,7 +74,7 @@ MIDDLEWARE = [
 
 # CORS setting
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    "http://localhost:3000",
 ]
 CORS_ORIGIN_ALLOW_ALL = False # 특정 도메인만 허용
 CORS_ALLOW_CREDENTIALS = True # 인증 정보 포함 요청 허용
@@ -189,6 +189,11 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
+# 로그인, 로그아웃 Redirect URL 설정
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+# ACCOUNT_LOGOUT_ON_GET = True: GET요청으로 로그아웃 시도할 때, 바로 로그아웃 되도록 설정(로그아웃 하시겠습니까? 같은 팝업창 쓸 거 아니면 사용 X)
+
 # 미디어 파일 설정 (프로필 이미지용)
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -225,7 +230,7 @@ REST_AUTH = {
 ACCOUNT_LOGIN_METHOD = {"email", "username"}
 # ACCOUNT_USERNAME_REQUIRED = False
 # ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_SIGNUP_FIELDS = ["username", "email*", "password1*", "password2*"]
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*", "first_name", "last_name"]
 ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
 
 # 이메일 인증 설정
