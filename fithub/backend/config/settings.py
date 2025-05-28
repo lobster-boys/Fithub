@@ -142,6 +142,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 8, # 최소 8자리 이상 입력
+        }
     },
     {
         "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
@@ -234,9 +237,22 @@ ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*", "fir
 ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
 
 # 이메일 인증 설정
-ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_EMAIL_VERIFICATION = "none" # mendatory
+# ACCOUNT_EMAIL_REQUIRED = True
+# ACCOUNT_USERNAME_REQUIRED = True
 ACCOUNT_LOGOUT_ON_GET = True 
 # SOCIALACCOUNT_LOGIN_ON_GET = True 
+
+# 이메일 백엔드 설정 (개발환경용 - 콘솔에 이메일 출력)
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# 프로덕션 환경에서는 실제 이메일 서비스 사용
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'your-email@gmail.com'
+# EMAIL_HOST_PASSWORD = 'your-app-password'
 
 # 사용자 인증 방식 정의
 AUTHENTICATION_BACKENDS = [
