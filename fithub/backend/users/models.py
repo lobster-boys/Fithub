@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MinValueValidator, MaxValueValidator
 
 # 사용자 인증 및 기본 정보를 관리하는 모델
 class User(AbstractUser):
@@ -64,16 +63,12 @@ class UserProfile(models.Model):
         decimal_places=2, 
         null=True, 
         blank=True,
-        validators=[MinValueValidator(0), MaxValueValidator(300)],
-        help_text="키 (cm)"
     )
     weight = models.DecimalField(
         max_digits=5, 
         decimal_places=2, 
         null=True, 
         blank=True,
-        validators=[MinValueValidator(0), MaxValueValidator(500)],
-        help_text="몸무게 (kg)"
     )
     fitness_goal = models.CharField(
         max_length=20, 
@@ -90,7 +85,6 @@ class UserProfile(models.Model):
     profile_image = models.URLField(
         null=True, 
         blank=True,
-        help_text="사용자 프로필 이미지"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -112,3 +106,25 @@ class UserProfile(models.Model):
                 (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
             )
         return None
+    
+# 소셜 로그인 
+class SocialAccounts(models.Model):
+
+    PROVIDER_CHOICES = [
+        ('kakao', '카카오'),
+        ('google', '구글'),
+        ('facebook', '페이스북'),
+        ('naver', '네이버'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='social_accounts')
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    provider_id = models.CharField(max_length=100)  # 소셜 플랫폼에서의 고유 ID
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'social_account'
+        verbose_name_plural = '소셜 계정'
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.provider}"
