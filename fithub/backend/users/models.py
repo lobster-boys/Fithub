@@ -108,7 +108,7 @@ class UserProfile(models.Model):
         return None
     
 # 소셜 로그인 
-class SocialAccounts(models.Model):
+class SocialAccount(models.Model):
 
     PROVIDER_CHOICES = [
         ('kakao', '카카오'),
