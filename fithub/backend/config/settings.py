@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 from datetime import timedelta
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -56,6 +57,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
+    "allauth.socialaccount.providers.kakao", # 카카오
     # CORS
     "corsheaders",
 ]
@@ -69,7 +71,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
+    "allauth.account.middleware.AccountMiddleware", # social login setting
 ]
 
 # CORS setting
@@ -241,7 +243,6 @@ ACCOUNT_EMAIL_VERIFICATION = "none" # mendatory
 # ACCOUNT_EMAIL_REQUIRED = True
 # ACCOUNT_USERNAME_REQUIRED = True
 ACCOUNT_LOGOUT_ON_GET = True 
-# SOCIALACCOUNT_LOGIN_ON_GET = True 
 
 # 이메일 백엔드 설정 (개발환경용 - 콘솔에 이메일 출력)
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
@@ -259,3 +260,32 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend", # 기본 Django 인증 방식
     "allauth.account.auth_backends.AuthenticationBackend", # allauth 인증 방식
 ]
+
+# 소셜 로그인 설정
+# pip install python-decouple
+SOCIALACCOUNT_PROVIDERS = {
+    "kakao": {
+        "APP": {
+            "client_id": config("KAKAO_CLIENT_ID"),
+            "secret": config("KAKAO_SECRET"),
+            "key": "",
+        },
+        "SCOPE": [
+            "account_email",
+            "profile_nickname",
+            "profile_image",
+            "gender",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",  
+            "prompt": "select_account",  
+        },
+        "VERIFIED_EMAIL": False,
+    }
+}
+
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_ADAPTER = "users.adapters.KakaoSocialAccountAdapter"
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_AUTO_SIGNUP = True
