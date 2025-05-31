@@ -3,9 +3,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
+from fithub.backend.users.serializers import userprofile_serializers
 from users.models import UserProfile
 from django.shortcuts import get_object_or_404
-from users.serializers import UserProfileUpdateSerializer, UserProfileCreateSerializer, UserProfileSerializer
+# from users.serializers import UserProfileUpdateSerializer, UserProfileCreateSerializer, UserProfileSerializer
+from users.serializers import userprofile_serializers
 from users.permissions import IsOwnerOrReadOnly
 
 
@@ -15,12 +17,12 @@ class UserProfileDetail(APIView):
 
     def get(self, request, pk):
         profile = get_object_or_404(UserProfile, pk=pk)
-        serializer = UserProfileSerializer(profile)
+        serializer = userprofile_serializers.UserProfileSerializer(profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def patch(self, request, pk):
         profile = get_object_or_404(UserProfile, pk=pk)
-        serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True) # PATCH 요청 속성
+        serializer = userprofile_serializers.UserProfileUpdateSerializer(profile, data=request.data, partial=True) # PATCH 요청 속성
 
         if serializer.is_valid():
             serializer.save()
@@ -47,7 +49,7 @@ class UserProfileCreateView(APIView):
         if UserProfile.objects.filter(user=request.user).exists():
             return Response({'detail': '프로필이 이미 존재합니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = UserProfileCreateSerializer(data=request.data)
+        serializer = userprofile_serializers.UserProfileCreateSerializer(data=request.data)
 
         if serializer.is_valid():
             serializer.save(user=request.user) # 현재 인증된 사용자로 저장
