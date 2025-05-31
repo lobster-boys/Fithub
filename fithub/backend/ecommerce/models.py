@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
 from django.urls import reverse
+from users.models import User
 
 # Create your models here.
 class Category(models.Model):
@@ -40,3 +41,9 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         self.slug = slugify(self.name, allow_unicode=True)
         super(Product, self).save(*args, **kwargs)
+
+class Cart(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE
+    )
+    cart_items = models.CharField(max_length=1000, blank=True, null=True)
