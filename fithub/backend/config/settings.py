@@ -226,8 +226,8 @@ REST_AUTH = {
     'JWT_AUTH_SAMESITE': 'Lax',
     'JWT_AUTH_COOKIE_USE_CSRF' : False,
     # users models 커스텀
-    'USER_DETAILS_SERIALIZER': "users.serializers.CustomLoginSerializer", 
-    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
+    'USER_DETAILS_SERIALIZER': "users.serializers.registration_serializers.CustomLoginSerializer", 
+    'REGISTER_SERIALIZER': 'users.serializers.registration_serializers.CustomRegisterSerializer',
 }
 
 # 로그인 방식: username or email
