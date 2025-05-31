@@ -2,12 +2,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-
-from fithub.backend.users.serializers import userprofile_serializers
+from users.serializers import userprofile_serializers
 from users.models import UserProfile
 from django.shortcuts import get_object_or_404
-# from users.serializers import UserProfileUpdateSerializer, UserProfileCreateSerializer, UserProfileSerializer
-from users.serializers import userprofile_serializers
 from users.permissions import IsOwnerOrReadOnly
 
 
