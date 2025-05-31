@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from ecommerce.models import Cart
 
-class cartSerializers(serializers.ModelSerializer):
+class CartSerializers(serializers.ModelSerializer):
     """
     {
         "id": 1,
