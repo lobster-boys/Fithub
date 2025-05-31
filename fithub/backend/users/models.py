@@ -24,25 +24,25 @@ class User(AbstractUser):
 class UserProfile(models.Model):
 
     GENDER_CHOICES = [
-        ('M', '남성'),
-        ('F', '여성'),
-        ('O', '기타'),
+        ('m', '남성'),
+        ('f', '여성'),
+        ('o', '기타'),
     ]
 
     FITNESS_GOAL_CHOICES = [
-        ('WEIGHT_LOSS', '체중 감량'),
-        ('MUSCLE_GAIN', '근육 증가'),
-        ('MAINTENANCE', '체중 유지'),
-        ('ENDURANCE', '지구력 향상'),
-        ('STRENGTH', '근력 향상'),
+        ('weight_loss', '체중 감량'),
+        ('muscle_gain', '근육 증가'),
+        ('maintenance', '체중 유지'),
+        ('endurance', '지구력 향상'),
+        ('strenght', '근력 향상'),
     ]
 
     ACTIVITY_LEVEL_CHOICES = [
-        ('SEDENTARY', '비활동적'),
-        ('LIGHT', '가벼운 활동'),
-        ('MODERATE', '보통 활동'),
-        ('ACTIVE', '활발한 활동'),
-        ('VERY_ACTIVE', '매우 활발한 활동'),
+        ('sedentary', '비활동적'),
+        ('light', '가벼운 활동'),
+        ('moderate', '보통 활동'),
+        ('active', '활발한 활동'),
+        ('very_active', '매우 활발한 활동'),
     ]
 
     user = models.OneToOneField(
