@@ -1,7 +1,7 @@
 # adapters.py
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth import get_user_model
-from .models import UserProfile, SocialAccount, UserPoint, Cart
+from .models import UserProfile, SocialAccount
 import logging
 
 logger = logging.getLogger(__name__)
@@ -82,13 +82,13 @@ class KakaoSocialAccountAdapter(DefaultSocialAccountAdapter):
             provider_id=str(sociallogin.account.uid)
         )
         
-    def _initialize_user_data(self, user):
-        """사용자 기본 데이터 초기화"""
-        # UserPoint 초기화
-        UserPoint.objects.get_or_create(
-            user=user,
-            defaults={'balance': 0}
-        )
+    # def _initialize_user_data(self, user):
+    #     """사용자 기본 데이터 초기화"""
+    #     # UserPoint 초기화
+    #     UserPoint.objects.get_or_create(
+    #         user=user,
+    #         defaults={'balance': 0}
+    #     )
         
         # Cart 초기화
         # Cart.objects.get_or_create(user=user)
