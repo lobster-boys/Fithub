@@ -13,5 +13,6 @@ urlpatterns = [
     path("dj-rest-auth/users/profile/", profile_views.UserProfileCreateView.as_view(), name="profile-create"),
     path("dj-rest-auth/users/profile/<int:pk>/", profile_views.UserProfileDetail.as_view(), name="profile-detail"),
     # 커뮤니티URL
-    path('dj-rest-auth/posts/', community_views.UserPostCreateView.as_view(), name='post')
+    path('dj-rest-auth/posts/', community_views.UserPostCreateView.as_view(), name='post-creatRead'),
+    path('dj-rest-auth/posts/<int:pk>/', community_views.UserPostDetail.as_view(), name='post-detail')
 ]
