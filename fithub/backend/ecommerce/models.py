@@ -47,3 +47,6 @@ class Cart(models.Model):
         User, on_delete=models.CASCADE
     )
     cart_items = models.CharField(max_length=1000, blank=True, null=True)
+
+    def __str__(self):
+        return self.cart_items
