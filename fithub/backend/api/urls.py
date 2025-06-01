@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import social_views, profile_views
+from .views import social_views, profile_views, community_views
 
 
 app_name = "api"
@@ -12,4 +12,6 @@ urlpatterns = [
     # 유저 프로필 URL
     path("dj-rest-auth/users/profile/", profile_views.UserProfileCreateView.as_view(), name="profile-create"),
     path("dj-rest-auth/users/profile/<int:pk>/", profile_views.UserProfileDetail.as_view(), name="profile-detail"),
+    # 커뮤니티URL
+    path('dj-rest-auth/posts/', community_views.UserPostCreateView.as_view(), name='post')
 ]
