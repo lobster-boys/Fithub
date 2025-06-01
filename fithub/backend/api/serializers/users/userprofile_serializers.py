@@ -3,7 +3,7 @@ from users.models import UserProfile
 from datetime import date
 from decimal import Decimal
 
-# 유저 프로필 시리얼라이즈 공통 유효성 검증
+# 유저 프로필 시리얼라이즈 공통 검증 로직
 class BaseUserProfileSerializer(serializers.ModelSerializer):
 
     def validate_gender(self, value):
