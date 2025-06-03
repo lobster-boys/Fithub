@@ -1,6 +1,7 @@
 from api.views.category_views import categories, category
 from api.views.product_views import products, product
 from api.views.cart_views import CartAPI
+from api.views.order_views import OrdersAPI, OrderAPI
 from django.urls import path, include
 
 app_name = "api"
@@ -14,7 +15,11 @@ urlpatterns = [
     path("ecommerce/product/<int:id>", product),
     # 카트 URL
     path("ecommerce/cart/", CartAPI.as_view()),
+    # 주문내역 URL
+    path("ecommerce/order/", OrdersAPI.as_view()),
+    path("ecommerce/order/<int:id>", OrdersAPI.as_view()),
     # 로그인/회원가입 URL
     path("dj-rest-auth/", include("dj_rest_auth.urls")),
     path("dj-rest-auth/registration/", include("dj_rest_auth.registration.urls")),
+
 ]

@@ -52,3 +52,14 @@ class Cart(models.Model):
 
     def __str__(self):
         return self.cart_items
+    
+# 주문 모델
+class Order(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE
+    )
+    shipping_address = models.CharField(max_length=1000)
+    order_number = models.CharField(max_length=50)
+    status = models.CharField(max_length=20)
+    total_amount = models.DecimalField(default=0, max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=50)
