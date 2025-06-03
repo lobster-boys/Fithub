@@ -1,5 +1,7 @@
 from django.urls import path, include
-from .views import social_views, profile_views, community_views
+from .views.community import post_views, comment_views
+from .views.social import social_views
+from .views.users import profile_views
 
 
 app_name = "api"
@@ -12,7 +14,10 @@ urlpatterns = [
     # 유저 프로필 URL
     path("dj-rest-auth/users/profile/", profile_views.UserProfileCreateView.as_view(), name="profile-create"),
     path("dj-rest-auth/users/profile/<int:pk>/", profile_views.UserProfileDetail.as_view(), name="profile-detail"),
-    # 커뮤니티URL
-    path('dj-rest-auth/posts/', community_views.UserPostCreateView.as_view(), name='post-creatRead'),
-    path('dj-rest-auth/posts/<int:pk>/', community_views.UserPostDetail.as_view(), name='post-detail')
+    # 게시글 CRUD URL
+    path('dj-rest-auth/posts/', post_views.UserPostCreateView.as_view(), name='post-creat'),
+    path('dj-rest-auth/posts/<int:pk>/', post_views.UserPostDetail.as_view(), name='post-detail'),
+    # 댓글 CRUD URL
+    path('dj-rest-auth/posts/<int:post_id>/comments/', comment_views.UserCommentDetail.as_view(), name='comment-create'),
+    path('dj-rest-auth/posts/<int:post_id>/comments/<int:pk>/', comment_views.UserCommentDetail.as_view(), name='comment-detail')
 ]
