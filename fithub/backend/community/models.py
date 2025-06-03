@@ -53,3 +53,14 @@ class Comment(models.Model):
 
     def __str__(self):
         return self.content[:20]
+    
+
+class PostLike(models.Model):
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, related_name='postLike', on_delete=models.CASCADE)
+
+class CommentLike(models.Model):
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    comment = models.ForeignKey(Comment, related_name='commentLike', on_delete=models.CASCADE)
