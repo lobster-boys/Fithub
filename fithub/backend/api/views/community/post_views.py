@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from community.models import Post
-from ..serializers.community.post_serializers import UserPostSerializer, UserPostCreateSerializer
+from ...serializers.community.post_serializers import UserPostSerializer
 
 # 특정(id) 게시물 조회/수정/삭제
 class UserPostDetail(APIView):
@@ -13,7 +13,8 @@ class UserPostDetail(APIView):
 
     def get(self, request, pk):
         post = get_object_or_404(Post, pk=pk)
-        serializer = UserPostSerializer(post)
+        # GET /api/dj-rest-auth/posts/{id}/ordering=like_count 
+        serializer = UserPostSerializer(post, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request, pk):
@@ -26,7 +27,10 @@ class UserPostDetail(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # 순환참조 방지
+        from ...serializers.community.post_serializers import UserPostCreateSerializer
         serializer = UserPostCreateSerializer(post, data=request.data, partial=True)
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -60,10 +64,18 @@ class UserPostCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
+        # 순환참조 방지
+        from ...serializers.community.post_serializers import UserPostCreateSerializer
         serializer = UserPostCreateSerializer(data=request.data, context={'request': request})
+        
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
+
+
+
+
+
+
