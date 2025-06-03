@@ -2,9 +2,20 @@ from rest_framework import serializers
 from users.models import UserProfile
 from datetime import date
 from decimal import Decimal
+import re
 
 # 유저 프로필 시리얼라이즈 공통 검증 로직
 class BaseUserProfileSerializer(serializers.ModelSerializer):
+
+    def validate_name(self, value):
+        value = value.strip()
+
+        if not (1 <= len(value) < 10):
+            raise serializers.ValidationError('이름은 최소 1글자 이상 10글자 미만이어야 합니다.')
+        if not re.fullmatch(r"[A-Za-z가-힣]+", value): # 허용되는 문자: 영문 대소문자와 한글
+            raise serializers.ValidationError('이름에는 특수문자 및 숫자가 포함될 수 없습니다.')
+
+        return value
 
     def validate_gender(self, value):
         allowed_value = ['m', 'f', 'o']
@@ -57,6 +68,7 @@ class UserProfileSerializer(BaseUserProfileSerializer):
         model = UserProfile
         fields = [
             'user',
+            'name',
             'birth_date',
             'gender',
             'height',
@@ -76,6 +88,8 @@ class UserProfileCreateSerializer(BaseUserProfileSerializer):
         model = UserProfile
         # 생성 시 클라이언트가 전달해야 하는 필드만 포함
         fields = [
+            'user',
+            'name',
             'birth_date',
             'gender',
             'height',
@@ -85,7 +99,7 @@ class UserProfileCreateSerializer(BaseUserProfileSerializer):
             'profile_image',
             'created_at',
         ]
-        read_only_fields = ['created_at']
+        read_only_fields = ['user', 'created_at']
         # UserProfile 모델에서 profile_image 필드가 이미 null & blank 속성이 True 이므로
         # extra_kwargs를 지정하지 않아도 되지만, API 문서화 및 명시적인 설정을 위해 작성함
         extra_kwargs = {
@@ -101,6 +115,8 @@ class UserProfileUpdateSerializer(BaseUserProfileSerializer):
         model = UserProfile
         # 업데이트 시 변경 가능한 필드만 정의
         fields = [
+            'user',
+            'name',
             'birth_date',
             'gender',
             'height',
@@ -110,4 +126,4 @@ class UserProfileUpdateSerializer(BaseUserProfileSerializer):
             'profile_image',
             'updated_at',
         ]
-        read_only_fields = ['updated_at']
+        read_only_fields = ['user', 'updated_at']
