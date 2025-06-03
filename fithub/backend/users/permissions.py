@@ -3,7 +3,7 @@ from rest_framework.permissions import BasePermission
 class IsOwnerOrReadOnly(BasePermission):
     # 인증된 사용자만 자신의 프로필을 수정할 수 있도록 권한 설정
     # 다른 사용자의 프로필에 접근할 경우 조회만 가능(ReadOnly)
-    # 다른 사용자의 프로필은 조회(GET)만 가능
+    # 공식 문서: https://www.django-rest-framework.org/api-guide/permissions/
 
     def has_object_permission(self, request, view, obj):
 
