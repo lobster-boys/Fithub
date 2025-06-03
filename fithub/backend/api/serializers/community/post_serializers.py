@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from .comment_serializers import CommentSerializer
 from community.models import Post
 from PIL import Image
 
@@ -54,51 +55,74 @@ class BaseUserPostSerializer(serializers.ModelSerializer):
 
         return value
 
+
 # 게시글 조회 전용 Serializer
+# 특정 게시물 조회 시, comment 필드도 보이도록 수정
 class UserPostSerializer(BaseUserPostSerializer):
+
+    # comments 필드를 추가하여 해당 Post의 댓글들을 중첩(nested) 시리얼라이징
+    comments = CommentSerializer(many=True, read_only=True)
     
     class Meta:
         model = Post
         fields = [
+            'id',
             'user',
             'title',
             'content',
             'content_category',
             'content_image',
             'like_count',
+            'comments',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['user', 'like_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'like_count', 'created_at', 'updated_at']
         extra_kwargs = {
             'content_image': {
                 'required': False,
                 'allow_null': True,
             },
         }
+
+    # 댓글 필터링 
+    def get_comments(self, instance):
+        request = self.context.get('request') # post_views에서 context로 넘김
+        ordering = request.query_params.get('ordering', 'latest') if request else 'latest'
+        qs = instance.comments.all()  # related_name이 'comments'인 경우
+
+        if ordering == 'latest':
+            qs = qs.order_by('-created_at')
+        elif ordering == 'oldest':
+            qs = qs.order_by('created_at')
+        elif ordering == 'like_count':
+            qs = qs.order_by('-like_count')  
+        
+        return CommentSerializer(qs, many=True).data
 
 
 # 게시글 생성 전용 Serializer
 class UserPostCreateSerializer(BaseUserPostSerializer):
+    user = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = Post
         fields = [
+            'id',
+            'user',
             'title',
             'content',
             'content_category',
             'content_image',
+            'created_at'
         ]
+        read_only_fields = ['id', 'user', 'created_at']
         extra_kwargs = {
             'content_image': {
                 'required': False,
                 'allow_null': True,
             },
         }
-
-    # 전체 데이터에 대한 검증
-    def validate(self, attrs):
-        return attrs
 
     def create(self, validated_data):
         # 게시글 생성 시, 현재 로그인한 사용자를 user 필드에 자동으로 할당
@@ -108,23 +132,26 @@ class UserPostCreateSerializer(BaseUserPostSerializer):
 
 # 게시글 업데이트 전용 Serializer
 class UserPostUpdateSerializer(BaseUserPostSerializer):
+    user = serializers.StringRelatedField(read_only=True)
     
     class Meta:
         model = Post
         fields = [
+            'id',
+            'user',
             'title',
             'content',
             'content_category',
             'content_image',
+            'like_count',
+            'comments',
+            'updated_at'
         ]
+        read_only_fields = ['id', 'user', 'like_count', 'updated_at']
         extra_kwargs = {
             'content_image': {
                 'required': False,
                 'allow_null': True,
             },
         }
-
-    # 전체 데이터 검증
-    def validate(self, attrs):
-        return attrs
 
