@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,7 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "rest_framework",  # DRF
+    "django.contrib.sites",
     # app 등록
     "users",
     "community",
@@ -46,9 +48,20 @@ INSTALLED_APPS = [
     "challenge",
     "diet",
     "api",
+    # DRF & Auth
+    "rest_framework",
+    "rest_framework.authtoken",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    # CORS
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware", # CORS Middleware setting
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -56,7 +69,37 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
+
+# CORS setting
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+CORS_ORIGIN_ALLOW_ALL = False # 특정 도메인만 허용
+CORS_ALLOW_CREDENTIALS = True # 인증 정보 포함 요청 허용
+
+# 추가 CORS 설정 > 프론트+백엔드 통합 후 사용
+# CORS_ALLOW_HEADERS = [
+#     'accept',
+#     'accept-encoding',
+#     'authorization',
+#     'content-type',
+#     'dnt',
+#     'origin',
+#     'user-agent',
+#     'x-csrftoken',
+#     'x-requested-with',
+# ]
+
+# CORS_ALLOW_METHODS = [
+#     'DELETE',
+#     'GET',
+#     'OPTIONS',
+#     'PATCH',
+#     'POST',
+#     'PUT',
+# ]
 
 ROOT_URLCONF = "config.urls"
 
@@ -112,9 +155,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "ko-kr"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Seoul"
 
 USE_I18N = True
 
@@ -130,3 +173,73 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Custom User Model 설정
+AUTH_USER_MODEL = 'users.User'
+
+# 사이트 설정
+SITE_ID = 1
+
+# allauth
+AUTHENTICATION_BACKENDS = [
+    # 추가 장고에서 사용자의 이름을 기준으로 로그인하도록 설정
+    "django.contrib.auth.backends.ModelBackend",
+    # 추가 'allauth'의 인증방식 추가
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# 로그인, 로그아웃 Redirect URL 설정
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+# ACCOUNT_LOGOUT_ON_GET = True: GET요청으로 로그아웃 시도할 때, 바로 로그아웃 되도록 설정(로그아웃 하시겠습니까? 같은 팝업창 쓸 거 아니면 사용 X)
+
+# 미디어 파일 설정 (프로필 이미지용)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# dj_rest_auth setting
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+    ),
+}
+
+# JWT setting
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# dj-rest-auth setting
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_HTTPONLY": True, 
+    'JWT_AUTH_REFRESH_COOKIE' : "refresh_token", 
+    'SESSION_LOGIN' :False, 
+    'JWT_AUTH_SAMESITE': 'Lax',
+    'JWT_AUTH_COOKIE_USE_CSRF' : False,
+    # users models 커스텀
+    'USER_DETAILS_SERIALIZER': "users.serializers.CustomLoginSerializer", 
+    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
+}
+
+# 로그인 방식: username or email
+# ACCOUNT_AUTHENTICATION_METHOD = "username_email"
+ACCOUNT_LOGIN_METHOD = {"email", "username"}
+# ACCOUNT_USERNAME_REQUIRED = False
+# ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*", "first_name", "last_name"]
+ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
+
+# 이메일 인증 설정
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_LOGOUT_ON_GET = True 
+# SOCIALACCOUNT_LOGIN_ON_GET = True 
+
+# 사용자 인증 방식 정의
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend", # 기본 Django 인증 방식
+    "allauth.account.auth_backends.AuthenticationBackend", # allauth 인증 방식
+]
