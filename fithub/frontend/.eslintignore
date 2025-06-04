@@ -1,0 +1,16 @@
+# 빌드 결과물
+build
+dist
+public/build
+
+# 의존성 모듈
+node_modules
+
+# 환경 설정 파일
+.env
+.env.*
+
+# 기타 무시할 파일
+*.log
+*.lock
+*.min.js 

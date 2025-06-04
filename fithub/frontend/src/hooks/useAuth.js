@@ -1,7 +1,8 @@
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
-const useAuth = () => {
+// AuthContext를 사용하는 커스텀 훅
+export const useAuth = () => {
   const context = useContext(AuthContext);
   
   if (!context) {

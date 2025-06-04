@@ -12,7 +12,7 @@ const MobileNavigation = () => {
       label: '홈'
     },
     {
-      path: '/workouts',
+      path: '/workouts/log',
       icon: 'fas fa-dumbbell',
       label: '운동'
     },
