@@ -1,13 +1,10 @@
 from rest_framework import serializers
 from dj_rest_auth.registration.serializers import RegisterSerializer
-from .models import User
-
-# 이메일 및 비밀번호 검증 로직
+from users.models import User
 import re
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-
 
 # 로그인 후 응답 데이터 커스텀
 class CustomLoginSerializer(serializers.ModelSerializer):
