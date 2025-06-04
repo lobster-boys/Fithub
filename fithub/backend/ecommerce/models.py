@@ -35,6 +35,7 @@ class Product(models.Model):
     is_food = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False)
+    recommendations_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="추천 점수")
 
     def __str__(self):
         return self.name
@@ -48,10 +49,11 @@ class Cart(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE
     )
-    cart_items = models.CharField(max_length=1000, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.cart_items
+        return f"{self.user.username}의 장바구니"
     
 # 주문 모델
 class Order(models.Model):
@@ -63,6 +65,10 @@ class Order(models.Model):
     status = models.CharField(max_length=20)
     total_amount = models.DecimalField(default=0, max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=50)
+    points_applied = models.IntegerField(default=0, help_text="적용된 포인트")
+    coupon_applied = models.CharField(max_length=50, blank=True, null=True, help_text="적용된 쿠폰 코드")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 # 배송 주소 모델
 class ShippingAddress(models.Model):
@@ -279,6 +285,7 @@ class Review(models.Model):
     )
     title = models.CharField(max_length=200, help_text="리뷰 제목")
     content = models.TextField(help_text="리뷰 내용")
+    rating = models.IntegerField(default=5, help_text="평점 (1-5)")
     images = models.TextField(blank=True, null=True, help_text="리뷰 이미지 URLs")
     is_verified_purchase = models.BooleanField(default=False, help_text="구매 확인된 리뷰")
     created_at = models.DateTimeField(auto_now_add=True)
