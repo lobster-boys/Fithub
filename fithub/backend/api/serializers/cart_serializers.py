@@ -1,13 +1,9 @@
 from rest_framework import serializers
 from ecommerce.models import Cart
 
-class cartSerializers(serializers.ModelSerializer):
-    """
-    {
-        "id": 1,
-        "quantity": 1,
-    }
-    """
+class CartSerializers(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source="user.username")
+
     class Meta:
         model = Cart
-        fields = ["cart_items"]
+        fields = "__all__"
