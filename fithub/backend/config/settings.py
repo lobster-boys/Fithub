@@ -273,12 +273,12 @@ SOCIALACCOUNT_PROVIDERS = {
             "key": "",
         },
         "SCOPE": [
-            "name",
+            "profile_nickname",
             "profile_image",
             "gender",
             "account_email",
             "birthday",
-            "birthtear",
+            "birthyear",
 
         ],
         "AUTH_PARAMS": {
@@ -289,8 +289,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     "naver": {
         "APP": {
-            "client_id": config("GOOGLE_CLIENT_ID"),
-            "secret": config("GOOGLE_SECRET"),
+            "client_id": config("NAVER_CLIENT_ID"),
+            "secret": config("NAVER_SECRET"),
             "key": "",
         },
         "SCOPE": [
@@ -308,8 +308,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     'google': {
         "APP": {
-            "client_id": config("NAVER_CLIENT_ID"),
-            "secret": config("NAVER_SECRET"),
+            "client_id": config("GOOGLE_CLIENT_ID"),
+            "secret": config("GOOGLE_SECRET"),
             "key": "",
         },
         'SCOPE': [
