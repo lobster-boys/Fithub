@@ -58,6 +58,8 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.kakao", # 카카오
+    "allauth.socialaccount.providers.naver", # 네이버
+    'allauth.socialaccount.providers.google', # 구글
     # CORS
     "corsheaders",
 ]
@@ -271,21 +273,59 @@ SOCIALACCOUNT_PROVIDERS = {
             "key": "",
         },
         "SCOPE": [
-            "account_email",
-            "profile_nickname",
+            "name",
             "profile_image",
             "gender",
+            "account_email",
+            "birthday",
+            "birthtear",
+
         ],
         "AUTH_PARAMS": {
             "access_type": "online",  
             "prompt": "select_account",  
         },
         "VERIFIED_EMAIL": False,
+    },
+    "naver": {
+        "APP": {
+            "client_id": config("GOOGLE_CLIENT_ID"),
+            "secret": config("GOOGLE_SECRET"),
+            "key": "",
+        },
+        "SCOPE": [
+            "name",
+            "profile_image",
+            "gender",
+            "email",
+            "birthday",
+            "birthyear",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",  
+            "prompt": "select_account",  
+        }
+    },
+    'google': {
+        "APP": {
+            "client_id": config("NAVER_CLIENT_ID"),
+            "secret": config("NAVER_SECRET"),
+            "key": "",
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
     }
 }
 
-SOCIALACCOUNT_LOGIN_ON_GET = True
-SOCIALACCOUNT_ADAPTER = "users.adapters.KakaoSocialAccountAdapter"
+# SOCIALACCOUNT_LOGIN_ON_GET = True
+# 커스텀 adapter 통합
+SOCIALACCOUNT_ADAPTER = "users.adapters.CustomSocialAccountAdapter"
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_AUTO_SIGNUP = True
