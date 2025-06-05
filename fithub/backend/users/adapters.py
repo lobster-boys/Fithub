@@ -27,8 +27,8 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
                 kakao_account = kakao_data.get("kakao_account", {})
 
                 # 이메일만 User 모델에 반영
-                if kakao_account.get("account_email"):
-                    user.email = kakao_account.get("account_email")
+                if kakao_account.get("email"):
+                    user.email = kakao_account.get("email")
 
             elif provider == "naver":
                 naver_data = sociallogin.account.extra_data
@@ -75,8 +75,8 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             kakao_data = extra_data.get("kakao_account", {})
             profile = kakao_data.get("profile", {})
 
-            if profile.get("name") and not profile_obj.name:
-                profile_obj.name = profile.get("name")
+            if profile.get("nickname") and not profile_obj.name:
+                profile_obj.name = profile.get("nickname")
 
             kakao_gender = kakao_data.get("gender")
             if kakao_gender and not profile_obj.gender:
