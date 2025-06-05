@@ -14,11 +14,11 @@ class KakaoLoginView(SocialLoginView):
 class NaverLoginView(SocialLoginView):
     adapter_class = NaverOAuth2Adapter
     client_class = OAuth2Client
-    callback_url = os.environ.get("KAKAO_CALLBACK_URL", "http://localhost:3000/auth/naver/callback/")
+    callback_url = os.environ.get("NAVER_CALLBACK_URL", "http://localhost:3000/auth/naver/callback/")
 
 
 
 class GoogleLoginView(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
     client_class = OAuth2Client
-    callback_url = os.environ.get("KAKAO_CALLBACK_URL", "http://localhost:3000/auth/google/callback/")
+    callback_url = os.environ.get("GOOGLE_CALLBACK_URL", "http://localhost:3000/auth/google/callback/")
