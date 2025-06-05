@@ -10,7 +10,10 @@ urlpatterns = [
     # 로그인/회원가입 URL
     path("dj-rest-auth/", include("dj_rest_auth.urls")),
     path("dj-rest-auth/registration/", include("dj_rest_auth.registration.urls")),
-    path("dj-rest-auth/kakao/", social_views.KakaoLoginView.as_view(), name="kakao_login"),
+    # 소셜 로그인 URL
+    path("dj-rest-auth/kakao/", social_views.KakaoLoginView.as_view(), name="kakao-login"),
+    path("dj-rest-auth/naver/", social_views.NaverLoginView.as_view(), name="naver-login"),
+    path("dj-rest-auth/google/", social_views.GoogleLoginView.as_view(), name="google-login"),
     # 유저 프로필 URL
     path("dj-rest-auth/users/profile/", profile_views.UserProfileCreateView.as_view(), name="profile-create"),
     path("dj-rest-auth/users/profile/<int:pk>/", profile_views.UserProfileDetail.as_view(), name="profile-detail"),
@@ -23,5 +26,5 @@ urlpatterns = [
     # 게시글 좋아요 URL
     path('dj-rest-auth/posts/<int:pk>/like/', post_like_views.PostLikeView.as_view(), name="post-like"),
     # 댓글 좋아요 URL
-    path('dj-rest-auth/comments/<int:pk>/like/', comment_like_views.CommentLikeView.as_view(), name='comment-like')
+    path('dj-rest-auth/comments/<int:pk>/like/', comment_like_views.CommentLikeView.as_view(), name='comment-like'),
 ]
