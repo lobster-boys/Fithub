@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     # app 등록
     "users",
     "community",
@@ -129,3 +130,43 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ----------------------------------------------------------------------
+# Django REST Framework 설정
+# ----------------------------------------------------------------------
+
+REST_FRAMEWORK = {
+    # 1) 인증(Authentication) 방식
+    #    - 기본적으로 세션 인증/토큰 인증 등을 함께 사용하도록 설정
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        # 세션 인증 (장고 기본)
+        "rest_framework.authentication.SessionAuthentication",
+        # 토큰 인증 (DRF 토큰 인증 사용시)
+        # "rest_framework.authentication.TokenAuthentication",
+        # JWT 인증 (djangorestframework-simplejwt 사용시)
+        # "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    # 2) 퍼미션(Permission) 기본 정책
+    #    - 인증된 사용자만 접근하도록 하거나, 공개 엔드포인트를 허용하려면 수정
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",  # 인증된 사용자만
+        # "rest_framework.permissions.AllowAny",       # 모두 허용 (개발용)
+    ],
+    # 3) 페이징(Pagination) 설정 예시
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+    # 4) 스로틀링(Throttling) 설정 예시
+    # "DEFAULT_THROTTLE_CLASSES": [
+    #     "rest_framework.throttling.UserRateThrottle",
+    # ],
+    # "DEFAULT_THROTTLE_RATES": {
+    #     "user": "1000/day",    # 사용자당 하루 1000회 요청
+    # },
+    # 5) 리턴하는 필드 순서, JSON 렌더러 옵션 등
+    # "DEFAULT_RENDERER_CLASSES": [
+    #     "rest_framework.renderers.JSONRenderer",
+    # ],
+    # "DEFAULT_PARSER_CLASSES": [
+    #     "rest_framework.parsers.JSONParser",
+    # ],
+}
