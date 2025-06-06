@@ -51,6 +51,7 @@ class UserProfile(models.Model):
         related_name='profile',
         primary_key=True
     )
+    name = models.CharField(max_length=10, null=True, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     gender = models.CharField(
         max_length=1, 
