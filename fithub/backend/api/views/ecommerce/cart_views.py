@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from ecommerce.models import Cart, CartItem, Product
-from api.serializers.cart_serializers import CartSerializer, CartItemSerializer
+from api.serializers.ecommerce.cart_serializers import CartSerializer, CartItemSerializer
 from rest_framework.permissions import IsAuthenticated
 
 # 테스트용 유저 불러오기

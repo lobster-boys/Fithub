@@ -1,60 +1,48 @@
-# Category views
-from .category_views import categories, category
+# Ecommerce views
+from .ecommerce import *
 
-# Product views  
-from .product_views import *
+# Workout views
+from .workouts import *
 
-# Cart views
-from .cart_views import CartAPI, CartItemAPI
-
-# Order views
-from .order_views import *
-
-# Coupon views
-from .coupon_views import (
-    coupons, coupon_detail, UserCouponAPI, use_coupon
-)
-
-# Point views
-from .point_views import (
-    UserPointAPI, PointTransactionAPI, earn_points, use_points
-)
-
-# Review views
-from .review_views import (
-    product_reviews, ReviewAPI, review_detail, product_review_stats
-)
+# Users views
+from .users import *
 
 __all__ = [
-    # Category
+    # Ecommerce
     'categories',
     'category',
-    
-    # Product
-    # (product_views의 모든 함수들)
-    
-    # Cart
     'CartAPI',
-    'CartItemAPI',
-    
-    # Order  
-    # (order_views의 모든 함수들)
-    
-    # Coupon
+    'OrdersAPI',
+    'OrderAPI',
     'coupons',
     'coupon_detail', 
     'UserCouponAPI',
     'use_coupon',
-    
-    # Point
     'UserPointAPI',
     'PointTransactionAPI',
     'earn_points',
     'use_points',
-    
-    # Review
     'product_reviews',
     'ReviewAPI',
     'review_detail',
     'product_review_stats',
+    
+    # Workouts
+    'ExerciseListView',
+    'ExerciseDetailView',
+    'WorkoutRoutineListView',
+    'WorkoutRoutineDetailView',
+    'WorkoutRoutineCreateView',
+    'WorkoutRoutineUpdateView', 
+    'WorkoutRoutineDeleteView',
+    'WorkoutLogListView',
+    'WorkoutLogCreateView',
+    'WorkoutLogDetailView',
+    'workout_stats_view',
+    'copy_routine_view',
+    
+    # Users
+    'UserProfileCreateView',
+    'UserProfileDetail',
+    'KakaoLoginView',
 ] 
