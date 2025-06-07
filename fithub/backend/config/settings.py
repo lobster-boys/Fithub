@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "challenge",
     "diet",
     "api",
+    "audit",
     # DRF & Auth
     "rest_framework",
     "rest_framework.authtoken",
@@ -74,6 +75,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware", # social login setting
+    "audit.middlewared.AuditLogMiddleware",
 ]
 
 # CORS setting
@@ -214,7 +216,7 @@ REST_FRAMEWORK = {
 
 # JWT setting
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=3000), # 테스트를 위한 access_token 시간 변경
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
