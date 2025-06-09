@@ -18,7 +18,7 @@ urlpatterns = [
     path("users/profile/", profile_views.UserProfileCreateView.as_view(), name="profile-create"),
     path("users/profile/<int:pk>/", profile_views.UserProfileDetail.as_view(), name="profile-detail"),
     # 게시글 CRUD URL
-    path('community/posts/', post_views.UserPostCreateView.as_view(), name='post-creat'),
+    path('community/posts/', post_views.UserPostCreateView.as_view(), name='post-create'),
     path('community/posts/<int:pk>/', post_views.UserPostDetail.as_view(), name='post-detail'),
     # 댓글 CRUD URL
     path('community/posts/<int:post_id>/comments/', comment_views.UserCommentDetail.as_view(), name='comment-create'),
