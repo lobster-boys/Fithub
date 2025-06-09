@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "challenge_checker",
     "diet",
     "api",
+    "accounts.apps.AccountsConfig",
 ]
 
 # Celery 설정
