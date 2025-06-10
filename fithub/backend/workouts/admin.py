@@ -1,7 +1,10 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.db.models import Count, Avg
-from .models import Exercise, WorkoutRoutine, RoutineExercise, WorkoutLog, WorkoutStats
+from django.contrib.auth import get_user_model
+from .models import Exercise, WorkoutRoutine, RoutineExercise, WorkoutLog, WorkoutStats, WorkoutLogExercise, WorkoutType
+
+User = get_user_model()
 
 
 # ==================== Exercise Admin ====================
@@ -168,14 +171,22 @@ class RoutineExerciseAdmin(admin.ModelAdmin):
 
 
 # ==================== Log Admin ====================
+class WorkoutLogExerciseInline(admin.TabularInline):
+    model = WorkoutLogExercise
+    extra = 0
+    ordering = ['order']
+    fields = ['exercise', 'sets_completed', 'reps_completed', 'weight_used', 'order', 'notes']
+    autocomplete_fields = ['exercise']
+
+
 @admin.register(WorkoutLog)
 class WorkoutLogAdmin(admin.ModelAdmin):
     list_display = [
         'user', 'routine', 'workout_date_display', 'duration_hours_display',
-        'calories_burned', 'rating_display', 'mood_display'
+        'calories_burned', 'workout_type', 'rating_display', 'mood_display'
     ]
     list_filter = [
-        'rating', 'mood', 'start_time', 'routine__difficulty_level',
+        'rating', 'mood', 'workout_type', 'start_time', 'routine__difficulty_level',
         'user'
     ]
     search_fields = [
@@ -195,7 +206,7 @@ class WorkoutLogAdmin(admin.ModelAdmin):
         }),
         ('운동 결과', {
             'fields': (
-                'duration_minutes', 'duration_hours_display', 
+                'workout_type', 'duration_minutes', 'duration_hours_display', 
                 'calories_burned', 'calories_per_minute_display'
             )
         }),
@@ -208,6 +219,7 @@ class WorkoutLogAdmin(admin.ModelAdmin):
         }),
     )
     
+    inlines = [WorkoutLogExerciseInline]
     autocomplete_fields = ['user', 'routine']
     
     def workout_date_display(self, obj):
@@ -385,6 +397,37 @@ reset_routine_stats.short_description = "선택된 루틴 통계 초기화"
 
 # Admin actions 등록
 WorkoutRoutineAdmin.actions = [reset_routine_stats]
+
+
+# ==================== WorkoutLogExercise Admin ====================
+@admin.register(WorkoutLogExercise)
+class WorkoutLogExerciseAdmin(admin.ModelAdmin):
+    list_display = [
+        'workout_log', 'exercise', 'sets_completed', 'reps_completed', 
+        'weight_used', 'order'
+    ]
+    list_filter = [
+        'exercise__difficulty_level', 'workout_log__workout_type',
+        'workout_log__user'
+    ]
+    search_fields = [
+        'workout_log__user__username', 'exercise__name'
+    ]
+    ordering = ['workout_log__start_time', 'order']
+    autocomplete_fields = ['workout_log', 'exercise']
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'workout_log', 'workout_log__user', 'exercise'
+        )
+
+
+# ==================== WorkoutType Admin ====================
+@admin.register(WorkoutType)
+class WorkoutTypeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'description', 'color_code', 'icon']
+    list_filter = ['name']
+    search_fields = ['name', 'description']
 
 
 # ==================== Admin Site Configuration ====================

@@ -12,16 +12,29 @@ class ExerciseListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        queryset = super().get_queryset()
-        difficulty = self.request.query_params.get('difficulty')
-        muscle_group = self.request.query_params.get('muscle_group')
+        queryset = Exercise.objects.all()
         
-        if difficulty:
-            queryset = queryset.filter(difficulty_level=difficulty)
+        # 근육군 필터
+        muscle_group = self.request.query_params.get('muscle_group')
         if muscle_group:
-            queryset = queryset.filter(muscle_groups__icontains=muscle_group)
-            
-        return queryset
+            queryset = queryset.filter(muscle_group=muscle_group)
+        
+        # 난이도 필터
+        difficulty = self.request.query_params.get('difficulty')
+        if difficulty:
+            queryset = queryset.filter(difficulty=difficulty)
+        
+        # 장비 필터
+        equipment = self.request.query_params.get('equipment')
+        if equipment:
+            queryset = queryset.filter(equipment_needed=equipment)
+        
+        # 검색어 필터 (name 또는 search 파라미터 모두 지원)
+        search = self.request.query_params.get('search') or self.request.query_params.get('name')
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+        
+        return queryset.order_by('name')
 
 
 class ExerciseDetailView(generics.RetrieveAPIView):

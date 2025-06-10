@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from ecommerce.models import Product
-from api.serializers.product_serializers import ProductSerializer
+from api.serializers.ecommerce.product_serializers import ProductSerializer
 from django.shortcuts import get_object_or_404
 
 # Create your views here.

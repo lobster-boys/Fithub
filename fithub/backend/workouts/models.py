@@ -1,7 +1,9 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+
+User = get_user_model()
 
 
 # ==================== Exercise Models ====================
@@ -247,6 +249,19 @@ class WorkoutLog(models.Model):
         verbose_name="컨디션",
         db_index=True
     )
+    workout_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('strength', '근력 운동'),
+            ('cardio', '유산소 운동'),
+            ('flexibility', '유연성 운동'),
+            ('hiit', 'HIIT'),
+            ('yoga', '요가'),
+        ],
+        default='strength',
+        verbose_name="운동 타입",
+        db_index=True
+    )
     notes = models.TextField(blank=True, verbose_name="운동 메모")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
     
@@ -390,3 +405,84 @@ class WorkoutStats(models.Model):
             prev_date = workout_date
             
         self.max_streak_days = max(max_streak, current_temp_streak)
+
+
+# ==================== Workout Log Exercise Models ====================
+class WorkoutLogExercise(models.Model):
+    """운동 로그별 개별 운동 기록"""
+    workout_log = models.ForeignKey(
+        WorkoutLog,
+        on_delete=models.CASCADE,
+        related_name='log_exercises',
+        verbose_name="운동 로그"
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        verbose_name="운동"
+    )
+    sets_completed = models.PositiveIntegerField(verbose_name="완료한 세트 수")
+    reps_completed = models.PositiveIntegerField(verbose_name="완료한 반복 횟수")
+    weight_used = models.FloatField(
+        null=True, 
+        blank=True, 
+        verbose_name="사용한 무게(kg)"
+    )
+    rest_time_actual = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="실제 휴식시간(초)"
+    )
+    notes = models.TextField(blank=True, verbose_name="운동별 메모")
+    order = models.PositiveIntegerField(verbose_name="운동 순서")
+    
+    class Meta:
+        verbose_name = "운동 로그 상세"
+        verbose_name_plural = "운동 로그 상세"
+        ordering = ['order']
+        unique_together = ['workout_log', 'order']
+        indexes = [
+            models.Index(fields=['workout_log', 'order']),
+        ]
+    
+    def __str__(self):
+        return f"{self.workout_log.user.username} - {self.exercise.name} ({self.sets_completed}세트)"
+    
+    @property
+    def estimated_calories(self):
+        """이 운동으로 소모한 예상 칼로리"""
+        estimated_time = self.sets_completed * self.reps_completed * 0.5  # 대략적인 시간 계산
+        return int(estimated_time * self.exercise.calories_per_minute)
+
+
+# ==================== Workout Type Models ====================
+class WorkoutType(models.Model):
+    """운동 타입 모델"""
+    
+    TYPE_CHOICES = [
+        ('strength', '근력 운동'),
+        ('cardio', '유산소 운동'),
+        ('flexibility', '유연성 운동'),
+        ('balance', '밸런스 운동'),
+        ('endurance', '지구력 운동'),
+        ('hiit', 'HIIT'),
+        ('yoga', '요가'),
+        ('pilates', '필라테스'),
+    ]
+    
+    name = models.CharField(
+        max_length=50,
+        choices=TYPE_CHOICES,
+        unique=True,
+        verbose_name="운동 타입"
+    )
+    description = models.TextField(blank=True, verbose_name="설명")
+    color_code = models.CharField(max_length=7, default="#000000", verbose_name="색상 코드")
+    icon = models.CharField(max_length=100, blank=True, verbose_name="아이콘")
+    
+    class Meta:
+        verbose_name = "운동 타입"
+        verbose_name_plural = "운동 타입"
+        
+    def __str__(self):
+        return self.get_name_display()

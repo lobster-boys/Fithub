@@ -40,5 +40,22 @@ urlpatterns = [
     path("workouts/logs/", workouts.WorkoutLogListView.as_view(), name="log-list"),
     path("workouts/logs/create/", workouts.WorkoutLogCreateView.as_view(), name="log-create"),
     path("workouts/logs/<int:pk>/", workouts.WorkoutLogDetailView.as_view(), name="log-detail"),
+    
+    # 운동 로그 상세 운동 관리 URL
+    path("workouts/logs/<int:workout_log_id>/exercises/", workouts.WorkoutLogExerciseListView.as_view(), name="log-exercise-list"),
+    path("workouts/logs/<int:workout_log_id>/exercises/create/", workouts.WorkoutLogExerciseCreateView.as_view(), name="log-exercise-create"),
+    path("workouts/logs/<int:workout_log_id>/exercises/bulk-create/", workouts.bulk_create_log_exercises, name="log-exercise-bulk-create"),
+    path("workouts/log-exercises/<int:pk>/", workouts.WorkoutLogExerciseDetailView.as_view(), name="log-exercise-detail"),
+    
+    # 운동 타입 URL
+    path("workouts/types/", workouts.WorkoutTypeListView.as_view(), name="workout-type-list"),
+    path("workouts/types/<int:pk>/", workouts.WorkoutTypeDetailView.as_view(), name="workout-type-detail"),
+    
+    # 기본 통계 URL
     path("workouts/stats/", workouts.workout_stats_view, name="workout-stats"),
+    
+    # 확장 통계 URL
+    path("workouts/stats/advanced/", workouts.advanced_workout_stats_view, name="advanced-workout-stats"),
+    path("workouts/stats/streak/", workouts.workout_streak_view, name="workout-streak"),
+    path("workouts/stats/type-distribution/", workouts.workout_type_distribution_view, name="workout-type-distribution"),
 ]

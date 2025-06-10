@@ -18,9 +18,28 @@ from .log_serializers import (
     WorkoutLogSerializer
 )
 
+# Log Exercise serializers
+from .log_exercise_serializers import (
+    WorkoutLogExerciseSerializer,
+    WorkoutLogExerciseCreateUpdateSerializer
+)
+
+# Type serializers
+from .type_serializers import (
+    WorkoutTypeSerializer,
+    WorkoutTypeSimpleSerializer
+)
+
 # Stats serializers
 from .stats_serializers import (
     WorkoutStatsSerializer
+)
+
+# Advanced Stats serializers
+from .advanced_stats_serializers import (
+    AdvancedWorkoutStatsSerializer,
+    WorkoutStreakSerializer,
+    WorkoutTypeDistributionSerializer
 )
 
 __all__ = [
@@ -36,6 +55,19 @@ __all__ = [
     # Log
     'WorkoutLogSerializer',
     
+    # Log Exercise
+    'WorkoutLogExerciseSerializer',
+    'WorkoutLogExerciseCreateUpdateSerializer',
+    
+    # Type
+    'WorkoutTypeSerializer',
+    'WorkoutTypeSimpleSerializer',
+    
     # Stats
     'WorkoutStatsSerializer',
+    
+    # Advanced Stats
+    'AdvancedWorkoutStatsSerializer',
+    'WorkoutStreakSerializer',
+    'WorkoutTypeDistributionSerializer',
 ]

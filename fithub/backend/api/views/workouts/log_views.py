@@ -22,8 +22,26 @@ class WorkoutLogListView(generics.ListAPIView):
             queryset = queryset.filter(start_time__date__gte=start_date)
         if end_date:
             queryset = queryset.filter(start_time__date__lte=end_date)
+        
+        # 운동 타입 필터
+        workout_type = self.request.query_params.get('workout_type')
+        if workout_type:
+            queryset = queryset.filter(workout_type=workout_type)
+        
+        # 루틴 필터
+        routine_id = self.request.query_params.get('routine_id')
+        if routine_id:
+            queryset = queryset.filter(routine_id=routine_id)
+        
+        # 완료 여부 필터
+        completed = self.request.query_params.get('completed')
+        if completed is not None:
+            if completed.lower() == 'true':
+                queryset = queryset.filter(end_time__isnull=False)
+            else:
+                queryset = queryset.filter(end_time__isnull=True)
             
-        return queryset.select_related('routine', 'user')
+        return queryset.select_related('routine', 'user').order_by('-start_time')
 
 
 class WorkoutLogCreateView(generics.CreateAPIView):

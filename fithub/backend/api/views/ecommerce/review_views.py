@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view
 from ecommerce.models import Review, Product, OrderItem
-from api.serializers.review_serializers import (
+from api.serializers.ecommerce.review_serializers import (
     ReviewSerializer, ReviewCreateSerializer, ReviewGeneratedSerializer
 )
 from users.models import User

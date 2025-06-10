@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view
 from ecommerce.models import Coupon, UserCoupon
-from api.serializers.coupon_serializers import (
+from api.serializers.ecommerce.coupon_serializers import (
     CouponSerializer, UserCouponSerializer, UserCouponCreateSerializer
 )
 from users.models import User

@@ -13,7 +13,7 @@ class WorkoutLogSerializer(serializers.ModelSerializer):
         model = WorkoutLog
         fields = ['id', 'user', 'routine', 'routine_id', 'start_time', 'end_time', 
                  'duration_minutes', 'duration_hours', 'calories_burned', 'rating', 
-                 'mood', 'created_at']
+                 'mood', 'workout_type', 'notes', 'created_at']
     
     def create(self, validated_data):
         user = self.context['request'].user
