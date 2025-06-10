@@ -75,7 +75,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware", # social login setting
-    "audit.middlewared.AuditLogMiddleware",
+    "audit.middleware.AuditLogMiddleware",
 ]
 
 # CORS setting
