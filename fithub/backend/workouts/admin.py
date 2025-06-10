@@ -15,8 +15,7 @@ class ExerciseAdmin(admin.ModelAdmin):
         'calories_per_minute', 'is_active', 'usage_count'
     ]
     list_filter = [
-        'difficulty_level', 'is_active', 'created_at',
-        ('muscle_groups', admin.SimpleListFilter)
+        'difficulty_level', 'is_active', 'created_at'
     ]
     search_fields = ['name', 'description', 'muscle_groups', 'equipment_needed']
     ordering = ['name']
@@ -102,7 +101,6 @@ class WorkoutRoutineAdmin(admin.ModelAdmin):
     )
     
     inlines = [RoutineExerciseInline]
-    autocomplete_fields = ['user']
     
     def exercise_count_display(self, obj):
         """운동 개수 표시"""
@@ -220,7 +218,7 @@ class WorkoutLogAdmin(admin.ModelAdmin):
     )
     
     inlines = [WorkoutLogExerciseInline]
-    autocomplete_fields = ['user', 'routine']
+    autocomplete_fields = ['routine']
     
     def workout_date_display(self, obj):
         """운동 날짜 표시"""
@@ -310,8 +308,6 @@ class WorkoutStatsAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
-    autocomplete_fields = ['user']
     
     def total_duration_display(self, obj):
         """총 운동시간 표시"""
