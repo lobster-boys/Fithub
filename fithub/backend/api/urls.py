@@ -3,6 +3,7 @@ from .views.community import post_views, comment_views, post_like_views, comment
 from .views.social import social_views
 from .views.users import profile_views
 from .views.audit import changelog_views
+from .views.diet import food_views
 
 app_name = "api"
 
@@ -32,5 +33,8 @@ urlpatterns = [
     path('audit/change-logs/<int:log_id>/', changelog_views.ChangeLogDetailView.as_view(), name='change-log-detail'),
     path('audit/restore-data/', changelog_views.RestoreDataView.as_view(), name='restore-data'),
     path('audit/sync-failed-logs/', changelog_views.SyncFailedLogsView.as_view(), name='sync-failed-logs'),
-    path('audit/sync-status/', changelog_views.SyncStatusView.as_view(), name='sync-status')
+    path('audit/sync-status/', changelog_views.SyncStatusView.as_view(), name='sync-status'),
+    # diet URL
+    path('diet/foods/', food_views.FoodListView.as_view(), name='food-list'),
+    path('diet/foods/<int:pk>/', food_views.FoodDetailView.as_view(), name='food-detail')
 ]
