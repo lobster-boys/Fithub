@@ -14,12 +14,13 @@ class Food(models.Model):
     protein = models.DecimalField(max_digits=7, decimal_places=2, help_text='단백질(g)')
     carbs = models.DecimalField(max_digits=7, decimal_places=2, help_text='탄수화물(g)')
     fat = models.DecimalField(max_digits=7, decimal_places=2, help_text='지방(g)')
-    serving_size = models.CharField(max_length=50, help_text='1인분 기준량(예: "100g": "1컵"')
+    serving_size = models.CharField(max_length=50, help_text='1인분 기준량(예: "100g": "1컵")')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'diet_food'
-        verbose_name = '식품'
-        indexe = [
+        indexes = [
             models.Index(fields=['name'], name='idx_food_name')
         ]
         constraints = [
