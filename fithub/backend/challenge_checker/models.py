@@ -48,3 +48,27 @@ class PointTransaction(models.Model):
     def __str__(self):
         sign = "+" if self.points >= 0 else ""
         return f"{self.user.username}: {sign}{self.points} at {self.timestamp:%Y-%m-%d %H:%M}"
+
+
+#     챌린지 참여 모델
+class ChallengeParticipant(models.Model):
+    challenge = models.ForeignKey(
+        Challenge,
+        on_delete=models.CASCADE,
+        related_name="participants",
+        help_text="참가 중인 챌린지",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="challenge_participations",
+    )
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    # 중복 방지
+    class Meta:
+        unique_together = ("challenge", "user")
+        ordering = ["joined_at"]
+
+    def __str__(self):
+        return f"{self.user.username} in {self.challenge.name}"
