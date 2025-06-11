@@ -6,6 +6,7 @@ from .views.challenge_views import (
     ChallengePointViewSet,
     SocialShareViewSet,
 )
+from .views.point_transaction_views import PointTransactionViewSet
 
 router = DefaultRouter()
 router.register(r"challenges", ChallengeViewSet, basename="challenge")
@@ -14,6 +15,8 @@ router.register(
 )
 router.register(r"points", ChallengePointViewSet, basename="challenge-point")
 router.register(r"shares", SocialShareViewSet, basename="social-share")
+
+router.register(r"transactions", PointTransactionViewSet, basename="point-transaction")
 
 urlpatterns = [
     path("", include(router.urls)),
