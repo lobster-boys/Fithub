@@ -42,7 +42,10 @@ class BaseFoodSerializer(serializers.ModelSerializer):
 
 # Food 조회 시리얼라이저
 class FoodSerializer(BaseFoodSerializer):
-    
+
+    category = serializers.PrimaryKeyRelatedField(read_only=True)
+    product  = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = Food
         fields = [
@@ -60,6 +63,15 @@ class FoodSerializer(BaseFoodSerializer):
             'created_at',
             'updated_at'
         ]
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # product가 음식(is_food=True)이 아니면, category, product 삭제
+        if not instance.product.is_food:
+            data.pop('category', None)
+            data.pop('product', None)
+        return data
 
 # Food 생성 시리얼라이저
 class FoodCreateSerializer(BaseFoodSerializer):
