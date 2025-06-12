@@ -33,6 +33,7 @@ def product(request, id):
         serializer = ProductSerializer(product)
 
         # 클릭 상품 목록 지정
+        # 인덱스 숫자가 높을수록 최근 클릭 데이터
         user = User.objects.get(id="1")  # request.user로 전환 예정
 
         if user is not None:
@@ -41,6 +42,7 @@ def product(request, id):
 
             list_set = True
 
+            # 중복 목록 확인 및 순서 변경
             for idx, product in enumerate(clicked_list):
                 if product == id:
                     clicked_list.pop(idx)
@@ -50,6 +52,7 @@ def product(request, id):
                 else:
                     list_set = True
 
+            # 중복 없을 경우에 값 저장
             if list_set and len(clicked_list) == 10:
                 clicked_list.pop(0)
                 clicked_list.append(id)
