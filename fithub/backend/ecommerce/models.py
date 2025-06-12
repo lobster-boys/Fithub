@@ -298,3 +298,36 @@ class Review(models.Model):
         db_table = 'review'
         verbose_name_plural = '리뷰'
         ordering = ['-created_at']
+
+# 베스트 상품 목록
+class BestItems(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return "베스트 상품 목록"
+    
+    class Meta:
+        db_table = 'best_items'
+        verbose_name_plural = '베스트 상품'
+
+# 클릭한 상품 목록
+class ClickedItems(models.Model):
+    """
+    클릭한 상품 목록 데이터베이스.
+    id = Int, PK
+    user = foreignKey
+    clicked_list = TextField(default="[]")
+    """
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE,
+        related_name='clicked_items'
+    )
+    clicked_list = models.TextField(default="[]", help_text="클릭 리스트") 
+
+    def __str__(self):
+        return "클릭 상품 목록"
+    
+    class Meta:
+        db_table = 'clicked_items'
+        verbose_name_plural = '클릭한 상품'
