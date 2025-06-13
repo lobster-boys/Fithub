@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from datetime import timedelta
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,29 +40,33 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "rest_framework",
+    "django.contrib.sites",
     # app 등록
     "users",
     "community",
     "ecommerce",
     "workouts",
     "challenge",
-    "challenge_checker",
     "diet",
     "api",
-    "accounts.apps.AccountsConfig",
+    "audit",
+    # DRF & Auth
+    "rest_framework",
+    "rest_framework.authtoken",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.kakao", # 카카오
+    "allauth.socialaccount.providers.naver", # 네이버
+    'allauth.socialaccount.providers.google', # 구글
+    # CORS
+    "corsheaders",
 ]
 
-# Celery 설정
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
-CELERY_TIMEZONE = "Asia/Seoul"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-
-
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware", # CORS Middleware setting
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -67,7 +74,38 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware", # social login setting
+    "audit.middlewared.AuditLogMiddleware",
 ]
+
+# CORS setting
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+CORS_ORIGIN_ALLOW_ALL = False # 특정 도메인만 허용
+CORS_ALLOW_CREDENTIALS = True # 인증 정보 포함 요청 허용
+
+# 추가 CORS 설정 > 프론트+백엔드 통합 후 사용
+# CORS_ALLOW_HEADERS = [
+#     'accept',
+#     'accept-encoding',
+#     'authorization',
+#     'content-type',
+#     'dnt',
+#     'origin',
+#     'user-agent',
+#     'x-csrftoken',
+#     'x-requested-with',
+# ]
+
+# CORS_ALLOW_METHODS = [
+#     'DELETE',
+#     'GET',
+#     'OPTIONS',
+#     'PATCH',
+#     'POST',
+#     'PUT',
+# ]
 
 ROOT_URLCONF = "config.urls"
 
@@ -110,6 +148,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 8, # 최소 8자리 이상 입력
+        }
     },
     {
         "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
@@ -123,9 +164,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "ko-kr"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Seoul"
 
 USE_I18N = True
 
@@ -142,42 +183,151 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ----------------------------------------------------------------------
-# Django REST Framework 설정
-# ----------------------------------------------------------------------
 
+# Custom User Model 설정
+AUTH_USER_MODEL = 'users.User'
+
+# 사이트 설정
+SITE_ID = 1
+
+# allauth
+AUTHENTICATION_BACKENDS = [
+    # 추가 장고에서 사용자의 이름을 기준으로 로그인하도록 설정
+    "django.contrib.auth.backends.ModelBackend",
+    # 추가 'allauth'의 인증방식 추가
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# 로그인, 로그아웃 Redirect URL 설정
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+# ACCOUNT_LOGOUT_ON_GET = True: GET요청으로 로그아웃 시도할 때, 바로 로그아웃 되도록 설정(로그아웃 하시겠습니까? 같은 팝업창 쓸 거 아니면 사용 X)
+
+# 미디어 파일 설정 (프로필 이미지용)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# dj_rest_auth setting
 REST_FRAMEWORK = {
-    # 1) 인증(Authentication) 방식
-    #    - 기본적으로 세션 인증/토큰 인증 등을 함께 사용하도록 설정
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        # 세션 인증 (장고 기본)
-        "rest_framework.authentication.SessionAuthentication",
-        # 토큰 인증 (DRF 토큰 인증 사용시)
-        # "rest_framework.authentication.TokenAuthentication",
-        # JWT 인증 (djangorestframework-simplejwt 사용시)
-        # "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ],
-    # 2) 퍼미션(Permission) 기본 정책
-    #    - 인증된 사용자만 접근하도록 하거나, 공개 엔드포인트를 허용하려면 수정
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",  # 인증된 사용자만
-        # "rest_framework.permissions.AllowAny",       # 모두 허용 (개발용)
-    ],
-    # 3) 페이징(Pagination) 설정 예시
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 20,
-    # 4) 스로틀링(Throttling) 설정 예시
-    # "DEFAULT_THROTTLE_CLASSES": [
-    #     "rest_framework.throttling.UserRateThrottle",
-    # ],
-    # "DEFAULT_THROTTLE_RATES": {
-    #     "user": "1000/day",    # 사용자당 하루 1000회 요청
-    # },
-    # 5) 리턴하는 필드 순서, JSON 렌더러 옵션 등
-    # "DEFAULT_RENDERER_CLASSES": [
-    #     "rest_framework.renderers.JSONRenderer",
-    # ],
-    # "DEFAULT_PARSER_CLASSES": [
-    #     "rest_framework.parsers.JSONParser",
-    # ],
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+    ),
 }
+
+# JWT setting
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=3000), # 테스트를 위한 access_token 시간 변경
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# dj-rest-auth setting
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_HTTPONLY": True, 
+    'JWT_AUTH_REFRESH_COOKIE' : "refresh_token", 
+    'SESSION_LOGIN' :False, 
+    'JWT_AUTH_SAMESITE': 'Lax',
+    'JWT_AUTH_COOKIE_USE_CSRF' : False,
+    # users models 커스텀
+    'USER_DETAILS_SERIALIZER': "api.serializers.users.registration_serializers.CustomLoginSerializer", 
+    'REGISTER_SERIALIZER': 'api.serializers.users.registration_serializers.CustomRegisterSerializer',
+}
+
+# 로그인 방식: username or email
+# ACCOUNT_AUTHENTICATION_METHOD = "username_email"
+ACCOUNT_LOGIN_METHOD = {"email", "username"}
+# ACCOUNT_USERNAME_REQUIRED = False
+# ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*", "first_name", "last_name"]
+ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
+
+# 이메일 인증 설정
+ACCOUNT_EMAIL_VERIFICATION = "none" # mendatory
+# ACCOUNT_EMAIL_REQUIRED = True
+# ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_LOGOUT_ON_GET = True 
+
+# 이메일 백엔드 설정 (개발환경용 - 콘솔에 이메일 출력)
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# 프로덕션 환경에서는 실제 이메일 서비스 사용
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'your-email@gmail.com'
+# EMAIL_HOST_PASSWORD = 'your-app-password'
+
+# 사용자 인증 방식 정의
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend", # 기본 Django 인증 방식
+    "allauth.account.auth_backends.AuthenticationBackend", # allauth 인증 방식
+]
+
+# 소셜 로그인 설정
+# pip install python-decouple
+SOCIALACCOUNT_PROVIDERS = {
+    "kakao": {
+        "APP": {
+            "client_id": config("KAKAO_CLIENT_ID"),
+            "secret": config("KAKAO_SECRET"),
+            "key": "",
+        },
+        "SCOPE": [
+            "profile_nickname",
+            "profile_image",
+            "gender",
+            "account_email",
+            "birthday",
+            "birthyear",
+
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",  
+            "prompt": "select_account",  
+        },
+        "VERIFIED_EMAIL": False,
+    },
+    "naver": {
+        "APP": {
+            "client_id": config("NAVER_CLIENT_ID"),
+            "secret": config("NAVER_SECRET"),
+            "key": "",
+        },
+        "SCOPE": [
+            "name",
+            "profile_image",
+            "gender",
+            "email",
+            "birthday",
+            "birthyear",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",  
+            "prompt": "select_account",  
+        }
+    },
+    'google': {
+        "APP": {
+            "client_id": config("GOOGLE_CLIENT_ID"),
+            "secret": config("GOOGLE_SECRET"),
+            "key": "",
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+# SOCIALACCOUNT_LOGIN_ON_GET = True
+# 커스텀 adapter 통합
+SOCIALACCOUNT_ADAPTER = "users.adapters.CustomSocialAccountAdapter"
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_AUTO_SIGNUP = True

@@ -110,3 +110,4 @@ urllib3==2.3.0
 wcwidth @ file:///home/conda/feedstock_root/build_artifacts/wcwidth_1733231326287/work
 wincertstore==0.2.1
 zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1732827521216/work
+python-decouple==3.8
