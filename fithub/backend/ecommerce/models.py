@@ -3,7 +3,7 @@ from django.utils.text import slugify
 from django.urls import reverse
 from users.models import User
 
-# Create your models here.
+# 카테고리 모델
 class Category(models.Model):
     parent = models.ForeignKey(
         'self', on_delete=models.CASCADE, null=True
@@ -21,6 +21,7 @@ class Category(models.Model):
         self.slug = slugify(self.name, allow_unicode=True)
         super(Category, self).save(*args, **kwargs)
 
+# 상품 모델
 class Product(models.Model):
     category = models.ForeignKey(
         Category, on_delete=models.CASCADE
@@ -42,8 +43,12 @@ class Product(models.Model):
         self.slug = slugify(self.name, allow_unicode=True)
         super(Product, self).save(*args, **kwargs)
 
+# 카트 모델
 class Cart(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE
     )
     cart_items = models.CharField(max_length=1000, blank=True, null=True)
+
+    def __str__(self):
+        return self.cart_items
