@@ -68,7 +68,7 @@ class ChangeLog(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
-        index = [
+        indexes = [
             models.Index(fields=['user', 'content_type', 'timestamp']),
             models.Index(fields=['sync_status']),
         ]

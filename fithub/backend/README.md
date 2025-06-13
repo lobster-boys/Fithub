@@ -47,3 +47,15 @@ python manage.py migrate
 # 슈퍼유저 생성
 python manage.py createsuperuser
 ```
+
+## 4. Command 사용
+
+```bash
+# db clear(확인 메세지 표시 x)
+python manage.py flush --noinput
+
+# seed 생성
+python manage.py categories_seed
+python manage.py products_seed --with-images
+python manage.py foods_seed
+```
