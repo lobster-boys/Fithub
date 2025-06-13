@@ -2,19 +2,16 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views.challenge_views import (
     ChallengeViewSet,
-    ChallengeParticipantViewSet,
     ChallengePointViewSet,
     SocialShareViewSet,
 )
 from .views.point_transaction_views import PointTransactionViewSet
 from .views.challenge_participant_views import ChallengeParticipantViewSet
 from .views.challenge_ranking_views import ChallengeRankingAPIView
+from api.views.routine_share_permission_viewset import RoutineSharePermissionViewSet
 
 router = DefaultRouter()
 router.register(r"challenges", ChallengeViewSet, basename="challenge")
-router.register(
-    r"user-participants", ChallengeParticipantViewSet, basename="challenge-participant"
-)
 router.register(r"points", ChallengePointViewSet, basename="challenge-point")
 router.register(r"shares", SocialShareViewSet, basename="social-share")
 
@@ -24,6 +21,9 @@ router.register(
     r"challenges/(?P<challenge_pk>\d+)/participants",
     ChallengeParticipantViewSet,
     basename="challenge-participant",
+)
+router.register(
+    r"routine-share", RoutineSharePermissionViewSet, basename="routine-share"
 )
 
 urlpatterns = [
