@@ -9,7 +9,9 @@ import json
 from users.models import User
 
 class ClickRecommandAPI(APIView):
-
+    """
+    클릭한 상품 리스트는 product_views.py의 product 함수의 get 방식에서 처리
+    """
     def get(self, request):
         """
         클릭 기반 추천 리스트 출력
