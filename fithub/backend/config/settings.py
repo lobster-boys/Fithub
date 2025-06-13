@@ -275,8 +275,8 @@ AUTHENTICATION_BACKENDS = [
 SOCIALACCOUNT_PROVIDERS = {
     "kakao": {
         "APP": {
-            "client_id": config("KAKAO_CLIENT_ID"),
-            "secret": config("KAKAO_SECRET"),
+            "client_id": config("KAKAO_CLIENT_ID", default=""),
+            "secret": config("KAKAO_SECRET", default=""),
             "key": "",
         },
         "SCOPE": [

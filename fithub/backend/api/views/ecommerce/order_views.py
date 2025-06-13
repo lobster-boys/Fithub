@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from api.serializers.order_serializers import OrderSerializer, OrderCreateSerializer
+from api.serializers.ecommerce.order_serializers import OrderSerializer, OrderCreateSerializer
 from ecommerce.models import Order
 from rest_framework.response import Response
 

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view
 from ecommerce.models import UserPoint, PointTransaction
-from api.serializers.point_serializers import (
+from api.serializers.ecommerce.point_serializers import (
     UserPointSerializer, PointTransactionSerializer, PointTransactionCreateSerializer
 )
 from users.models import User

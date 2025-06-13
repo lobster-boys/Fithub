@@ -7,7 +7,7 @@ class ProductSimpleSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "price", "recommendations_score"]
 
 class ProductSerializer(serializers.ModelSerializer):
-    from api.serializers.category_serializers import CategorySimpleSerializer
+    from .category_serializers import CategorySimpleSerializer
 
     category = CategorySimpleSerializer()
     class Meta:
