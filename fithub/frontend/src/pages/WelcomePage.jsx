@@ -1,27 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const WelcomePage = () => {
   const navigate = useNavigate();
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleLoginClick = () => {
-    setShowLoginModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowLoginModal(false);
+    navigate('/auth/login');
   };
 
   const handleSignupClick = () => {
-    navigate('/auth/signup');
-  };
-
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    // 로그인 처리 로직
-    setShowLoginModal(false);
-    navigate('/');
+    navigate('/auth/register');
   };
 
   return (
@@ -114,71 +102,7 @@ const WelcomePage = () => {
         </div>
       </section>
 
-      {/* 로그인 모달 */}
-      {showLoginModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-8 max-w-md w-full">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold">로그인</h3>
-              <button 
-                onClick={handleCloseModal}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            
-            <form onSubmit={handleLoginSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="email">이메일</label>
-                <input 
-                  type="email" 
-                  id="email" 
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" 
-                  required
-                />
-              </div>
-              
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="password">비밀번호</label>
-                <input 
-                  type="password" 
-                  id="password" 
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" 
-                  required
-                />
-              </div>
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center">
-                  <input type="checkbox" id="remember" className="mr-2" />
-                  <label htmlFor="remember" className="text-sm text-gray-600">로그인 상태 유지</label>
-                </div>
-                <a href="#" className="text-sm text-primary hover:underline">비밀번호 찾기</a>
-              </div>
-              
-              <button 
-                type="submit" 
-                className="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-orange-600"
-              >
-                로그인
-              </button>
-            </form>
-            
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                계정이 없으신가요? 
-                <button 
-                  onClick={handleSignupClick} 
-                  className="text-primary hover:underline ml-1"
-                >
-                  회원가입
-                </button>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };
