@@ -8,6 +8,11 @@ class Routine(models.Model):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    #  공개 여부
+    is_public = models.BooleanField(
+        default=False, help_text="공개 상태 (True면 누구나 조회 가능)"
+    )
+
     def __str__(self):
         return self.title
 
