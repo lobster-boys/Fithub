@@ -2,7 +2,9 @@ import api from './api';
 
 // 식단 관련 API 서비스
 export const dietService = {
-  // 음식 목록 조회
+  // ========== 음식 (Foods) ==========
+  
+  // 음식 목록 조회 (필터링: category, search)
   getFoods: async (params = {}) => {
     try {
       const response = await api.get('/diet/foods/', { params });
@@ -57,63 +59,16 @@ export const dietService = {
     }
   },
 
+  // ========== 편의 함수들 ==========
+
   // 음식 검색
   searchFoods: async (query) => {
-    try {
-      const response = await api.get('/diet/foods/search/', { 
-        params: { q: query } 
-      });
-      return response.data;
-    } catch (error) {
-      console.error('음식 검색 실패:', error);
-      throw error;
-    }
+    return this.getFoods({ search: query });
   },
 
-  // 인기 음식 조회
-  getPopularFoods: async () => {
-    try {
-      const response = await api.get('/diet/foods/popular/');
-      return response.data;
-    } catch (error) {
-      console.error('인기 음식 조회 실패:', error);
-      throw error;
-    }
-  },
-
-  // 추천 음식 조회
-  getRecommendedFoods: async () => {
-    try {
-      const response = await api.get('/diet/foods/recommended/');
-      return response.data;
-    } catch (error) {
-      console.error('추천 음식 조회 실패:', error);
-      throw error;
-    }
-  },
-
-  // 음식 영양 정보 조회
-  getFoodNutrition: async (foodId) => {
-    try {
-      const response = await api.get(`/diet/foods/${foodId}/nutrition/`);
-      return response.data;
-    } catch (error) {
-      console.error('음식 영양 정보 조회 실패:', error);
-      throw error;
-    }
-  },
-
-  // 음식 카테고리별 조회
+  // 카테고리별 음식 조회
   getFoodsByCategory: async (category) => {
-    try {
-      const response = await api.get('/diet/foods/by_category/', {
-        params: { category }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('카테고리별 음식 조회 실패:', error);
-      throw error;
-    }
+    return this.getFoods({ category });
   }
 };
 

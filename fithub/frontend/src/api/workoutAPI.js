@@ -1,6 +1,8 @@
 import axiosInstance from './axiosConfig';
 
-// 운동 목록 조회
+// ========== 운동 종목 (Exercises) ==========
+
+// 운동 목록 조회 (필터링: muscle_group, type, search)
 export const getExercises = async (params) => {
   try {
     const response = await axiosInstance.get('/workouts/exercises/', { params });
@@ -20,7 +22,9 @@ export const getExercise = async (id) => {
   }
 };
 
-// 운동 루틴 목록 조회
+// ========== 운동 루틴 (Routines) ==========
+
+// 운동 루틴 목록 조회 (필터링: difficulty)
 export const getRoutines = async (params) => {
   try {
     const response = await axiosInstance.get('/workouts/routines/', { params });
@@ -70,27 +74,19 @@ export const deleteRoutine = async (id) => {
   }
 };
 
-// 루틴에 운동 추가
-export const addExerciseToRoutine = async (routineId, exerciseData) => {
+// 운동 루틴 복사
+export const copyRoutine = async (id) => {
   try {
-    const response = await axiosInstance.post(`/workouts/routines/${routineId}/exercises/`, exerciseData);
+    const response = await axiosInstance.post(`/workouts/routines/${id}/copy/`);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// 루틴에서 운동 삭제
-export const removeExerciseFromRoutine = async (routineId, exerciseId) => {
-  try {
-    const response = await axiosInstance.delete(`/workouts/routines/${routineId}/exercises/${exerciseId}/`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
+// ========== 운동 로그 (Logs) ==========
 
-// 운동 로그 조회
+// 운동 로그 목록 조회 (필터링: date, completed)
 export const getWorkoutLogs = async (params) => {
   try {
     const response = await axiosInstance.get('/workouts/logs/', { params });
@@ -140,42 +136,50 @@ export const deleteWorkoutLog = async (id) => {
   }
 };
 
-// ========== 새로 추가된 API 함수들 ==========
-
-// 운동 로그별 상세 운동 목록 조회
-export const getWorkoutLogExercises = async (workoutLogId) => {
+// 운동 완료 처리
+export const completeWorkoutLog = async (id) => {
   try {
-    const response = await axiosInstance.get(`/workouts/logs/${workoutLogId}/exercises/`);
+    const response = await axiosInstance.post(`/workouts/logs/${id}/complete/`);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// 운동 로그에 상세 운동 추가
-export const addExerciseToWorkoutLog = async (workoutLogId, exerciseData) => {
+// ========== 운동 로그 상세 (Log Exercises) ==========
+
+// 운동 로그 상세 목록 조회
+export const getLogExercises = async (params) => {
   try {
-    const response = await axiosInstance.post(`/workouts/logs/${workoutLogId}/add_exercise/`, exerciseData);
+    const response = await axiosInstance.get('/workouts/log-exercises/', { params });
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// 운동 로그에 여러 운동 한번에 추가
-export const bulkAddExercisesToWorkoutLog = async (workoutLogId, exercisesData) => {
+// 운동 로그 상세 생성
+export const createLogExercise = async (exerciseData) => {
   try {
-    const response = await axiosInstance.post(`/workouts/logs/${workoutLogId}/bulk_add_exercises/`, {
-      exercises: exercisesData
-    });
+    const response = await axiosInstance.post('/workouts/log-exercises/', exerciseData);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// 운동 로그 상세 운동 수정
-export const updateWorkoutLogExercise = async (id, exerciseData) => {
+// 운동 로그 상세 조회
+export const getLogExercise = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/workouts/log-exercises/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 운동 로그 상세 수정
+export const updateLogExercise = async (id, exerciseData) => {
   try {
     const response = await axiosInstance.put(`/workouts/log-exercises/${id}/`, exerciseData);
     return response.data;
@@ -184,8 +188,8 @@ export const updateWorkoutLogExercise = async (id, exerciseData) => {
   }
 };
 
-// 운동 로그 상세 운동 삭제
-export const deleteWorkoutLogExercise = async (id) => {
+// 운동 로그 상세 삭제
+export const deleteLogExercise = async (id) => {
   try {
     const response = await axiosInstance.delete(`/workouts/log-exercises/${id}/`);
     return response.data;
@@ -193,6 +197,8 @@ export const deleteWorkoutLogExercise = async (id) => {
     throw error;
   }
 };
+
+// ========== 운동 타입 (Types) ==========
 
 // 운동 타입 목록 조회
 export const getWorkoutTypes = async () => {
@@ -214,196 +220,51 @@ export const getWorkoutType = async (id) => {
   }
 };
 
+// ========== 운동 통계 (Stats) ==========
+
 // 기본 운동 통계 조회
 export const getWorkoutStats = async () => {
   try {
-    const response = await axiosInstance.get('/workouts/stats/');
+    const response = await axiosInstance.get('/workouts/stats/basic/');
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// 확장 운동 통계 조회
-export const getAdvancedWorkoutStats = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/stats/advanced/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// ========== 편의 함수들 (프론트엔드에서 자주 사용하는 패턴) ==========
+
+// 근육군별 운동 조회
+export const getExercisesByMuscleGroup = async (muscleGroup) => {
+  return getExercises({ muscle_group: muscleGroup });
 };
 
-// 연속 운동일 통계 조회
-export const getWorkoutStreak = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/stats/streak/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 운동 타입별 분포 통계 조회
-export const getWorkoutTypeDistribution = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/stats/type_distribution/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// ========== 새로운 Custom Action API 함수들 ==========
-
-// 내 운동 루틴 조회
-export const getMyRoutines = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/routines/my_routines/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 인기 운동 루틴 조회
-export const getPopularRoutines = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/routines/popular/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 루틴 복사
-export const duplicateRoutine = async (routineId) => {
-  try {
-    const response = await axiosInstance.post(`/workouts/routines/${routineId}/duplicate/`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 루틴 공유
-export const shareRoutine = async (routineId) => {
-  try {
-    const response = await axiosInstance.post(`/workouts/routines/${routineId}/share/`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 내 운동 로그 조회
-export const getMyWorkoutLogs = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/logs/my_logs/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 최근 운동 로그 조회
-export const getRecentWorkoutLogs = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/logs/recent/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 운동 로그 요약 조회
-export const getWorkoutLogSummary = async (logId) => {
-  try {
-    const response = await axiosInstance.get(`/workouts/logs/${logId}/summary/`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 운동 로그 완료 처리
-export const completeWorkoutLog = async (logId) => {
-  try {
-    const response = await axiosInstance.post(`/workouts/logs/${logId}/complete/`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 운동별 개인 기록 조회
-export const getPersonalRecords = async (exerciseId) => {
-  try {
-    const response = await axiosInstance.get(`/workouts/exercises/${exerciseId}/personal_records/`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 인기 운동 조회
-export const getPopularExercises = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/exercises/popular/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 추천 운동 조회
-export const getRecommendedExercises = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/exercises/recommended/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// 운동 타입별 운동 조회
+export const getExercisesByType = async (type) => {
+  return getExercises({ type });
 };
 
 // 운동 검색
 export const searchExercises = async (query) => {
-  try {
-    const response = await axiosInstance.get('/workouts/exercises/search/', {
-      params: { q: query }
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return getExercises({ search: query });
 };
 
-// 월별 운동 통계
-export const getMonthlyStats = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/stats/monthly/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// 특정 날짜의 운동 로그 조회
+export const getWorkoutLogsByDate = async (date) => {
+  return getWorkoutLogs({ date });
 };
 
-// 주간 운동 통계
-export const getWeeklyStats = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/stats/weekly/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// 완료된 운동 로그만 조회
+export const getCompletedWorkoutLogs = async () => {
+  return getWorkoutLogs({ completed: true });
 };
 
-// 운동 목표 달성률
-export const getGoalProgress = async () => {
-  try {
-    const response = await axiosInstance.get('/workouts/stats/goal_progress/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// 미완료 운동 로그만 조회
+export const getIncompleteWorkoutLogs = async () => {
+  return getWorkoutLogs({ completed: false });
+};
+
+// 난이도별 루틴 조회
+export const getRoutinesByDifficulty = async (difficulty) => {
+  return getRoutines({ difficulty });
 }; 

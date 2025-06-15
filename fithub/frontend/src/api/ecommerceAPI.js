@@ -1,8 +1,8 @@
 import axiosInstance from './axiosConfig';
 
-// ========== 상품 관련 API ==========
+// ========== 상품 (Products) ==========
 
-// 상품 목록 조회
+// 상품 목록 조회 (필터링: category, price_min, price_max, search)
 export const getProducts = async (params) => {
   try {
     const response = await axiosInstance.get('/ecommerce/products/', { params });
@@ -22,79 +22,7 @@ export const getProduct = async (id) => {
   }
 };
 
-// 상품 생성 (관리자용)
-export const createProduct = async (productData) => {
-  try {
-    const response = await axiosInstance.post('/ecommerce/products/', productData);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 상품 수정 (관리자용)
-export const updateProduct = async (id, productData) => {
-  try {
-    const response = await axiosInstance.put(`/ecommerce/products/${id}/`, productData);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 상품 삭제 (관리자용)
-export const deleteProduct = async (id) => {
-  try {
-    const response = await axiosInstance.delete(`/ecommerce/products/${id}/`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 추천 상품 조회
-export const getRecommendedProducts = async () => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/products/recommended/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 인기 상품 조회
-export const getPopularProducts = async () => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/products/popular/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 할인 상품 조회
-export const getDiscountedProducts = async () => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/products/discounted/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 상품 검색
-export const searchProducts = async (query) => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/products/search/', { 
-      params: { q: query } 
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// ========== 카테고리 관련 API ==========
+// ========== 카테고리 (Categories) ==========
 
 // 카테고리 목록 조회
 export const getCategories = async () => {
@@ -116,17 +44,57 @@ export const getCategory = async (id) => {
   }
 };
 
-// 카테고리별 상품 조회
-export const getProductsByCategory = async (categoryId) => {
+// ========== 장바구니 (Carts) ==========
+
+// 장바구니 목록 조회
+export const getCarts = async (params) => {
   try {
-    const response = await axiosInstance.get(`/ecommerce/categories/${categoryId}/products/`);
+    const response = await axiosInstance.get('/ecommerce/carts/', { params });
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// ========== 장바구니 관련 API ==========
+// 장바구니 상세 조회
+export const getCart = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/ecommerce/carts/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 장바구니 생성
+export const createCart = async (cartData) => {
+  try {
+    const response = await axiosInstance.post('/ecommerce/carts/', cartData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 장바구니 수정
+export const updateCart = async (id, cartData) => {
+  try {
+    const response = await axiosInstance.put(`/ecommerce/carts/${id}/`, cartData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 장바구니 삭제
+export const deleteCart = async (id) => {
+  try {
+    const response = await axiosInstance.delete(`/ecommerce/carts/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
 
 // 내 장바구니 조회
 export const getMyCart = async () => {
@@ -139,7 +107,7 @@ export const getMyCart = async () => {
 };
 
 // 장바구니에 상품 추가
-export const addToCart = async (productId, quantity = 1) => {
+export const addItemToCart = async (productId, quantity = 1) => {
   try {
     const response = await axiosInstance.post('/ecommerce/carts/add_item/', {
       product: productId,
@@ -151,12 +119,42 @@ export const addToCart = async (productId, quantity = 1) => {
   }
 };
 
-// 장바구니 아이템 수정
-export const updateCartItem = async (itemId, quantity) => {
+// ========== 장바구니 아이템 (Cart Items) ==========
+
+// 장바구니 아이템 목록 조회
+export const getCartItems = async (params) => {
   try {
-    const response = await axiosInstance.put(`/ecommerce/cart-items/${itemId}/`, {
-      quantity: quantity
-    });
+    const response = await axiosInstance.get('/ecommerce/cart-items/', { params });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 장바구니 아이템 상세 조회
+export const getCartItem = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/ecommerce/cart-items/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 장바구니 아이템 생성
+export const createCartItem = async (itemData) => {
+  try {
+    const response = await axiosInstance.post('/ecommerce/cart-items/', itemData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 장바구니 아이템 수정
+export const updateCartItem = async (id, itemData) => {
+  try {
+    const response = await axiosInstance.put(`/ecommerce/cart-items/${id}/`, itemData);
     return response.data;
   } catch (error) {
     throw error;
@@ -164,41 +162,21 @@ export const updateCartItem = async (itemId, quantity) => {
 };
 
 // 장바구니 아이템 삭제
-export const removeFromCart = async (itemId) => {
+export const deleteCartItem = async (id) => {
   try {
-    const response = await axiosInstance.delete(`/ecommerce/cart-items/${itemId}/`);
+    const response = await axiosInstance.delete(`/ecommerce/cart-items/${id}/`);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// 장바구니 비우기
-export const clearCart = async () => {
-  try {
-    const response = await axiosInstance.post('/ecommerce/carts/clear/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
+// ========== 주문 (Orders) ==========
 
-// 장바구니 요약 정보
-export const getCartSummary = async () => {
+// 주문 목록 조회 (필터링: status, date)
+export const getOrders = async (params) => {
   try {
-    const response = await axiosInstance.get('/ecommerce/carts/summary/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// ========== 주문 관련 API ==========
-
-// 내 주문 목록 조회
-export const getMyOrders = async () => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/orders/my_orders/');
+    const response = await axiosInstance.get('/ecommerce/orders/', { params });
     return response.data;
   } catch (error) {
     throw error;
@@ -225,39 +203,29 @@ export const createOrder = async (orderData) => {
   }
 };
 
-// 최근 주문 조회
-export const getRecentOrders = async () => {
+// 주문 수정
+export const updateOrder = async (id, orderData) => {
   try {
-    const response = await axiosInstance.get('/ecommerce/orders/recent/');
+    const response = await axiosInstance.put(`/ecommerce/orders/${id}/`, orderData);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// 주문 취소
-export const cancelOrder = async (orderId) => {
+// 주문 삭제
+export const deleteOrder = async (id) => {
   try {
-    const response = await axiosInstance.post(`/ecommerce/orders/${orderId}/cancel/`);
+    const response = await axiosInstance.delete(`/ecommerce/orders/${id}/`);
     return response.data;
   } catch (error) {
     throw error;
   }
 };
 
-// 주문 요약 정보
-export const getOrderSummary = async () => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/orders/summary/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
+// ========== 리뷰 (Reviews) ==========
 
-// ========== 리뷰 관련 API ==========
-
-// 리뷰 목록 조회
+// 리뷰 목록 조회 (필터링: product, rating)
 export const getReviews = async (params) => {
   try {
     const response = await axiosInstance.get('/ecommerce/reviews/', { params });
@@ -277,7 +245,7 @@ export const getReview = async (id) => {
   }
 };
 
-// 리뷰 작성
+// 리뷰 생성
 export const createReview = async (reviewData) => {
   try {
     const response = await axiosInstance.post('/ecommerce/reviews/', reviewData);
@@ -307,56 +275,49 @@ export const deleteReview = async (id) => {
   }
 };
 
-// 내 리뷰 목록 조회
-export const getMyReviews = async () => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/reviews/my_reviews/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// ========== 편의 함수들 (프론트엔드에서 자주 사용하는 패턴) ==========
+
+// 카테고리별 상품 조회
+export const getProductsByCategory = async (categoryId) => {
+  return getProducts({ category: categoryId });
 };
 
-// 상품별 리뷰 조회
+// 상품 검색
+export const searchProducts = async (query) => {
+  return getProducts({ search: query });
+};
+
+// 가격 범위로 상품 조회
+export const getProductsByPriceRange = async (minPrice, maxPrice) => {
+  return getProducts({ price_min: minPrice, price_max: maxPrice });
+};
+
+// 특정 상품의 리뷰 조회
 export const getProductReviews = async (productId) => {
-  try {
-    const response = await axiosInstance.get(`/ecommerce/reviews/by_product/`, {
-      params: { product_id: productId }
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return getReviews({ product: productId });
 };
 
-// 상품 리뷰 통계
-export const getProductReviewStats = async (productId) => {
-  try {
-    const response = await axiosInstance.get(`/ecommerce/reviews/product_stats/`, {
-      params: { product_id: productId }
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// 평점별 리뷰 조회
+export const getReviewsByRating = async (rating) => {
+  return getReviews({ rating });
 };
 
-// 최근 리뷰 조회
-export const getRecentReviews = async () => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/reviews/recent/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// 주문 상태별 조회
+export const getOrdersByStatus = async (status) => {
+  return getOrders({ status });
 };
 
-// 높은 평점 리뷰 조회
-export const getHighRatedReviews = async () => {
-  try {
-    const response = await axiosInstance.get('/ecommerce/reviews/high_rated/');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// 특정 날짜의 주문 조회
+export const getOrdersByDate = async (date) => {
+  return getOrders({ date });
+};
+
+// 장바구니에 상품 추가 (별칭)
+export const addToCart = async (productId, quantity = 1) => {
+  return addItemToCart(productId, quantity);
+};
+
+// 장바구니에서 상품 제거 (별칭)
+export const removeFromCart = async (itemId) => {
+  return deleteCartItem(itemId);
 }; 

@@ -125,23 +125,15 @@ const CATEGORIES = [
   { id: 'accessories', name: '악세서리' }
 ];
 
-// 추천 알고리즘 타입
-const RECOMMENDATION_TYPES = {
-  POPULAR: 'popular',           // 인기 상품
-  BESTSELLER: 'bestseller',     // 베스트셀러
-  DISCOUNT: 'discount',         // 할인 상품
-  HIGH_RATED: 'high_rated',     // 높은 평점
-  CATEGORY_BASED: 'category_based', // 카테고리 기반
-  USER_BASED: 'user_based'      // 사용자 기반 (향후 구현)
-};
-
 const useEcommerce = () => {
   const [products, setProducts] = useState(PRODUCTS_DATA);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('all');
 
-  // 전체 상품 목록 가져오기 (API 사용)
+  // ========== API 기반 함수들 ==========
+
+  // 전체 상품 목록 가져오기
   const getAllProducts = async (params = {}) => {
     setLoading(true);
     try {
@@ -157,7 +149,7 @@ const useEcommerce = () => {
     }
   };
 
-  // 카테고리별 상품 필터링 (API 사용)
+  // 카테고리별 상품 필터링
   const getProductsByCategory = async (categoryId) => {
     if (categoryId === 'all') {
       return getAllProducts();
@@ -176,7 +168,7 @@ const useEcommerce = () => {
     }
   };
 
-  // 상품 ID로 특정 상품 가져오기 (API 사용)
+  // 상품 ID로 특정 상품 가져오기
   const getProductById = async (productId) => {
     setLoading(true);
     try {
@@ -191,114 +183,89 @@ const useEcommerce = () => {
     }
   };
 
-  // 추천 상품 가져오기
-  const getRecommendedProducts = (type = RECOMMENDATION_TYPES.POPULAR, limit = 4, options = {}) => {
+  // 상품 검색
+  const searchProducts = async (query) => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.searchProducts(query);
+      return data;
+    } catch (err) {
+      setError(err);
+      // API 실패 시 로컬 검색
+      return products.filter(product => 
+        product.name.toLowerCase().includes(query.toLowerCase()) ||
+        product.description.toLowerCase().includes(query.toLowerCase()) ||
+        product.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()))
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 가격 범위로 상품 필터링
+  const getProductsByPriceRange = async (minPrice, maxPrice) => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.getProductsByPriceRange(minPrice, maxPrice);
+      return data;
+    } catch (err) {
+      setError(err);
+      // API 실패 시 로컬 필터링
+      return products.filter(product => 
+        product.price >= minPrice && product.price <= maxPrice
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========== 로컬 유틸리티 함수들 ==========
+
+  // 추천 상품 가져오기 (로컬 로직)
+  const getRecommendedProducts = (type = 'popular', limit = 4) => {
     let recommendedProducts = [...products];
 
     switch (type) {
-      case RECOMMENDATION_TYPES.POPULAR:
-        // 인기도 기준 정렬
-        recommendedProducts = recommendedProducts.sort((a, b) => b.popularity - a.popularity);
+      case 'popular':
+        recommendedProducts.sort((a, b) => b.popularity - a.popularity);
         break;
-
-      case RECOMMENDATION_TYPES.BESTSELLER:
-        // 베스트셀러만 필터링 후 인기도 정렬
-        recommendedProducts = recommendedProducts
-          .filter(product => product.isBestseller)
-          .sort((a, b) => b.popularity - a.popularity);
+      case 'bestseller':
+        recommendedProducts = recommendedProducts.filter(product => product.isBestseller);
         break;
-
-      case RECOMMENDATION_TYPES.DISCOUNT:
-        // 할인 상품만 필터링 후 할인율 정렬
-        recommendedProducts = recommendedProducts
-          .filter(product => product.discount > 0)
+      case 'discount':
+        recommendedProducts = recommendedProducts.filter(product => product.discount > 0)
           .sort((a, b) => b.discount - a.discount);
         break;
-
-      case RECOMMENDATION_TYPES.HIGH_RATED:
-        // 평점 4.5 이상 상품을 평점 순으로 정렬
-        recommendedProducts = recommendedProducts
-          .filter(product => product.rating >= 4.5)
-          .sort((a, b) => b.rating - a.rating);
+      case 'high_rated':
+        recommendedProducts.sort((a, b) => b.rating - a.rating);
         break;
-
-      case RECOMMENDATION_TYPES.CATEGORY_BASED:
-        // 특정 카테고리 기반 추천
-        const { category } = options;
-        if (category && category !== 'all') {
-          recommendedProducts = recommendedProducts
-            .filter(product => product.category === category)
-            .sort((a, b) => b.popularity - a.popularity);
-        }
-        break;
-
-      case RECOMMENDATION_TYPES.USER_BASED:
-        // 사용자 기반 추천 (향후 구현 - 현재는 인기도 기준)
-        const { userPreferences } = options;
-        if (userPreferences && userPreferences.length > 0) {
-          recommendedProducts = recommendedProducts
-            .filter(product => 
-              product.tags.some(tag => userPreferences.includes(tag))
-            )
-            .sort((a, b) => b.popularity - a.popularity);
-        } else {
-          recommendedProducts = recommendedProducts.sort((a, b) => b.popularity - a.popularity);
-        }
-        break;
-
       default:
-        recommendedProducts = recommendedProducts.sort((a, b) => b.popularity - a.popularity);
+        recommendedProducts.sort((a, b) => b.popularity - a.popularity);
     }
 
     return recommendedProducts.slice(0, limit);
   };
 
-  // 홈페이지용 추천 상품 (베스트셀러 + 인기 상품 조합)
+  // 홈페이지 추천 상품
   const getHomePageRecommendations = (limit = 4) => {
-    const bestsellers = getRecommendedProducts(RECOMMENDATION_TYPES.BESTSELLER, 2);
-    const popular = getRecommendedProducts(RECOMMENDATION_TYPES.POPULAR, limit - bestsellers.length)
-      .filter(product => !bestsellers.find(bs => bs.id === product.id));
-    
-    return [...bestsellers, ...popular].slice(0, limit);
+    return getRecommendedProducts('popular', limit);
   };
 
-  // 관련 상품 추천 (특정 상품과 같은 카테고리의 다른 상품)
+  // 관련 상품 가져오기
   const getRelatedProducts = (productId, limit = 4) => {
-    const currentProduct = getProductById(productId);
+    const currentProduct = products.find(p => p.id === parseInt(productId));
     if (!currentProduct) return [];
 
     return products
       .filter(product => 
-        product.id !== currentProduct.id && 
+        product.id !== parseInt(productId) && 
         product.category === currentProduct.category
       )
-      .sort((a, b) => b.popularity - a.popularity)
+      .sort((a, b) => b.rating - a.rating)
       .slice(0, limit);
   };
 
-  // 검색 기능
-  const searchProducts = (query) => {
-    if (!query.trim()) return products;
-
-    const lowercaseQuery = query.toLowerCase();
-    return products.filter(product =>
-      product.name.toLowerCase().includes(lowercaseQuery) ||
-      product.description.toLowerCase().includes(lowercaseQuery) ||
-      product.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
-    );
-  };
-
-  // 가격 범위로 필터링
-  const getProductsByPriceRange = (minPrice, maxPrice) => {
-    return products.filter(product => {
-      const finalPrice = product.discount > 0 
-        ? product.price * (1 - product.discount / 100)
-        : product.price;
-      return finalPrice >= minPrice && finalPrice <= maxPrice;
-    });
-  };
-
-  // 평점으로 필터링
+  // 평점별 상품 필터링
   const getProductsByRating = (minRating) => {
     return products.filter(product => product.rating >= minRating);
   };
@@ -308,151 +275,77 @@ const useEcommerce = () => {
     return CATEGORIES;
   };
 
-  // 추천 타입 상수 반환
-  const getRecommendationTypes = () => {
-    return RECOMMENDATION_TYPES;
-  };
+  // ========== 장바구니 관련 함수들 ==========
 
-  // 상품 통계 정보
-  const getProductStats = useMemo(() => {
-    return {
-      totalProducts: products.length,
-      totalCategories: CATEGORIES.length - 1, // 'all' 제외
-      bestsellersCount: products.filter(p => p.isBestseller).length,
-      discountedCount: products.filter(p => p.discount > 0).length,
-      averageRating: (products.reduce((sum, p) => sum + p.rating, 0) / products.length).toFixed(1),
-      averagePrice: Math.round(products.reduce((sum, p) => sum + p.price, 0) / products.length)
-    };
-  }, [products]);
-
-  // API 기반 추천 상품 조회
-  const getApiRecommendedProducts = async () => {
+  // 내 장바구니 조회
+  const getMyCart = async () => {
     setLoading(true);
     try {
-      const data = await ecommerceAPI.getRecommendedProducts();
+      const data = await ecommerceAPI.getMyCart();
       return data;
     } catch (err) {
       setError(err);
-      return getRecommendedProducts(RECOMMENDATION_TYPES.POPULAR, 4);
+      return { items: [], total: 0 };
     } finally {
       setLoading(false);
     }
   };
 
-  // API 기반 인기 상품 조회
-  const getApiPopularProducts = async () => {
+  // 장바구니에 상품 추가
+  const addToCart = async (productId, quantity = 1) => {
     setLoading(true);
     try {
-      const data = await ecommerceAPI.getPopularProducts();
+      const data = await ecommerceAPI.addToCart(productId, quantity);
       return data;
     } catch (err) {
       setError(err);
-      return getRecommendedProducts(RECOMMENDATION_TYPES.POPULAR, 8);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  // API 기반 할인 상품 조회
-  const getApiDiscountedProducts = async () => {
+  // 장바구니에서 상품 제거
+  const removeFromCart = async (itemId) => {
     setLoading(true);
     try {
-      const data = await ecommerceAPI.getDiscountedProducts();
+      const data = await ecommerceAPI.removeFromCart(itemId);
       return data;
     } catch (err) {
       setError(err);
-      return getRecommendedProducts(RECOMMENDATION_TYPES.DISCOUNT, 8);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  // API 기반 상품 검색
-  const searchApiProducts = async (query) => {
+  // ========== 리뷰 관련 함수들 ==========
+
+  // 상품 리뷰 조회
+  const getProductReviews = async (productId) => {
     setLoading(true);
     try {
-      const data = await ecommerceAPI.searchProducts(query);
+      const data = await ecommerceAPI.getProductReviews(productId);
       return data;
     } catch (err) {
       setError(err);
-      return searchProducts(query);
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
-  // 장바구니 관련 함수들
-  const cartActions = {
-    getMyCart: async () => {
-      setLoading(true);
-      try {
-        return await ecommerceAPI.getMyCart();
-      } catch (err) {
-        setError(err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-
-    addToCart: async (productId, quantity = 1) => {
-      setLoading(true);
-      try {
-        return await ecommerceAPI.addToCart(productId, quantity);
-      } catch (err) {
-        setError(err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-
-    updateCartItem: async (itemId, quantity) => {
-      setLoading(true);
-      try {
-        return await ecommerceAPI.updateCartItem(itemId, quantity);
-      } catch (err) {
-        setError(err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-
-    removeFromCart: async (itemId) => {
-      setLoading(true);
-      try {
-        return await ecommerceAPI.removeFromCart(itemId);
-      } catch (err) {
-        setError(err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-
-    clearCart: async () => {
-      setLoading(true);
-      try {
-        return await ecommerceAPI.clearCart();
-      } catch (err) {
-        setError(err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-
-    getCartSummary: async () => {
-      setLoading(true);
-      try {
-        return await ecommerceAPI.getCartSummary();
-      } catch (err) {
-        setError(err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
+  // 리뷰 생성
+  const createReview = async (reviewData) => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.createReview(reviewData);
+      return data;
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -464,37 +357,28 @@ const useEcommerce = () => {
     activeCategory,
     setActiveCategory,
 
-    // 기본 조회 함수 (API 기반)
+    // API 기반 함수들
     getAllProducts,
     getProductsByCategory,
     getProductById,
-    getCategories,
+    searchProducts,
+    getProductsByPriceRange,
 
-    // API 기반 추천 시스템
-    getApiRecommendedProducts,
-    getApiPopularProducts,
-    getApiDiscountedProducts,
-    searchApiProducts,
-
-    // 로컬 추천 시스템 (백업용)
+    // 로컬 유틸리티 함수들
     getRecommendedProducts,
     getHomePageRecommendations,
     getRelatedProducts,
-    getRecommendationTypes,
-
-    // 검색 및 필터링 (로컬)
-    searchProducts,
-    getProductsByPriceRange,
     getProductsByRating,
+    getCategories,
 
     // 장바구니 관련
-    cartActions,
+    getMyCart,
+    addToCart,
+    removeFromCart,
 
-    // 통계
-    getProductStats,
-
-    // 상수
-    RECOMMENDATION_TYPES
+    // 리뷰 관련
+    getProductReviews,
+    createReview
   };
 };
 
