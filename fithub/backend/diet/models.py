@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.db.models import Sum, F, DecimalField
+from decimal import Decimal
 
 class Food(models.Model):
 
@@ -72,7 +74,21 @@ class MealPlan(models.Model):
     def __str__(self):
         return f'{self.name} ({self.user.username})'
 
-    
+    def calculate_total_calories(self):
+        """
+        현재 식단 계획에 연결된 모든 MealPlanFood 항목의
+        (Food.calories * quancity) 값을 합산하여 total_calories 필드에 업데이트
+        """
+        result = self.items.aggregate(
+            total=Sum(F('quantity') * F('food__calories'), output_field=DecimalField())
+        )
+        # total_calories는 IntegerField이므로, 반올림 또는 정수 변환 후 저장
+        total = result.get('total') or Decimal(0)
+
+        self.total_calories = int(total)
+        self.save(update_fields=['total_calories'])
+        return self.total_calories
+
 class MealPlanFood(models.Model):
 
     MEAL_TIME_CHOICES = [
