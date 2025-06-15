@@ -1,111 +1,89 @@
-from django.shortcuts import get_object_or_404
-from rest_framework.views import APIView
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from ecommerce.models import Cart, CartItem, Product
 from api.serializers.ecommerce.cart_serializers import CartSerializer, CartItemSerializer
-from rest_framework.permissions import IsAuthenticated
 
-# 테스트용 유저 불러오기
-from users.models import User
 
-class CartAPI(APIView):
-    # permission_classes = [IsAuthenticated]
+class CartViewSet(viewsets.ModelViewSet):
+    """
+    장바구니 ViewSet
+    - 기본 CRUD 작업
+    - 내 장바구니 조회
+    - 상품 추가 기능
+    """
+    serializer_class = CartSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """사용자의 장바구니만 조회"""
+        return Cart.objects.filter(user=self.request.user)
 
-    def get(self, request):
-        """
-        장바구니 조회
-        """
-        user = User.objects.get(id="1")  # request.user로 전환 예정
-        cart, created = Cart.objects.get_or_create(user=user)
-        
+    def perform_create(self, serializer):
+        """장바구니 생성 시 현재 사용자를 자동으로 설정"""
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def my_cart(self, request):
+        """내 장바구니 조회 (프론트엔드에서 사용)"""
+        cart, created = Cart.objects.get_or_create(user=request.user)
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
-    def post(self, request):
-        """
-        장바구니에 상품 추가
-        """
-        try:
-            user = User.objects.get(id="1")
-            cart, created = Cart.objects.get_or_create(user=user)
-            
-            product_id = request.data.get("product_id")
-            quantity = int(request.data.get("quantity", 1))
-            
-            product = get_object_or_404(Product, id=product_id)
-            
-            # 기존 장바구니 아이템이 있는지 확인
-            cart_item, created = CartItem.objects.get_or_create(
-                cart=cart,
-                product=product,
-                defaults={
-                    'product_name': product.name,
-                    'price': product.sale_price or product.price,
-                    'quantity': quantity
-                }
-            )
-            
-            if not created:
-                # 기존 아이템이 있으면 수량 업데이트
-                cart_item.quantity += quantity
-                if cart_item.quantity <= 0:
-                    cart_item.delete()
-                    return Response({"message": "상품이 장바구니에서 제거되었습니다."})
-                else:
-                    cart_item.save()
-            
-            serializer = CartItemSerializer(cart_item)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
+    @action(detail=False, methods=['post'])
+    def add_item(self, request):
+        """장바구니에 상품 추가 (프론트엔드에서 사용)"""
+        product_id = request.data.get('product_id')
+        quantity = request.data.get('quantity', 1)
+        
+        if not product_id:
             return Response(
-                {"error": str(e)}, 
+                {'error': 'product_id가 필요합니다.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-class CartItemAPI(APIView):
-    
-    def put(self, request, item_id):
-        """
-        장바구니 아이템 수량 수정
-        """
+        
         try:
-            cart_item = get_object_or_404(CartItem, id=item_id)
-            quantity = int(request.data.get("quantity", 1))
-            
-            if quantity <= 0:
-                cart_item.delete()
-                return Response({"message": "상품이 장바구니에서 제거되었습니다."})
-            
-            cart_item.quantity = quantity
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
+            return Response(
+                {'error': '상품을 찾을 수 없습니다.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        
+        # 이미 장바구니에 있는 상품인지 확인
+        cart_item, item_created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            defaults={'quantity': quantity}
+        )
+        
+        if not item_created:
+            # 이미 있는 상품이면 수량 증가
+            cart_item.quantity += quantity
             cart_item.save()
-            
-            serializer = CartItemSerializer(cart_item)
-            return Response(serializer.data)
-            
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        
+        serializer = CartSerializer(cart)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class CartItemViewSet(viewsets.ModelViewSet):
+    """
+    장바구니 아이템 ViewSet
+    프론트엔드 요구사항에 맞춘 단순화된 버전
+    - 기본 CRUD 작업
+    """
+    serializer_class = CartItemSerializer
+    permission_classes = [IsAuthenticated]
     
-    def delete(self, request, item_id):
-        """
-        장바구니 아이템 삭제
-        """
-        try:
-            cart_item = get_object_or_404(CartItem, id=item_id)
-            cart_item.delete()
-            return Response(
-                {"message": "상품이 장바구니에서 제거되었습니다."}, 
-                status=status.HTTP_204_NO_CONTENT
-            )
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    def get_queryset(self):
+        """사용자의 장바구니 아이템만 조회"""
+        return CartItem.objects.filter(cart__user=self.request.user)
+
+
+
 
 
 

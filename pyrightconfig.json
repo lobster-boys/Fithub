@@ -1,0 +1,35 @@
+{
+    "include": [
+        "fithub/backend"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        "**/.*"
+    ],
+    "extraPaths": [
+        "fithub/backend",
+        "fithub_env/Lib/site-packages"
+    ],
+    "pythonVersion": "3.12",
+    "pythonPlatform": "Windows",
+    "venvPath": ".",
+    "venv": "fithub_env",
+    "typeCheckingMode": "basic",
+    "reportMissingTypeStubs": false,
+    "reportUnknownMemberType": false,
+    "reportUnknownArgumentType": false,
+    "reportUnknownVariableType": false,
+    "reportAttributeAccessIssue": false,
+    "executionEnvironments": [
+        {
+            "root": "fithub/backend",
+            "pythonVersion": "3.12",
+            "pythonPath": "../../fithub_env/Scripts/python.exe",
+            "extraPaths": [
+                "fithub/backend",
+                "../../fithub_env/Lib/site-packages"
+            ]
+        }
+    ]
+} 

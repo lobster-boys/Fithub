@@ -1,8 +1,10 @@
-# Category views
-from .category_views import categories, category
+# ViewSets (리팩토링 완료)
+from .category_views import CategoryViewSet
+from .product_views import ProductViewSet
 
-# Product views  
-from .product_views import *
+# Legacy views (점진적 교체를 위해 임시 유지)
+from .category_views import categories, category
+from .product_views import products, product
 
 # Cart views
 from .cart_views import CartAPI
@@ -26,33 +28,26 @@ from .review_views import (
 )
 
 __all__ = [
-    # Category
+    # New ViewSets
+    'CategoryViewSet',
+    'ProductViewSet',
+    
+    # Legacy views (추후 ViewSet으로 전환 예정)
     'categories',
     'category',
-    
-    # Product
-    # (product_views의 모든 함수들)
-    
-    # Cart
+    'products', 
+    'product',
     'CartAPI',
-    
-    # Order  
     'OrdersAPI',
     'OrderAPI',
-    
-    # Coupon
     'coupons',
     'coupon_detail', 
     'UserCouponAPI',
     'use_coupon',
-    
-    # Point
     'UserPointAPI',
     'PointTransactionAPI',
     'earn_points',
     'use_points',
-    
-    # Review
     'product_reviews',
     'ReviewAPI',
     'review_detail',

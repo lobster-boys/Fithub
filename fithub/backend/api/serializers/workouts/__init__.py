@@ -2,7 +2,11 @@
 
 # Exercise serializers
 from .exercise_serializers import (
-    ExerciseSerializer
+    ExerciseSimpleSerializer,
+    ExerciseSerializer,
+    ExerciseCreateSerializer,
+    ExerciseUpdateSerializer,
+    ExerciseStatsSerializer
 )
 
 # Routine serializers
@@ -44,7 +48,11 @@ from .advanced_stats_serializers import (
 
 __all__ = [
     # Exercise
+    'ExerciseSimpleSerializer',
     'ExerciseSerializer',
+    'ExerciseCreateSerializer',
+    'ExerciseUpdateSerializer',
+    'ExerciseStatsSerializer',
     
     # Routine
     'RoutineExerciseSerializer',

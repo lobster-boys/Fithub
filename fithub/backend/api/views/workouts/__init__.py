@@ -1,25 +1,11 @@
 # Exercise views
-from .exercise_views import (
-    ExerciseListView,
-    ExerciseDetailView
-)
+from .exercise_views import ExerciseViewSet
 
 # Routine views
-from .routine_views import (
-    WorkoutRoutineListView,
-    WorkoutRoutineDetailView,
-    WorkoutRoutineCreateView,
-    WorkoutRoutineUpdateView,
-    WorkoutRoutineDeleteView,
-    copy_routine_view
-)
+from .routine_views import WorkoutRoutineViewSet
 
 # Log views
-from .log_views import (
-    WorkoutLogListView,
-    WorkoutLogCreateView,
-    WorkoutLogDetailView
-)
+from .log_views import WorkoutLogViewSet
 
 # Log Exercise views
 from .log_exercise_views import (
@@ -47,38 +33,31 @@ from .advanced_stats_views import (
     workout_type_distribution_view
 )
 
+# ViewSets
+from .exercise_views import ExerciseViewSet
+from .routine_views import WorkoutRoutineViewSet
+from .log_views import WorkoutLogViewSet
+from .log_exercise_views import WorkoutLogExerciseViewSet
+from .type_views import WorkoutTypeViewSet
+from .stats_views import WorkoutStatsViewSet
+
 __all__ = [
-    # Exercise
-    'ExerciseListView',
-    'ExerciseDetailView',
+    # ViewSets
+    'ExerciseViewSet',
+    'WorkoutRoutineViewSet',
+    'WorkoutLogViewSet',
+    'WorkoutLogExerciseViewSet',
+    'WorkoutTypeViewSet',
+    'WorkoutStatsViewSet',
     
-    # Routine
-    'WorkoutRoutineListView',
-    'WorkoutRoutineDetailView',
-    'WorkoutRoutineCreateView',
-    'WorkoutRoutineUpdateView',
-    'WorkoutRoutineDeleteView',
-    'copy_routine_view',
-    
-    # Log
-    'WorkoutLogListView',
-    'WorkoutLogCreateView',
-    'WorkoutLogDetailView',
-    
-    # Log Exercise
+    # Legacy views (추후 ViewSet으로 전환 예정)
     'WorkoutLogExerciseListView',
     'WorkoutLogExerciseCreateView',
     'WorkoutLogExerciseDetailView',
     'bulk_create_log_exercises',
-    
-    # Type
     'WorkoutTypeListView',
     'WorkoutTypeDetailView',
-    
-    # Stats
     'workout_stats_view',
-    
-    # Advanced Stats
     'advanced_workout_stats_view',
     'workout_streak_view',
     'workout_type_distribution_view',

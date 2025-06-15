@@ -2,106 +2,116 @@ import api from './api';
 
 // 식단 관련 API 서비스
 export const dietService = {
-  // 식단 로그 목록 조회
-  getDietLogs: async (params = {}) => {
+  // 음식 목록 조회
+  getFoods: async (params = {}) => {
     try {
-      const response = await api.get('/diet/logs', { params });
+      const response = await api.get('/diet/foods/', { params });
       return response.data;
     } catch (error) {
-      console.error('식단 로그 조회 실패:', error);
+      console.error('음식 목록 조회 실패:', error);
       throw error;
     }
   },
 
-  // 특정 날짜의 식단 로그 조회
-  getDietLogByDate: async (date) => {
+  // 음식 상세 조회
+  getFood: async (foodId) => {
     try {
-      const response = await api.get(`/diet/logs/${date}`);
+      const response = await api.get(`/diet/foods/${foodId}/`);
       return response.data;
     } catch (error) {
-      console.error('특정 날짜 식단 로그 조회 실패:', error);
+      console.error('음식 상세 조회 실패:', error);
       throw error;
     }
   },
 
-  // 오늘의 식단 조회
-  getTodayDiet: async () => {
+  // 음식 생성
+  createFood: async (foodData) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const response = await api.get(`/diet/logs/${today}`);
+      const response = await api.post('/diet/foods/', foodData);
       return response.data;
     } catch (error) {
-      console.error('오늘 식단 조회 실패:', error);
+      console.error('음식 생성 실패:', error);
       throw error;
     }
   },
 
-  // 새 식사 추가
-  addMeal: async (mealData) => {
+  // 음식 수정
+  updateFood: async (foodId, foodData) => {
     try {
-      const response = await api.post('/diet/meals', mealData);
+      const response = await api.put(`/diet/foods/${foodId}/`, foodData);
       return response.data;
     } catch (error) {
-      console.error('식사 추가 실패:', error);
+      console.error('음식 수정 실패:', error);
       throw error;
     }
   },
 
-  // 식사 수정
-  updateMeal: async (mealId, mealData) => {
+  // 음식 삭제
+  deleteFood: async (foodId) => {
     try {
-      const response = await api.put(`/diet/meals/${mealId}`, mealData);
+      const response = await api.delete(`/diet/foods/${foodId}/`);
       return response.data;
     } catch (error) {
-      console.error('식사 수정 실패:', error);
+      console.error('음식 삭제 실패:', error);
       throw error;
     }
   },
 
-  // 식사 삭제
-  deleteMeal: async (mealId) => {
+  // 음식 검색
+  searchFoods: async (query) => {
     try {
-      const response = await api.delete(`/diet/meals/${mealId}`);
-      return response.data;
-    } catch (error) {
-      console.error('식사 삭제 실패:', error);
-      throw error;
-    }
-  },
-
-  // 식단 통계 조회
-  getDietStats: async (period = 'week') => {
-    try {
-      const response = await api.get('/diet/stats', { 
-        params: { period } 
+      const response = await api.get('/diet/foods/search/', { 
+        params: { q: query } 
       });
       return response.data;
     } catch (error) {
-      console.error('식단 통계 조회 실패:', error);
+      console.error('음식 검색 실패:', error);
       throw error;
     }
   },
 
-  // 물 섭취량 업데이트
-  updateWaterIntake: async (date, waterAmount) => {
+  // 인기 음식 조회
+  getPopularFoods: async () => {
     try {
-      const response = await api.patch(`/diet/logs/${date}/water`, {
-        water: waterAmount
+      const response = await api.get('/diet/foods/popular/');
+      return response.data;
+    } catch (error) {
+      console.error('인기 음식 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 추천 음식 조회
+  getRecommendedFoods: async () => {
+    try {
+      const response = await api.get('/diet/foods/recommended/');
+      return response.data;
+    } catch (error) {
+      console.error('추천 음식 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 음식 영양 정보 조회
+  getFoodNutrition: async (foodId) => {
+    try {
+      const response = await api.get(`/diet/foods/${foodId}/nutrition/`);
+      return response.data;
+    } catch (error) {
+      console.error('음식 영양 정보 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 음식 카테고리별 조회
+  getFoodsByCategory: async (category) => {
+    try {
+      const response = await api.get('/diet/foods/by_category/', {
+        params: { category }
       });
       return response.data;
     } catch (error) {
-      console.error('물 섭취량 업데이트 실패:', error);
-      throw error;
-    }
-  },
-
-  // 추천 식단 조회
-  getRecommendedMealPlans: async () => {
-    try {
-      const response = await api.get('/diet/meal-plans/recommended');
-      return response.data;
-    } catch (error) {
-      console.error('추천 식단 조회 실패:', error);
+      console.error('카테고리별 음식 조회 실패:', error);
       throw error;
     }
   }

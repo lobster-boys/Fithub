@@ -3,7 +3,7 @@ import axiosInstance from './axiosConfig';
 // 회원가입
 export const registerUser = async (userData) => {
   try {
-    const response = await axiosInstance.post('/users/register/', userData);
+    const response = await axiosInstance.post('/users/profiles/register/', userData);
     return response.data;
   } catch (error) {
     throw error;
@@ -13,7 +13,7 @@ export const registerUser = async (userData) => {
 // 로그인
 export const loginUser = async (credentials) => {
   try {
-    const response = await axiosInstance.post('/users/login/', credentials);
+    const response = await axiosInstance.post('/users/profiles/login/', credentials);
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
     }
@@ -26,7 +26,7 @@ export const loginUser = async (credentials) => {
 // 로그아웃
 export const logoutUser = async () => {
   try {
-    const response = await axiosInstance.post('/users/logout/');
+    const response = await axiosInstance.post('/users/profiles/logout/');
     localStorage.removeItem('token');
     return response.data;
   } catch (error) {
@@ -38,7 +38,7 @@ export const logoutUser = async () => {
 // 사용자 프로필 조회
 export const getUserProfile = async () => {
   try {
-    const response = await axiosInstance.get('/users/profile/');
+    const response = await axiosInstance.get('/users/profiles/me/');
     return response.data;
   } catch (error) {
     throw error;
@@ -48,7 +48,7 @@ export const getUserProfile = async () => {
 // 사용자 프로필 수정
 export const updateUserProfile = async (profileData) => {
   try {
-    const response = await axiosInstance.put('/users/profile/', profileData);
+    const response = await axiosInstance.put('/users/profiles/me/', profileData);
     return response.data;
   } catch (error) {
     throw error;
@@ -58,7 +58,10 @@ export const updateUserProfile = async (profileData) => {
 // 소셜 로그인 (예: 구글)
 export const socialLogin = async (provider, code) => {
   try {
-    const response = await axiosInstance.post(`/users/social-login/${provider}/`, { code });
+    const response = await axiosInstance.post(`/users/profiles/social_login/`, { 
+      provider: provider,
+      code: code 
+    });
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
     }
@@ -71,7 +74,7 @@ export const socialLogin = async (provider, code) => {
 // 비밀번호 변경
 export const changePassword = async (passwordData) => {
   try {
-    const response = await axiosInstance.post('/users/change-password/', passwordData);
+    const response = await axiosInstance.post('/users/profiles/change_password/', passwordData);
     return response.data;
   } catch (error) {
     throw error;
@@ -81,7 +84,27 @@ export const changePassword = async (passwordData) => {
 // 비밀번호 재설정 요청
 export const resetPasswordRequest = async (email) => {
   try {
-    const response = await axiosInstance.post('/users/reset-password/', { email });
+    const response = await axiosInstance.post('/users/profiles/reset_password/', { email });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 사용자 통계 조회
+export const getUserStats = async () => {
+  try {
+    const response = await axiosInstance.get('/users/profiles/stats/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 사용자 활동 기록 조회
+export const getUserActivity = async () => {
+  try {
+    const response = await axiosInstance.get('/users/profiles/activity/');
     return response.data;
   } catch (error) {
     throw error;

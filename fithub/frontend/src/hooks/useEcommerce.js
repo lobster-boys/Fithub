@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import * as ecommerceAPI from '../api/ecommerceAPI';
 
 // 상품 데이터 (실제 환경에서는 API에서 가져올 데이터)
 const PRODUCTS_DATA = [
@@ -140,22 +141,54 @@ const useEcommerce = () => {
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('all');
 
-  // 전체 상품 목록 가져오기
-  const getAllProducts = () => {
-    return products;
-  };
-
-  // 카테고리별 상품 필터링
-  const getProductsByCategory = (categoryId) => {
-    if (categoryId === 'all') {
+  // 전체 상품 목록 가져오기 (API 사용)
+  const getAllProducts = async (params = {}) => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.getProducts(params);
+      setProducts(data.results || data);
+      return data;
+    } catch (err) {
+      setError(err);
+      // API 실패 시 더미 데이터 반환
       return products;
+    } finally {
+      setLoading(false);
     }
-    return products.filter(product => product.category === categoryId);
   };
 
-  // 상품 ID로 특정 상품 가져오기
-  const getProductById = (productId) => {
-    return products.find(product => product.id === parseInt(productId));
+  // 카테고리별 상품 필터링 (API 사용)
+  const getProductsByCategory = async (categoryId) => {
+    if (categoryId === 'all') {
+      return getAllProducts();
+    }
+    
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.getProductsByCategory(categoryId);
+      return data;
+    } catch (err) {
+      setError(err);
+      // API 실패 시 로컬 필터링
+      return products.filter(product => product.category === categoryId);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 상품 ID로 특정 상품 가져오기 (API 사용)
+  const getProductById = async (productId) => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.getProduct(productId);
+      return data;
+    } catch (err) {
+      setError(err);
+      // API 실패 시 로컬 검색
+      return products.find(product => product.id === parseInt(productId));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 추천 상품 가져오기
@@ -292,6 +325,137 @@ const useEcommerce = () => {
     };
   }, [products]);
 
+  // API 기반 추천 상품 조회
+  const getApiRecommendedProducts = async () => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.getRecommendedProducts();
+      return data;
+    } catch (err) {
+      setError(err);
+      return getRecommendedProducts(RECOMMENDATION_TYPES.POPULAR, 4);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // API 기반 인기 상품 조회
+  const getApiPopularProducts = async () => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.getPopularProducts();
+      return data;
+    } catch (err) {
+      setError(err);
+      return getRecommendedProducts(RECOMMENDATION_TYPES.POPULAR, 8);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // API 기반 할인 상품 조회
+  const getApiDiscountedProducts = async () => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.getDiscountedProducts();
+      return data;
+    } catch (err) {
+      setError(err);
+      return getRecommendedProducts(RECOMMENDATION_TYPES.DISCOUNT, 8);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // API 기반 상품 검색
+  const searchApiProducts = async (query) => {
+    setLoading(true);
+    try {
+      const data = await ecommerceAPI.searchProducts(query);
+      return data;
+    } catch (err) {
+      setError(err);
+      return searchProducts(query);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 장바구니 관련 함수들
+  const cartActions = {
+    getMyCart: async () => {
+      setLoading(true);
+      try {
+        return await ecommerceAPI.getMyCart();
+      } catch (err) {
+        setError(err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+
+    addToCart: async (productId, quantity = 1) => {
+      setLoading(true);
+      try {
+        return await ecommerceAPI.addToCart(productId, quantity);
+      } catch (err) {
+        setError(err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+
+    updateCartItem: async (itemId, quantity) => {
+      setLoading(true);
+      try {
+        return await ecommerceAPI.updateCartItem(itemId, quantity);
+      } catch (err) {
+        setError(err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+
+    removeFromCart: async (itemId) => {
+      setLoading(true);
+      try {
+        return await ecommerceAPI.removeFromCart(itemId);
+      } catch (err) {
+        setError(err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+
+    clearCart: async () => {
+      setLoading(true);
+      try {
+        return await ecommerceAPI.clearCart();
+      } catch (err) {
+        setError(err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+
+    getCartSummary: async () => {
+      setLoading(true);
+      try {
+        return await ecommerceAPI.getCartSummary();
+      } catch (err) {
+        setError(err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   return {
     // 상태
     products,
@@ -300,22 +464,31 @@ const useEcommerce = () => {
     activeCategory,
     setActiveCategory,
 
-    // 기본 조회 함수
+    // 기본 조회 함수 (API 기반)
     getAllProducts,
     getProductsByCategory,
     getProductById,
     getCategories,
 
-    // 추천 시스템
+    // API 기반 추천 시스템
+    getApiRecommendedProducts,
+    getApiPopularProducts,
+    getApiDiscountedProducts,
+    searchApiProducts,
+
+    // 로컬 추천 시스템 (백업용)
     getRecommendedProducts,
     getHomePageRecommendations,
     getRelatedProducts,
     getRecommendationTypes,
 
-    // 검색 및 필터링
+    // 검색 및 필터링 (로컬)
     searchProducts,
     getProductsByPriceRange,
     getProductsByRating,
+
+    // 장바구니 관련
+    cartActions,
 
     // 통계
     getProductStats,
