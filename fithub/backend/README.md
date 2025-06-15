@@ -58,4 +58,8 @@ python manage.py flush --noinput
 python manage.py categories_seed
 python manage.py products_seed --with-images
 python manage.py foods_seed
+python manage.py mealplan_seed
+
+# 옵션
+--clear: 기존 데이터를 삭제
 ```
