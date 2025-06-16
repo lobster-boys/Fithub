@@ -18,6 +18,10 @@ class BaseMealPlanSerializer(serializers.ModelSerializer):
         total_calories = attrs.get('total_calories')
         if total_calories is not None and total_calories <= 0:
             raise serializers.ValidationError("일일 총 목표 칼로리는 0보다 커야 합니다.")
+        
+        tc = attrs.get('total_calories')
+        if tc is not None and tc <= 0:
+            raise serializers.ValidationError("일일 총 목표 칼로리는 0보다 커야 합니다.")
 
         return attrs
 
@@ -103,7 +107,8 @@ class MealPlanWriteSerializer(BaseMealPlanSerializer):
             'total_calories',
             'items',
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'total_calories']
+        extra_kwargs = {"total_calories": {"required": False}}
 
     @transaction.atomic
     def create(self, validated_data):
@@ -115,36 +120,39 @@ class MealPlanWriteSerializer(BaseMealPlanSerializer):
         # 만약 items_data가 존재하면 처리 (빈 리스트이면 반복문이 실행되지 않음)
         for item_data in items_data:
             MealPlanFood.objects.create(meal_plan=meal_plan, **item_data)
+
+        # 자동 칼로리, 영양 합산
+        meal_plan.calculate_nutrition()
         return meal_plan
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        items_data = validated_data.pop('items', [])
-        
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+        items_data = validated_data.pop("items", None)
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
         instance.save()
 
-        # 기존 MealPlanFood 항목을 불러와 딕셔너리로 만든다.
-        existing_items = {item.id: item for item in instance.items.all()}
+        if items_data is not None:
+            existing = {it.id: it for it in instance.items.all()}
+            kept_ids = []
+            for data in items_data:
+                pk = data.get("id")
+                if pk and pk in existing:
+                    obj = existing[pk]
+                    for k, v in data.items():
+                        setattr(obj, k, v)
+                    obj.save()
+                    kept_ids.append(pk)
+                else:
+                    kept_ids.append(
+                        MealPlanFood.objects.create(meal_plan=instance, **data).id
+                    )
+            # 요청에 없던 항목 삭제
+            for pk, obj in existing.items():
+                if pk not in kept_ids:
+                    obj.delete()
 
-        incoming_item_ids = []
-        for item in items_data:
-            # item에 id가 있다면 업데이트, 없으면 새로 생성
-            item_id = item.get('id', None)
-            if item_id and item_id in existing_items:
-                existing_instance = existing_items[item_id]
-                for attr, value in item.items():
-                    setattr(existing_instance, attr, value)
-                existing_instance.save()
-                incoming_item_ids.append(item_id)
-            else:
-                new_item = MealPlanFood.objects.create(meal_plan=instance, **item)
-                incoming_item_ids.append(new_item.id)
-
-        for existing_id, existing_item in existing_items.items():
-            if existing_id not in incoming_item_ids:
-                existing_item.delete()
-
+        instance.calculate_nutrition() # 합산 재계산
         return instance
+
 

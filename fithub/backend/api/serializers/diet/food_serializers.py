@@ -69,7 +69,6 @@ class FoodCreateSerializer(BaseFoodSerializer):
         allow_null = True,
         required=False,
     )
-
     class Meta:
         model = Food
         fields = [
