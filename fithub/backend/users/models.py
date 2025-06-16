@@ -87,6 +87,13 @@ class UserProfile(models.Model):
         null=True, 
         blank=True,
     )
+
+    # 사용자 목표 대비 달성률 필드
+    target_calories = models.IntegerField(default=2000, help_text="목표 칼로리 (Kcal)")
+    target_protein = models.DecimalField(max_digits=7, decimal_places=2, default=75.0, help_text="목표 단백질 (g)")
+    target_carbs = models.DecimalField(max_digits=7, decimal_places=2, default=250.0, help_text="목표 탄수화물 (g)")
+    target_fat = models.DecimalField(max_digits=7, decimal_places=2, default=70.0, help_text="목표 지방 (g)")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
