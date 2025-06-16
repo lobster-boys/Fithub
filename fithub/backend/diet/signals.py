@@ -10,4 +10,5 @@ def update_mealplan_total_calories(sender, instance, **kwargs):
     """
     meal_plan = instance.meal_plan
     if meal_plan:
-        meal_plan.calculate_total_calories()
+        # calculate_nutrition()는 내부에서 MealPlan.total_calories를 업데이트한다.
+        meal_plan.calculate_nutrition()
