@@ -62,7 +62,7 @@ class BaseUserProfileSerializer(serializers.ModelSerializer):
 
 
 # 유저 프로필(<int:pk>) 조회 전용 Serializer
-class UserProfileSerializer(BaseUserProfileSerializer):
+class UserProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UserProfile
@@ -76,6 +76,10 @@ class UserProfileSerializer(BaseUserProfileSerializer):
             'fitness_goal',
             'activity_level',
             'profile_image',
+            'target_calories',
+            'target_protein',
+            'target_carbs',
+            'target_fat',
             'created_at',
             'updated_at'
         ]
