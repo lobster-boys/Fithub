@@ -20,6 +20,7 @@ from .views.ecommerce.order_views import OrderViewSet
 from .views.ecommerce.review_views import ReviewViewSet
 from .views.diet.food_views import FoodViewSet
 from .views.users.profile_views import UserProfileViewSet
+from .views.onboarding.onboarding_views import OnboardingViewSet
 from .views.community.post_views import PostViewSet
 from .views.community import post_views, comment_views, post_like_views, comment_like_views
 from .views.social import social_views
@@ -56,6 +57,9 @@ router.register(r'diet/foods', FoodViewSet, basename='food')
 
 # Users 앱 ViewSets (단순화됨)
 router.register(r'users/profiles', UserProfileViewSet, basename='user-profile')
+
+# Onboarding 앱 ViewSets (온보딩 관련)
+router.register(r'onboarding', OnboardingViewSet, basename='onboarding')
 
 # Community 앱 ViewSets (단순화됨)
 router.register(r'community/posts', PostViewSet, basename='post')
@@ -229,9 +233,6 @@ urlpatterns = [
     # PUT    /api/users/profiles/{id}/                   -> 프로필 수정
     # DELETE /api/users/profiles/{id}/                   -> 프로필 삭제
     # GET    /api/users/profiles/me/                     -> 현재 사용자 프로필 조회
-    # GET    /api/users/profile/                         -> 내 프로필 조회 (레거시)
-    # POST   /api/users/profile/                         -> 내 프로필 생성 (레거시)
-    # GET    /api/users/profile/{id}/                    -> 특정 프로필 상세 (레거시)
     #
     # Community API (프론트엔드 요구사항에 맞춘 핵심 기능만):
     # GET    /api/community/posts/                       -> 게시글 목록 (필터링: category, search, tags)

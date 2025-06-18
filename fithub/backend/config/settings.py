@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 from datetime import timedelta
-from decouple import config
+# from decouple import config  # 임시로 주석 처리
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "workouts",
     "challenge",
     "diet",
+    "onboarding",
     "api",
     "audit",
     # DRF & Auth
@@ -270,13 +271,12 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend", # allauth 인증 방식
 ]
 
-# 소셜 로그인 설정
-# pip install python-decouple
+# 소셜 로그인 설정을 간소화 (개발환경용)
 SOCIALACCOUNT_PROVIDERS = {
     "kakao": {
         "APP": {
-            "client_id": config("KAKAO_CLIENT_ID", default=""),
-            "secret": config("KAKAO_SECRET", default=""),
+            "client_id": "",  # 개발 시에는 빈 값
+            "secret": "",     # 개발 시에는 빈 값
             "key": "",
         },
         "SCOPE": [
@@ -286,7 +286,6 @@ SOCIALACCOUNT_PROVIDERS = {
             "account_email",
             "birthday",
             "birthyear",
-
         ],
         "AUTH_PARAMS": {
             "access_type": "online",  
@@ -296,8 +295,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     "naver": {
         "APP": {
-            "client_id": config("NAVER_CLIENT_ID"),
-            "secret": config("NAVER_SECRET"),
+            "client_id": "",  # 개발 시에는 빈 값
+            "secret": "",     # 개발 시에는 빈 값
             "key": "",
         },
         "SCOPE": [
@@ -315,8 +314,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     'google': {
         "APP": {
-            "client_id": config("GOOGLE_CLIENT_ID"),
-            "secret": config("GOOGLE_SECRET"),
+            "client_id": "",  # 개발 시에는 빈 값
+            "secret": "",     # 개발 시에는 빈 값
             "key": "",
         },
         'SCOPE': [

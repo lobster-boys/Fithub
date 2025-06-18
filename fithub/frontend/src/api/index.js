@@ -24,5 +24,77 @@ export const api = {
   community: require('./communityAPI')
 };
 
+// ========== 온보딩 관련 API ==========
+
+// 온보딩 데이터 조회
+export const getOnboardingData = async () => {
+  try {
+    const response = await axiosInstance.get('/onboarding/data/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 온보딩 데이터 저장
+export const saveOnboardingData = async (onboardingData) => {
+  try {
+    const response = await axiosInstance.post('/onboarding/save/', onboardingData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 온보딩 데이터 수정
+export const updateOnboardingData = async (onboardingData) => {
+  try {
+    const response = await axiosInstance.post('/onboarding/update/', onboardingData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 온보딩 상태 확인
+export const getOnboardingStatus = async () => {
+  try {
+    const response = await axiosInstance.get('/onboarding/status/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 온보딩 선택지 목록 조회
+export const getOnboardingChoices = async () => {
+  try {
+    const response = await axiosInstance.get('/onboarding/choices/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 온보딩 히스토리 조회
+export const getOnboardingHistory = async () => {
+  try {
+    const response = await axiosInstance.get('/onboarding/history/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 온보딩 초기화
+export const resetOnboarding = async () => {
+  try {
+    const response = await axiosInstance.post('/onboarding/reset/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // 기본 export
 export default api; 

@@ -94,6 +94,11 @@ class UserProfile(models.Model):
     target_carbs = models.DecimalField(max_digits=7, decimal_places=2, default=250.0, help_text="목표 탄수화물 (g)")
     target_fat = models.DecimalField(max_digits=7, decimal_places=2, default=70.0, help_text="목표 지방 (g)")
 
+    # 온보딩 관련 필드
+    onboarding_completed = models.BooleanField(default=False, help_text="온보딩 완료 여부")
+    onboarding_data = models.JSONField(null=True, blank=True, help_text="온보딩 데이터 (JSON 형태)")
+    onboarding_completed_at = models.DateTimeField(null=True, blank=True, help_text="온보딩 완료 시간")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
