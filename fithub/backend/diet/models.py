@@ -29,15 +29,18 @@ class Food(models.Model):
         )
     category = models.ForeignKey(
         'ecommerce.Category', 
-        on_delete=models.CASCADE, # seed 생성할 때 빼고는 PROTECT 사용
-        related_name='foods'
-        )
+        on_delete=models.PROTECT, # seed 생성할 때: CASCADE, 테스트: PROTECT 사용
+        related_name='foods',
+        blank=True,
+        null=True 
+        ) # 커스텀 Food를 위한 blank, null 허용
     product = models.OneToOneField(
         'ecommerce.Product', 
         on_delete=models.CASCADE, 
         related_name='food_info',
         blank=True,
-        null=True) # 커스텀 Food를 위한 blank, null 허용
+        null=True
+        ) # 커스텀 Food를 위한 blank, null 허용
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
