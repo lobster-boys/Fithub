@@ -72,7 +72,6 @@ class CartViewSet(viewsets.ModelViewSet):
 class CartItemViewSet(viewsets.ModelViewSet):
     """
     장바구니 아이템 ViewSet
-    프론트엔드 요구사항에 맞춘 단순화된 버전
     - 기본 CRUD 작업
     """
     serializer_class = CartItemSerializer

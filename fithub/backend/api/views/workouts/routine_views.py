@@ -15,7 +15,6 @@ from api.serializers.workouts.routine_serializers import (
 class WorkoutRoutineViewSet(viewsets.ModelViewSet):
     """
     운동 루틴 ViewSet
-    프론트엔드 요구사항에 맞춘 단순화된 버전
     - 기본 CRUD 작업
     - 루틴 복사 기능
     """

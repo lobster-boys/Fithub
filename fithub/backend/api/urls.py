@@ -1,10 +1,11 @@
+from api.views.ecommerce.category_views import categories, category
+from api.views.ecommerce.product_views import products, product
+from api.views.ecommerce.cart_views import CartAPI
+from api.views.ecommerce.order_views import OrdersAPI, OrderAPI
+from api.views.recommandation_views import ClickRecommandAPI
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views.challenge_views import (
-    ChallengeViewSet,
-    ChallengePointViewSet,
-    SocialShareViewSet,
-)
+from .views.challenge_views import ChallengeViewSet,ChallengePointViewSet,SocialShareViewSet
 from .views.point_transaction_views import PointTransactionViewSet
 from .views.challenge_participant_views import ChallengeParticipantViewSet
 from .views.challenge_ranking_views import ChallengeRankingAPIView
@@ -74,6 +75,21 @@ router.register(r"routines", RoutineViewSet, basename="routine")
 urlpatterns = [
     # ViewSet 라우터 URL들
     path('', include(router.urls)),
+    
+    # =================== 이커머스 추천 시스템 (추가) ===================
+    # 카테고리 URL (추천용)
+    path("ecommerce/categories/", categories),
+    path("ecommerce/category/<int:id>", category),
+    # 상품 URL (추천용)
+    path("ecommerce/products/", products),
+    path("ecommerce/product/<int:id>", product),
+    # 카트 URL (추천용)
+    path("ecommerce/cart/", CartAPI.as_view()),
+    # 주문내역 URL (추천용)
+    path("ecommerce/order/", OrdersAPI.as_view()),
+    path("ecommerce/order/<int:id>", OrdersAPI.as_view()),
+    # 추천 리스트 URL
+    path("ecommerce/recommand/clicked/", ClickRecommandAPI.as_view()),
     
     # =================== 인증 및 소셜 로그인 ===================
     # 로그인/회원가입 URL
@@ -150,19 +166,25 @@ urlpatterns = [
     # GET    /api/workouts/stats/basic/                  -> 기본 운동 통계
     #
     # Ecommerce API (프론트엔드 요구사항에 맞춘 핵심 기능만):
-    # GET    /api/ecommerce/categories/                  -> 카테고리 목록
-    # GET    /api/ecommerce/categories/{id}/             -> 카테고리 상세
+    # GET    /api/ecommerce/categories/                  -> 카테고리 목록 (Router 기반)
+    # GET    /api/ecommerce/categories/{id}/             -> 카테고리 상세 (Router 기반)
+    # GET    /api/ecommerce/categories/                  -> 카테고리 목록 (추천용)
+    # GET    /api/ecommerce/category/{id}                -> 카테고리 상세 (추천용)
     #
-    # GET    /api/ecommerce/products/                    -> 상품 목록 (필터링: category, search, min_price, max_price)
-    # GET    /api/ecommerce/products/{id}/               -> 상품 상세
+    # GET    /api/ecommerce/products/                    -> 상품 목록 (Router 기반)
+    # GET    /api/ecommerce/products/{id}/               -> 상품 상세 (Router 기반)
+    # GET    /api/ecommerce/products/                    -> 상품 목록 (추천용)
+    # GET    /api/ecommerce/product/{id}                 -> 상품 상세 (추천용)
     #
-    # GET    /api/ecommerce/carts/                       -> 장바구니 목록
-    # POST   /api/ecommerce/carts/                       -> 장바구니 생성
-    # GET    /api/ecommerce/carts/{id}/                  -> 장바구니 상세
-    # PUT    /api/ecommerce/carts/{id}/                  -> 장바구니 수정
-    # DELETE /api/ecommerce/carts/{id}/                  -> 장바구니 삭제
-    # GET    /api/ecommerce/carts/my_cart/               -> 내 장바구니 조회
-    # POST   /api/ecommerce/carts/add_item/              -> 장바구니에 상품 추가
+    # GET    /api/ecommerce/carts/                       -> 장바구니 목록 (Router 기반)
+    # POST   /api/ecommerce/carts/                       -> 장바구니 생성 (Router 기반)
+    # GET    /api/ecommerce/carts/{id}/                  -> 장바구니 상세 (Router 기반)
+    # PUT    /api/ecommerce/carts/{id}/                  -> 장바구니 수정 (Router 기반)
+    # DELETE /api/ecommerce/carts/{id}/                  -> 장바구니 삭제 (Router 기반)
+    # GET    /api/ecommerce/carts/my_cart/               -> 내 장바구니 조회 (Router 기반)
+    # POST   /api/ecommerce/carts/add_item/              -> 장바구니에 상품 추가 (Router 기반)
+    # GET    /api/ecommerce/cart/                        -> 카트 조회 (추천용)
+    # POST   /api/ecommerce/cart/                        -> 카트 조작 (추천용)
     #
     # GET    /api/ecommerce/cart-items/                  -> 장바구니 아이템 목록
     # POST   /api/ecommerce/cart-items/                  -> 장바구니 아이템 생성
@@ -170,17 +192,22 @@ urlpatterns = [
     # PUT    /api/ecommerce/cart-items/{id}/             -> 장바구니 아이템 수정
     # DELETE /api/ecommerce/cart-items/{id}/             -> 장바구니 아이템 삭제
     #
-    # GET    /api/ecommerce/orders/                      -> 주문 목록
-    # POST   /api/ecommerce/orders/                      -> 주문 생성
-    # GET    /api/ecommerce/orders/{id}/                 -> 주문 상세
-    # PUT    /api/ecommerce/orders/{id}/                 -> 주문 수정
-    # DELETE /api/ecommerce/orders/{id}/                 -> 주문 삭제
+    # GET    /api/ecommerce/orders/                      -> 주문 목록 (Router 기반)
+    # POST   /api/ecommerce/orders/                      -> 주문 생성 (Router 기반)
+    # GET    /api/ecommerce/orders/{id}/                 -> 주문 상세 (Router 기반)
+    # PUT    /api/ecommerce/orders/{id}/                 -> 주문 수정 (Router 기반)
+    # DELETE /api/ecommerce/orders/{id}/                 -> 주문 삭제 (Router 기반)
+    # GET    /api/ecommerce/order/                       -> 주문 목록 (추천용)
+    # POST   /api/ecommerce/order/                       -> 주문 생성 (추천용)
+    # GET    /api/ecommerce/order/{id}                   -> 주문 상세 (추천용)
     #
     # GET    /api/ecommerce/reviews/                     -> 리뷰 목록
     # POST   /api/ecommerce/reviews/                     -> 리뷰 생성
     # GET    /api/ecommerce/reviews/{id}/                -> 리뷰 상세
     # PUT    /api/ecommerce/reviews/{id}/                -> 리뷰 수정
     # DELETE /api/ecommerce/reviews/{id}/                -> 리뷰 삭제
+    #
+    # POST   /api/ecommerce/recommand/clicked/           -> 클릭 기반 추천 시스템
     #
     # Diet API (프론트엔드 요구사항에 맞춘 핵심 기능만):
     # GET    /api/diet/foods/                            -> 음식 목록 (필터링: search)

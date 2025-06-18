@@ -48,7 +48,6 @@ def product(request, id):
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     """
     상품 ViewSet
-    프론트엔드 요구사항에 맞춘 단순화된 버전
     - 상품 목록/상세 조회
     - 카테고리별 필터링
     - 검색 기능
