@@ -33,6 +33,19 @@ class UserProfileViewSet(UserOwnedMixin, BaseViewSet):
         
         serializer.save(user=self.request.user)
     
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        """현재 사용자의 프로필 조회 - 프론트엔드 API 호환용"""
+        try:
+            profile = UserProfile.objects.get(user=request.user)
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data)
+        except UserProfile.DoesNotExist:
+            return Response(
+                {'detail': '프로필이 존재하지 않습니다.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
     @action(detail=False, methods=['get'])
     def my_profile(self, request):
         """현재 사용자의 프로필 조회"""
