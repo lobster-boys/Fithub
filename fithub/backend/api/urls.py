@@ -3,7 +3,7 @@ from .views.community import post_views, comment_views, post_like_views, comment
 from .views.social import social_views
 from .views.users import profile_views
 from .views.audit import changelog_views
-from .views.diet import food_views, food_search_views, mealplan_views
+from .views.diet import food_views, food_search_views, mealplan_views, recommend_views
 
 app_name = "api"
 
@@ -40,6 +40,7 @@ urlpatterns = [
     path('diet/foods/search/', food_search_views.FoodSearchListView.as_view(), name='food-search'),
     # diet-MealPlan URL
     path('diet/mealplan/', mealplan_views.MealPlanListView.as_view(), name='mealplan-list-create'),
-    path('diet/mealplan/<int:pk>/', mealplan_views.MealPlanDetailView.as_view(), name='mealplan-detail')
-
+    path('diet/mealplan/<int:pk>/', mealplan_views.MealPlanDetailView.as_view(), name='mealplan-detail'),
+    # diet-recommend URL
+    path('diet/recommend/', recommend_views.DietRecommendView.as_view(), name='diet-recommend'),
 ]
