@@ -101,6 +101,7 @@ class UserProfileCreateSerializer(BaseUserProfileSerializer):
             'fitness_goal',
             'activity_level',
             'profile_image',
+            'target_calories',
             'created_at',
         ]
         read_only_fields = ['user', 'created_at']
@@ -128,6 +129,7 @@ class UserProfileUpdateSerializer(BaseUserProfileSerializer):
             'fitness_goal',
             'activity_level',
             'profile_image',
+            'target_calories',
             'updated_at',
         ]
         read_only_fields = ['user', 'updated_at']
