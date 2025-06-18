@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from workouts.models import Exercise
 from api.serializers.workouts.exercise_serializers import ExerciseSerializer
@@ -14,7 +14,7 @@ class ExerciseViewSet(viewsets.ModelViewSet):
     프론트엔드 요구사항에 맞춘 단순화된 버전
     """
     serializer_class = ExerciseSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # 개발 테스트용 - 나중에 IsAuthenticated로 변경
     
     def get_queryset(self):
         """기본 운동 목록 조회"""

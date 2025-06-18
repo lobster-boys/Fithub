@@ -1,6 +1,5 @@
 from api.views.ecommerce.category_views import categories, category
 from api.views.ecommerce.product_views import products, product
-from api.views.ecommerce.cart_views import CartAPI
 from api.views.ecommerce.order_views import OrdersAPI, OrderAPI
 from api.views.recommandation_views import ClickRecommandAPI
 from django.urls import path, include
@@ -25,8 +24,11 @@ from .views.community.post_views import PostViewSet
 from .views.community import post_views, comment_views, post_like_views, comment_like_views
 from .views.social import social_views
 from .views.users import profile_views
+from .views.users import CustomRegisterView
+from .views.users.csrf_views import get_csrf_token
 from .views.audit import changelog_views
 from .views.diet import food_views, food_search_views, mealplan_views
+from .views.users.auth_views import CustomLogoutView
 
 app_name = "api"
 
@@ -74,7 +76,7 @@ router.register(
     r"routine-share", RoutineSharePermissionViewSet, basename="routine-share"
 )
 
-router.register(r"routines", RoutineViewSet, basename="routine")
+router.register(r"routines", RoutineViewSet, basename="shared-routine")
 
 urlpatterns = [
     # ViewSet 라우터 URL들
@@ -87,8 +89,7 @@ urlpatterns = [
     # 상품 URL (추천용)
     path("ecommerce/products/", products),
     path("ecommerce/product/<int:id>", product),
-    # 카트 URL (추천용)
-    path("ecommerce/cart/", CartAPI.as_view()),
+    # 카트 URL은 router 기반 CartViewSet 사용
     # 주문내역 URL (추천용)
     path("ecommerce/order/", OrdersAPI.as_view()),
     path("ecommerce/order/<int:id>", OrdersAPI.as_view()),
@@ -96,9 +97,12 @@ urlpatterns = [
     path("ecommerce/recommand/clicked/", ClickRecommandAPI.as_view()),
     
     # =================== 인증 및 소셜 로그인 ===================
+    # CSRF 토큰 URL
+    path("csrf/", get_csrf_token, name="csrf-token"),
     # 로그인/회원가입 URL
     path("dj-rest-auth/", include("dj_rest_auth.urls")),
-    path("dj-rest-auth/registration/", include("dj_rest_auth.registration.urls")),
+    # 커스텀 회원가입 뷰 (디버깅을 위해)
+    path("dj-rest-auth/registration/", CustomRegisterView.as_view(), name="rest_register"),
     # 소셜 로그인 URL
     path("dj-rest-auth/kakao/", social_views.KakaoLoginView.as_view(), name="kakao-login"),
     path("dj-rest-auth/naver/", social_views.NaverLoginView.as_view(), name="naver-login"),
@@ -110,9 +114,7 @@ urlpatterns = [
     path("users/profile/<int:pk>/", profile_views.UserProfileDetail.as_view(), name="profile-detail"),
     
     # =================== 커뮤니티 ===================
-    # 게시글 CRUD URL
-    path('community/posts/', post_views.UserPostCreateView.as_view(), name='post-create'),
-    path('community/posts/<int:pk>/', post_views.UserPostDetail.as_view(), name='post-detail'),
+    # 게시글 CRUD는 router 기반 PostViewSet 사용 (/api/community/posts/)
     # 댓글 CRUD URL
     path('community/posts/<int:post_id>/comments/', comment_views.UserCommentDetail.as_view(), name='comment-create'),
     path('community/posts/<int:post_id>/comments/<int:pk>/', comment_views.UserCommentDetail.as_view(), name='comment-detail'),
@@ -130,10 +132,7 @@ urlpatterns = [
     path('audit/sync-status/', changelog_views.SyncStatusView.as_view(), name='sync-status'),
     
     # =================== 식단 관련 ===================
-    # diet URL
-    path('diet/foods/', food_views.FoodListView.as_view(), name='food-list'),
-    path('diet/foods/<int:pk>/', food_views.FoodDetailView.as_view(), name='food-detail'),
-    path('diet/foods/search/', food_search_views.FoodSearchListView.as_view(), name='food-search'),
+    # diet URL은 router 기반 FoodViewSet 사용 (/api/diet/foods/)
     # diet-MealPlan URL (새로 추가된 식단 계산 기능)
     path('diet/mealplan/', mealplan_views.MealPlanListView.as_view(), name='mealplan-list-create'),
     path('diet/mealplan/<int:pk>/', mealplan_views.MealPlanDetailView.as_view(), name='mealplan-detail'),
@@ -289,4 +288,13 @@ urlpatterns = [
     # POST   /api/audit/restore-data/                    -> 데이터 복원
     # POST   /api/audit/sync-failed-logs/                -> 실패 로그 동기화
     # GET    /api/audit/sync-status/                     -> 동기화 상태 조회
+]
+
+# Authentication URLs (dj-rest-auth)
+urlpatterns += [
+    # 커스텀 로그아웃 뷰 사용
+    path("dj-rest-auth/logout/", CustomLogoutView.as_view(), name="rest_logout"),
+    # 나머지 인증 관련 URL들
+    path("dj-rest-auth/", include("dj_rest_auth.urls")),
+    path("dj-rest-auth/registration/", include("dj_rest_auth.registration.urls")),
 ]

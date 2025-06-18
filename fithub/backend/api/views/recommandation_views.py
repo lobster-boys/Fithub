@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from ecommerce.recommendation import Recommandation
 from ecommerce.models import ClickedItems, Product
-from api.serializers.product_serializers import ProductSerializer
+from api.serializers.ecommerce.product_serializers import ProductSerializer
 import json
 
 # 테스트용 유저 불러오기

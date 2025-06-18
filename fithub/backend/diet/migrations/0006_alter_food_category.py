@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('diet', '0005_alter_food_product_alter_food_serving_size'),
-        ('ecommerce', '0003_product_unit_weight_g'),
+        ('ecommerce', '0003_alter_category_description_product'),
     ]
 
     operations = [

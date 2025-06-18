@@ -13,10 +13,7 @@ class FoodAdmin(admin.ModelAdmin):
     search_fields = ('name', 'description')
 
     # 외래키 항목을 Raw ID로 하여 랜더링 속도 개선
-    raw_id_fields = ('user',)
-
-    # 외래키를 자동완성 필드로 사용
-    autocomplete_fields = ('category', 'product')
+    raw_id_fields = ('user', 'category', 'product')
 
     # 레코드 정렬 옵션: 이름순 정렬 
     ordering = ('name',)
@@ -43,10 +40,8 @@ class MealPlanFoodInline(admin.TabularInline):
     """
     model = MealPlanFood
     extra = 1
-    # food 필드에 raw_id_fields 혹은 autocomplete_fields 적용
+    # food 필드에 raw_id_fields 적용
     raw_id_fields = ('food',)
-    # 만약 Food에 autocomplete_fields 설정이 되어 있다면 아래 주석 해제 가능
-    autocomplete_fields = ('food',)
     fields = ('food', 'quantity', 'meal_time')
 
 

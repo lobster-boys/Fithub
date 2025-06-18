@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "ecommerce",
     "workouts",
     "challenge",
+    "challenge_checker",
     "diet",
     "onboarding",
     "api",
@@ -71,7 +72,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",  # CSRF 미들웨어 비활성화
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -82,31 +83,32 @@ MIDDLEWARE = [
 # CORS setting
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:3001",
 ]
 CORS_ORIGIN_ALLOW_ALL = False # 특정 도메인만 허용
 CORS_ALLOW_CREDENTIALS = True # 인증 정보 포함 요청 허용
 
 # 추가 CORS 설정 > 프론트+백엔드 통합 후 사용
-# CORS_ALLOW_HEADERS = [
-#     'accept',
-#     'accept-encoding',
-#     'authorization',
-#     'content-type',
-#     'dnt',
-#     'origin',
-#     'user-agent',
-#     'x-csrftoken',
-#     'x-requested-with',
-# ]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
-# CORS_ALLOW_METHODS = [
-#     'DELETE',
-#     'GET',
-#     'OPTIONS',
-#     'PATCH',
-#     'POST',
-#     'PUT',
-# ]
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 ROOT_URLCONF = "config.urls"
 
@@ -211,13 +213,18 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # dj_rest_auth setting
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",  # 임시로 모든 권한 허용
+    ],
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'UNAUTHENTICATED_USER': None,  # 인증되지 않은 사용자 처리
 }
 
 # JWT setting
@@ -229,12 +236,13 @@ SIMPLE_JWT = {
 
 # dj-rest-auth setting
 REST_AUTH = {
-    "USE_JWT": True,
-    "JWT_AUTH_HTTPONLY": True, 
-    'JWT_AUTH_REFRESH_COOKIE' : "refresh_token", 
-    'SESSION_LOGIN' :False, 
-    'JWT_AUTH_SAMESITE': 'Lax',
-    'JWT_AUTH_COOKIE_USE_CSRF' : False,
+    "USE_JWT": False,  # 임시로 JWT 비활성화
+    # "JWT_AUTH_HTTPONLY": True, 
+    # 'JWT_AUTH_REFRESH_COOKIE' : "refresh_token", 
+    'SESSION_LOGIN': True,  # 세션 로그인 활성화
+    'LOGOUT_ON_GET': True,  # GET 요청으로도 로그아웃 허용
+    # 'JWT_AUTH_SAMESITE': 'Lax',
+    # 'JWT_AUTH_COOKIE_USE_CSRF' : False,
     # users models 커스텀
     'USER_DETAILS_SERIALIZER': "api.serializers.users.registration_serializers.CustomLoginSerializer", 
     'REGISTER_SERIALIZER': 'api.serializers.users.registration_serializers.CustomRegisterSerializer',

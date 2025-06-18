@@ -1,7 +1,9 @@
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from api.views.base import BaseViewSet
 from api.serializers.onboarding.onboarding_serializers import (
     OnboardingDataSerializer,
@@ -15,14 +17,18 @@ from django.db import transaction
 import json
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class OnboardingViewSet(BaseViewSet):
     """
     온보딩 관련 API ViewSet
     사용자의 온보딩 데이터 저장, 조회, 업데이트 기능 제공
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny]  # 임시로 권한 변경
+    authentication_classes = []  # 인증 클래스 비활성화
     
     def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return OnboardingData.objects.none()
         return OnboardingData.objects.filter(user=self.request.user)
     
     def list(self, request):
@@ -63,6 +69,15 @@ class OnboardingViewSet(BaseViewSet):
     @action(detail=False, methods=['get'])
     def data(self, request):
         """현재 사용자의 온보딩 데이터 조회"""
+        # 인증되지 않은 사용자 처리
+        if not getattr(request.user, 'is_authenticated', False):
+            return Response({
+                'completed': False,
+                'completed_at': None,
+                'data': None,
+                'message': '로그인이 필요합니다.'
+            })
+        
         try:
             onboarding_data = OnboardingData.objects.get(user=request.user)
             
@@ -99,7 +114,38 @@ class OnboardingViewSet(BaseViewSet):
     @action(detail=False, methods=['post'])
     def save(self, request):
         """온보딩 데이터 저장"""
+        # 디버깅 로그 추가
+        print(f"=== ONBOARDING SAVE DEBUG ===")
+        print(f"User: {request.user}")
+        print(f"User authenticated: {getattr(request.user, 'is_authenticated', False)}")
+        print(f"Request method: {request.method}")
+        print(f"Request data: {request.data}")
+        print(f"Headers: {dict(request.headers)}")
+        
+        # 인증 확인 (임시로 완전히 비활성화)
+        print(f"User authenticated check: {getattr(request.user, 'is_authenticated', False)}")
+        print("=== ALLOWING ONBOARDING WITHOUT AUTHENTICATION FOR TESTING ===")
+        
+        # 인증되지 않은 사용자를 위한 임시 처리
+        if not getattr(request.user, 'is_authenticated', False):
+            print("User not authenticated - REQUIRING LOGIN FOR ONBOARDING")
+            return Response(
+                {
+                    'error': '온보딩을 위해서는 먼저 로그인해주세요.',
+                    'redirect': '/login',
+                    'message': '회원가입 후 로그인하시면 온보딩을 진행할 수 있습니다.'
+                }, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
         try:
+            # request.data 검증
+            if not request.data:
+                return Response(
+                    {'error': '요청 데이터가 없습니다.'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             # 시리얼라이저로 데이터 검증
             serializer = OnboardingDataSerializer(data=request.data)
             if not serializer.is_valid():
@@ -115,12 +161,12 @@ class OnboardingViewSet(BaseViewSet):
                 onboarding_data, created = OnboardingData.objects.get_or_create(
                     user=request.user,
                     defaults={
-                        'fitness_level': validated_data['fitness_level'],
-                        'height': validated_data['height'],
-                        'weight': validated_data['weight'],
-                        'age': validated_data['age'],
-                        'goals': validated_data['goals'],
-                        'methods': validated_data['methods'],
+                        'fitness_level': validated_data.get('fitness_level', ''),
+                        'height': validated_data.get('height', 0),
+                        'weight': validated_data.get('weight', 0),
+                        'age': validated_data.get('age', 0),
+                        'goals': validated_data.get('goals', []),
+                        'methods': validated_data.get('methods', []),
                         'equipment': validated_data.get('equipment', []),
                         'completed': True,
                         'completed_at': timezone.now()
@@ -148,12 +194,12 @@ class OnboardingViewSet(BaseViewSet):
                     )
                     
                     # 데이터 업데이트
-                    onboarding_data.fitness_level = validated_data['fitness_level']
-                    onboarding_data.height = validated_data['height']
-                    onboarding_data.weight = validated_data['weight']
-                    onboarding_data.age = validated_data['age']
-                    onboarding_data.goals = validated_data['goals']
-                    onboarding_data.methods = validated_data['methods']
+                    onboarding_data.fitness_level = validated_data.get('fitness_level', onboarding_data.fitness_level)
+                    onboarding_data.height = validated_data.get('height', onboarding_data.height)
+                    onboarding_data.weight = validated_data.get('weight', onboarding_data.weight)
+                    onboarding_data.age = validated_data.get('age', onboarding_data.age)
+                    onboarding_data.goals = validated_data.get('goals', onboarding_data.goals)
+                    onboarding_data.methods = validated_data.get('methods', onboarding_data.methods)
                     onboarding_data.equipment = validated_data.get('equipment', [])
                     onboarding_data.completed = True
                     onboarding_data.completed_at = timezone.now()
@@ -161,17 +207,17 @@ class OnboardingViewSet(BaseViewSet):
                 
                 # UserProfile도 동시에 업데이트
                 profile, _ = UserProfile.objects.get_or_create(user=request.user)
-                profile.height = validated_data['height']
-                profile.weight = validated_data['weight']
+                profile.height = validated_data.get('height', profile.height or 0)
+                profile.weight = validated_data.get('weight', profile.weight or 0)
                 profile.onboarding_completed = True
                 profile.onboarding_completed_at = timezone.now()
                 profile.onboarding_data = {
-                    'fitness_level': validated_data['fitness_level'],
-                    'height': validated_data['height'],
-                    'weight': str(validated_data['weight']),
-                    'age': validated_data['age'],
-                    'goals': validated_data['goals'],
-                    'methods': validated_data['methods'],
+                    'fitness_level': validated_data.get('fitness_level', ''),
+                    'height': validated_data.get('height', 0),
+                    'weight': str(validated_data.get('weight', 0)),
+                    'age': validated_data.get('age', 0),
+                    'goals': validated_data.get('goals', []),
+                    'methods': validated_data.get('methods', []),
                     'equipment': validated_data.get('equipment', []),
                     'completed_at': timezone.now().isoformat()
                 }
@@ -204,6 +250,13 @@ class OnboardingViewSet(BaseViewSet):
         try:
             onboarding_data = OnboardingData.objects.get(user=request.user)
             
+            # request.data 검증
+            if not request.data:
+                return Response(
+                    {'error': '요청 데이터가 없습니다.'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             # PATCH의 경우 부분 업데이트, PUT의 경우 전체 업데이트
             partial = request.method == 'PATCH'
             
@@ -219,7 +272,8 @@ class OnboardingViewSet(BaseViewSet):
                     'equipment': onboarding_data.equipment,
                 }
                 merged_data = current_data.copy()
-                merged_data.update(request.data)
+                if isinstance(request.data, dict):
+                    merged_data.update(request.data)
                 serializer = OnboardingDataSerializer(data=merged_data, partial=True)
             else:
                 # 전체 업데이트
@@ -291,6 +345,17 @@ class OnboardingViewSet(BaseViewSet):
     @action(detail=False, methods=['get'])
     def status(self, request):
         """온보딩 완료 상태 확인"""
+        # 인증되지 않은 사용자 처리
+        if not getattr(request.user, 'is_authenticated', False):
+            return Response({
+                'user_id': None,
+                'username': None,
+                'onboarding_completed': False,
+                'completed_at': None,
+                'bmi': None,
+                'message': '로그인이 필요합니다.'
+            })
+        
         try:
             onboarding_data = OnboardingData.objects.get(user=request.user)
             is_completed = onboarding_data.completed

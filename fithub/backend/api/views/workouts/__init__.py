@@ -21,18 +21,6 @@ from .type_views import (
     WorkoutTypeDetailView
 )
 
-# Stats views
-from .stats_views import (
-    workout_stats_view
-)
-
-# Advanced Stats views
-from .advanced_stats_views import (
-    advanced_workout_stats_view,
-    workout_streak_view,
-    workout_type_distribution_view
-)
-
 # ViewSets
 from .exercise_views import ExerciseViewSet
 from .routine_views import WorkoutRoutineViewSet
@@ -57,8 +45,4 @@ __all__ = [
     'bulk_create_log_exercises',
     'WorkoutTypeListView',
     'WorkoutTypeDetailView',
-    'workout_stats_view',
-    'advanced_workout_stats_view',
-    'workout_streak_view',
-    'workout_type_distribution_view',
 ] 

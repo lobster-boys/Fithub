@@ -1,43 +1,38 @@
-# ViewSets (리팩토링 완료)
+# ViewSets (주 구조)
 from .category_views import CategoryViewSet
 from .product_views import ProductViewSet
+from .cart_views import CartViewSet, CartItemViewSet
+from .order_views import OrderViewSet
+from .coupon_views import CouponViewSet, UserCouponViewSet
+from .point_views import UserPointViewSet, PointTransactionViewSet
+from .review_views import ReviewViewSet
 
-# Legacy views (점진적 교체를 위해 임시 유지)
+# 하위 호환성을 위한 레거시 뷰들
 from .category_views import categories, category
 from .product_views import products, product
-
-# Cart views
-from .cart_views import CartAPI
-
-# Order views
 from .order_views import OrdersAPI, OrderAPI
-
-# Coupon views
-from .coupon_views import (
-    coupons, coupon_detail, UserCouponAPI, use_coupon
-)
-
-# Point views
-from .point_views import (
-    UserPointAPI, PointTransactionAPI, earn_points, use_points
-)
-
-# Review views
-from .review_views import (
-    product_reviews, ReviewAPI, review_detail, product_review_stats
-)
+from .coupon_views import coupons, coupon_detail, UserCouponAPI, use_coupon
+from .point_views import UserPointAPI, PointTransactionAPI, earn_points, use_points
+from .review_views import product_reviews, ReviewAPI, review_detail, product_review_stats
 
 __all__ = [
-    # New ViewSets
+    # ViewSets (주 구조)
     'CategoryViewSet',
     'ProductViewSet',
+    'CartViewSet',
+    'CartItemViewSet',
+    'OrderViewSet',
+    'CouponViewSet',
+    'UserCouponViewSet',
+    'UserPointViewSet',
+    'PointTransactionViewSet',
+    'ReviewViewSet',
     
-    # Legacy views (추후 ViewSet으로 전환 예정)
+    # 하위 호환성을 위한 레거시 뷰들
     'categories',
     'category',
     'products', 
     'product',
-    'CartAPI',
     'OrdersAPI',
     'OrderAPI',
     'coupons',
