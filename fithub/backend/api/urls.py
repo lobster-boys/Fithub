@@ -1,5 +1,14 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .views.challenge_views import (
+    ChallengeViewSet,
+    ChallengePointViewSet,
+    SocialShareViewSet,
+)
+from .views.point_transaction_views import PointTransactionViewSet
+from .views.challenge_participant_views import ChallengeParticipantViewSet
+from .views.challenge_ranking_views import ChallengeRankingAPIView
+from api.views.routine_share_permission_viewset import RoutineSharePermissionViewSet
 
 # ViewSets (단순화된 버전)
 from .views.workouts import ExerciseViewSet, WorkoutRoutineViewSet, WorkoutLogViewSet, WorkoutLogExerciseViewSet, WorkoutTypeViewSet, WorkoutStatsViewSet
@@ -15,6 +24,9 @@ app_name = "api"
 
 # Router 설정
 router = DefaultRouter()
+router.register(r"challenges", ChallengeViewSet, basename="challenge")
+router.register(r"points", ChallengePointViewSet, basename="challenge-point")
+router.register(r"shares", SocialShareViewSet, basename="social-share")
 
 # Workouts 앱 ViewSets (단순화됨)
 router.register(r'workouts/exercises', ExerciseViewSet, basename='exercise')
@@ -40,6 +52,16 @@ router.register(r'users/profiles', UserProfileViewSet, basename='user-profile')
 
 # Community 앱 ViewSets (단순화됨)
 router.register(r'community/posts', PostViewSet, basename='post')
+
+# Challenge 및 권한 관련 ViewSets
+router.register(
+    r"challenges/(?P<challenge_pk>\d+)/participants",
+    ChallengeParticipantViewSet,
+    basename="challenge-participant",
+)
+router.register(
+    r"routine-share", RoutineSharePermissionViewSet, basename="routine-share"
+)
 
 urlpatterns = [
     # ViewSet 라우터 URL들
@@ -131,4 +153,24 @@ urlpatterns = [
     # DELETE /api/community/posts/{id}/                  -> 게시글 삭제
     # GET    /api/community/posts/my_posts/              -> 내 게시글 목록
     # POST   /api/community/posts/{id}/like/             -> 게시글 좋아요
+    #
+    # Challenge API:
+    # GET    /api/challenges/                            -> 챌린지 목록
+    # POST   /api/challenges/                            -> 챌린지 생성
+    # GET    /api/challenges/{id}/                       -> 챌린지 상세
+    # PUT    /api/challenges/{id}/                       -> 챌린지 수정
+    # DELETE /api/challenges/{id}/                       -> 챌린지 삭제
+    #
+    # GET    /api/points/                                -> 포인트 목록
+    # POST   /api/points/                                -> 포인트 생성
+    #
+    # GET    /api/shares/                                -> 소셜 공유 목록
+    # POST   /api/shares/                                -> 소셜 공유 생성
+    #
+    # Routine Share Permission API:
+    # GET    /api/routine-share/                         -> 루틴 공유 권한 목록
+    # POST   /api/routine-share/                         -> 루틴 공유 권한 생성
+    # GET    /api/routine-share/{id}/                    -> 루틴 공유 권한 상세
+    # PUT    /api/routine-share/{id}/                    -> 루틴 공유 권한 수정
+    # DELETE /api/routine-share/{id}/                    -> 루틴 공유 권한 삭제
 ]
