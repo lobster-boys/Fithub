@@ -3,6 +3,21 @@ from django.conf import settings
 from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 
+# 임의로 사전에 g를 정의(외부 영양 api를 받으면 대체)
+UNIT_TO_G = {
+    '봉지': 120,
+    '조각': 40,
+    '개당': 118,
+    '개':   118,
+    '정':   1,
+    '캡슐': 1,
+    '송이': 250,
+    'kg':   1000,
+    'g':    1,
+    'ml':   1,
+    'l':    1000,
+}
+
 class Food(models.Model):
 
     user = models.ForeignKey(
@@ -54,29 +69,31 @@ class Food(models.Model):
     def __str__(self):
         return self.name
     
+    
     def get_standard_serving(self):
         """
         serving_size를 Decimal로 변환
+        - '100g' 또는 '250 ml' 등은 해당 숫자에 UNIT_TO_G 곱
+        - '1봉지', '2조각', '1개' 등은 사전에 정의된 UNIT_TO_G 값을 곱하여 반환
+        실패 시 ValidationError.
         """
-        try:
-            quantity_str = self.serving_size.lower().\
-                replace(' ', '').\
-                replace('g', '').\
-                replace('ml', '').\
-                replace('kg', '').\
-                replace('L', '').\
-                replace('개', '').\
-                replace('개당', '').\
-                replace('조각', '').\
-                replace('봉지', '').\
-                replace('정', '').\
-                replace('캡슐', '').\
-                replace('송이', '').\
-                strip()
-            return Decimal(quantity_str)
-        except(InvalidOperation, AttributeError):
-            raise ValidationError("serving_size 형식 오류: 숫자+단위(g/ml) 이어야 합니다.")
-    
+        raw = (self.serving_size or '').lower().replace(' ', '')
+
+        # g/ml/kg/l 단위 처리
+        for unit in ('kg', 'g', 'ml', 'l'):
+            if raw.endswith(unit):
+                num = raw[:-len(unit)] or '1'
+                return Decimal(num) * UNIT_TO_G[unit]
+
+        # 한글 단위 환산
+        for unit, grams in UNIT_TO_G.items():
+            if raw.endswith(unit):
+                num = raw[:-len(unit)] or '1'
+                return Decimal(num) * grams
+        raise ValidationError("serving_size 형식 오류: 지원되지 않는 단위")
+
+
+
 class MealPlan(models.Model):
 
     user = models.ForeignKey(
