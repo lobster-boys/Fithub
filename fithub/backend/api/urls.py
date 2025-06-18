@@ -228,11 +228,10 @@ urlpatterns = [
     # GET    /api/users/profiles/{id}/                   -> 프로필 상세
     # PUT    /api/users/profiles/{id}/                   -> 프로필 수정
     # DELETE /api/users/profiles/{id}/                   -> 프로필 삭제
-    # GET    /api/users/profiles/me/                     -> 현재 사용자 프로필 조회 (프론트엔드용)
-    # GET    /api/users/profiles/my_profile/             -> 현재 사용자 프로필 조회 (레거시)
-    # GET    /api/users/profile/                         -> 내 프로필 조회
-    # POST   /api/users/profile/                         -> 내 프로필 생성
-    # GET    /api/users/profile/{id}/                    -> 특정 프로필 상세
+    # GET    /api/users/profiles/me/                     -> 현재 사용자 프로필 조회
+    # GET    /api/users/profile/                         -> 내 프로필 조회 (레거시)
+    # POST   /api/users/profile/                         -> 내 프로필 생성 (레거시)
+    # GET    /api/users/profile/{id}/                    -> 특정 프로필 상세 (레거시)
     #
     # Community API (프론트엔드 요구사항에 맞춘 핵심 기능만):
     # GET    /api/community/posts/                       -> 게시글 목록 (필터링: category, search, tags)
