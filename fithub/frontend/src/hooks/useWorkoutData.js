@@ -1,143 +1,469 @@
 import { useState, useEffect } from 'react';
+import axiosInstance from '../api/axiosConfig';
+import { useAuth } from './useAuth';
 
 const useWorkoutData = () => {
-  // 로컬 스토리지에서 운동 로그 데이터 가져오기
+  const { user } = useAuth();
   const [workoutLogs, setWorkoutLogs] = useState([]);
+  const [exercises, setExercises] = useState([]);
+  const [routines, setRoutines] = useState([]);
+  const [currentExercise, setCurrentExercise] = useState(null);
+  const [currentRoutine, setCurrentRoutine] = useState(null);
+  const [logExercises, setLogExercises] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState(null);
 
-  useEffect(() => {
-    // 로컬 스토리지에서 데이터 불러오기
-    const savedLogs = localStorage.getItem('workoutLogs');
-    if (savedLogs) {
-      setWorkoutLogs(JSON.parse(savedLogs));
-    } else {
-      // 초기 데모 데이터
-      const initialLogs = [
-        {
-          id: 1,
-          date: '2023-12-18',
-          title: '상체 운동',
-          duration: 45,
-          exercises: [
-            { name: '벤치 프레스', sets: 3, reps: 10, weight: 60 },
-            { name: '덤벨 숄더 프레스', sets: 3, reps: 12, weight: 16 },
-            { name: '랫 풀다운', sets: 3, reps: 12, weight: 50 }
-          ],
-          calories: 320,
-          completed: true,
-          type: '근력 운동'
-        },
-        {
-          id: 2,
-          date: '2023-12-19',
-          title: '하체 운동',
-          duration: 50,
-          exercises: [
-            { name: '스쿼트', sets: 4, reps: 8, weight: 80 },
-            { name: '레그 프레스', sets: 3, reps: 12, weight: 120 },
-            { name: '레그 익스텐션', sets: 3, reps: 15, weight: 40 }
-          ],
-          calories: 380,
-          completed: true,
-          type: '근력 운동'
-        },
-        {
-          id: 3,
-          date: '2023-12-20',
-          title: '유산소 운동',
-          duration: 30,
-          exercises: [
-            { name: '러닝', duration: 30, distance: 5 }
-          ],
-          calories: 250,
-          completed: true,
-          type: '유산소'
-        },
-        {
-          id: 4,
-          date: '2023-12-21',
-          title: '요가',
-          duration: 40,
-          exercises: [
-            { name: '하타 요가', duration: 40 }
-          ],
-          calories: 150,
-          completed: true,
-          type: '유연성'
-        },
-        {
-          id: 5,
-          date: '2023-12-22',
-          title: '전신 운동',
-          duration: 35,
-          exercises: [
-            { name: '버피', sets: 3, reps: 15 },
-            { name: '마운틴 클라이머', sets: 3, reps: 20 },
-            { name: '점프 스쿼트', sets: 3, reps: 12 }
-          ],
-          calories: 290,
-          completed: true,
-          type: '근력 운동'
-        }
-      ];
-      setWorkoutLogs(initialLogs);
-      localStorage.setItem('workoutLogs', JSON.stringify(initialLogs));
+  // 운동 로그 조회
+  const fetchWorkoutLogs = async (filters = {}) => {
+    if (!user) return;
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams();
+      if (filters.date) params.append('date', filters.date);
+      if (filters.completed !== undefined) params.append('completed', filters.completed);
+      
+      const response = await axiosInstance.get(`/workouts/logs/?${params.toString()}`);
+      setWorkoutLogs(response.data.results || response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch workout logs:', err);
+      setError('운동 로그를 불러오는 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  // 운동 로그 추가
-  const addWorkoutLog = (newLog) => {
-    const updatedLogs = [...workoutLogs, { ...newLog, id: Date.now() }];
-    setWorkoutLogs(updatedLogs);
-    localStorage.setItem('workoutLogs', JSON.stringify(updatedLogs));
   };
 
-  // 주간 데이터 계산
-  const getWeeklyStats = () => {
-    const today = new Date();
-    const currentWeekStart = new Date(today);
-    currentWeekStart.setDate(today.getDate() - 7); // 지난 7일
+  // 운동 통계 조회
+  const fetchWorkoutStats = async () => {
+    if (!user) return;
 
+    try {
+      const response = await axiosInstance.get('/workouts/stats/basic/');
+      setStats(response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch workout stats:', err);
+      setError('운동 통계를 불러오는 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 컴포넌트 마운트 시 데이터 로드
+  useEffect(() => {
+    if (user) {
+      fetchWorkoutLogs();
+      fetchWorkoutStats();
+    }
+  }, [user]);
+
+  // 운동 로그 추가
+  const addWorkoutLog = async (newLog) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.post('/workouts/logs/', newLog);
+      setWorkoutLogs(prev => [...prev, response.data]);
+      await fetchWorkoutStats(); // 통계 새로고침
+      return response.data;
+    } catch (err) {
+      console.error('Failed to add workout log:', err);
+      setError('운동 로그 추가 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 로그 수정
+  const updateWorkoutLog = async (id, updatedLog) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.patch(`/workouts/logs/${id}/`, updatedLog);
+      setWorkoutLogs(prev => prev.map(log => log.id === id ? response.data : log));
+      await fetchWorkoutStats(); // 통계 새로고침
+      return response.data;
+    } catch (err) {
+      console.error('Failed to update workout log:', err);
+      setError('운동 로그 수정 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 로그 삭제
+  const deleteWorkoutLog = async (id) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await axiosInstance.delete(`/workouts/logs/${id}/`);
+      setWorkoutLogs(prev => prev.filter(log => log.id !== id));
+      await fetchWorkoutStats(); // 통계 새로고침
+      return true;
+    } catch (err) {
+      console.error('Failed to delete workout log:', err);
+      setError('운동 로그 삭제 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 완료 처리
+  const completeWorkout = async (id) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.post(`/workouts/logs/${id}/complete/`);
+      setWorkoutLogs(prev => prev.map(log => log.id === id ? response.data : log));
+      await fetchWorkoutStats(); // 통계 새로고침
+      return response.data;
+    } catch (err) {
+      console.error('Failed to complete workout:', err);
+      setError('운동 완료 처리 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =================== 새로 추가된 운동 종목 관련 기능들 ===================
+  // 운동 종목 목록 조회
+  const fetchExercises = async (filters = {}) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams();
+      if (filters.muscle_group) params.append('muscle_group', filters.muscle_group);
+      if (filters.type) params.append('type', filters.type);
+      if (filters.search) params.append('search', filters.search);
+      
+      const response = await axiosInstance.get(`/workouts/exercises/?${params.toString()}`);
+      setExercises(response.data.results || response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch exercises:', err);
+      setError('운동 종목을 불러오는 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 종목 상세 조회
+  const fetchExerciseDetail = async (exerciseId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.get(`/workouts/exercises/${exerciseId}/`);
+      setCurrentExercise(response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch exercise detail:', err);
+      setError('운동 종목 상세 정보를 불러오는 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =================== 새로 추가된 운동 루틴 관련 기능들 ===================
+  // 운동 루틴 목록 조회
+  const fetchRoutines = async (filters = {}) => {
+    if (!user) return;
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams();
+      if (filters.difficulty) params.append('difficulty', filters.difficulty);
+      
+      const response = await axiosInstance.get(`/workouts/routines/?${params.toString()}`);
+      setRoutines(response.data.results || response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch routines:', err);
+      setError('운동 루틴을 불러오는 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 루틴 상세 조회
+  const fetchRoutineDetail = async (routineId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.get(`/workouts/routines/${routineId}/`);
+      setCurrentRoutine(response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch routine detail:', err);
+      setError('운동 루틴 상세 정보를 불러오는 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 루틴 생성
+  const createRoutine = async (routineData) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.post('/workouts/routines/', routineData);
+      setRoutines(prev => [...prev, response.data]);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to create routine:', err);
+      setError('운동 루틴 생성 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 루틴 수정
+  const updateRoutine = async (routineId, routineData) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.patch(`/workouts/routines/${routineId}/`, routineData);
+      setRoutines(prev => prev.map(routine => routine.id === routineId ? response.data : routine));
+      if (currentRoutine && currentRoutine.id === routineId) {
+        setCurrentRoutine(response.data);
+      }
+      return response.data;
+    } catch (err) {
+      console.error('Failed to update routine:', err);
+      setError('운동 루틴 수정 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 루틴 삭제
+  const deleteRoutine = async (routineId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await axiosInstance.delete(`/workouts/routines/${routineId}/`);
+      setRoutines(prev => prev.filter(routine => routine.id !== routineId));
+      if (currentRoutine && currentRoutine.id === routineId) {
+        setCurrentRoutine(null);
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to delete routine:', err);
+      setError('운동 루틴 삭제 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 루틴 복사
+  const copyRoutine = async (routineId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.post(`/workouts/routines/${routineId}/copy/`);
+      setRoutines(prev => [...prev, response.data]);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to copy routine:', err);
+      setError('운동 루틴 복사 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =================== 새로 추가된 운동 로그 상세 운동 관련 기능들 ===================
+  // 운동 로그별 상세 운동 목록 조회
+  const fetchLogExercises = async (workoutLogId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.get(`/workouts/log-exercises/?workout_log_id=${workoutLogId}`);
+      setLogExercises(response.data.results || response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch log exercises:', err);
+      setError('운동 로그 상세 운동을 불러오는 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 로그에 상세 운동 추가
+  const addLogExercise = async (workoutLogId, exerciseData) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const dataWithLogId = { ...exerciseData, workout_log_id: workoutLogId };
+      const response = await axiosInstance.post('/workouts/log-exercises/', dataWithLogId);
+      setLogExercises(prev => [...prev, response.data]);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to add log exercise:', err);
+      setError('운동 로그 상세 운동 추가 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 로그 상세 운동 수정
+  const updateLogExercise = async (logExerciseId, exerciseData) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.patch(`/workouts/log-exercises/${logExerciseId}/`, exerciseData);
+      setLogExercises(prev => prev.map(exercise => exercise.id === logExerciseId ? response.data : exercise));
+      return response.data;
+    } catch (err) {
+      console.error('Failed to update log exercise:', err);
+      setError('운동 로그 상세 운동 수정 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 운동 로그 상세 운동 삭제
+  const deleteLogExercise = async (logExerciseId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await axiosInstance.delete(`/workouts/log-exercises/${logExerciseId}/`);
+      setLogExercises(prev => prev.filter(exercise => exercise.id !== logExerciseId));
+      return true;
+    } catch (err) {
+      console.error('Failed to delete log exercise:', err);
+      setError('운동 로그 상세 운동 삭제 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 여러 운동을 한번에 운동 로그에 추가
+  const bulkAddLogExercises = async (workoutLogId, exercisesData) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.post('/workouts/log-exercises/bulk_create_exercises/', {
+        workout_log_id: workoutLogId,
+        exercises: exercisesData
+      });
+      setLogExercises(prev => [...prev, ...response.data]);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to bulk add log exercises:', err);
+      setError('운동 로그 상세 운동 일괄 추가 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =================== 기존 로컬 통계 계산 기능들 ===================
+  // 로컬 통계 계산 (백엔드 통계와 함께 사용)
+  const getLocalStats = () => {
+    if (!workoutLogs.length) {
+      return {
+        weeklyStats: { totalDuration: 0, totalCalories: 0, workoutDays: 0 },
+        monthlyStats: { totalWorkouts: 0, completionRate: 0, totalCalories: 0, totalDuration: 0 },
+        streakDays: 0
+      };
+    }
+
+    const today = new Date();
+    
+    // 주간 통계
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - 7);
+    
     const weekLogs = workoutLogs.filter(log => {
-      const logDate = new Date(log.date);
-      return logDate >= currentWeekStart && logDate <= today;
+      const logDate = new Date(log.date || log.created_at);
+      return logDate >= weekStart && logDate <= today && log.is_completed;
     });
 
-    const totalDuration = weekLogs.reduce((sum, log) => sum + log.duration, 0);
-    const totalCalories = weekLogs.reduce((sum, log) => sum + log.calories, 0);
-    const workoutDays = weekLogs.length;
-    const maxStreakDays = 7; // 임시로 고정값
+    // 월간 통계
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthLogs = workoutLogs.filter(log => {
+      const logDate = new Date(log.date || log.created_at);
+      return logDate >= monthStart && logDate <= today;
+    });
 
     return {
-      totalDuration,
-      totalCalories,
-      workoutDays,
-      maxStreakDays
+      weeklyStats: {
+        totalDuration: weekLogs.reduce((sum, log) => sum + (log.duration || 0), 0),
+        totalCalories: weekLogs.reduce((sum, log) => sum + (log.calories_burned || 0), 0),
+        workoutDays: weekLogs.length
+      },
+      monthlyStats: {
+        totalWorkouts: monthLogs.length,
+        completionRate: monthLogs.length > 0 ? 
+          Math.round((monthLogs.filter(log => log.is_completed).length / monthLogs.length) * 100) : 0,
+        totalCalories: monthLogs.reduce((sum, log) => sum + (log.calories_burned || 0), 0),
+        totalDuration: monthLogs.reduce((sum, log) => sum + (log.duration || 0), 0)
+      },
+      streakDays: calculateStreakDays()
     };
   };
 
-  // 연속 운동 일수 계산
-  const getStreakDays = () => {
-    if (workoutLogs.length === 0) return 0;
+  // 연속 운동 일수 계산 (헬퍼 함수)
+  const calculateStreakDays = () => {
+    if (!workoutLogs.length) return 0;
 
-    const sortedLogs = [...workoutLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const completedLogs = workoutLogs
+      .filter(log => log.is_completed)
+      .sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+
+    if (!completedLogs.length) return 0;
+
     const today = new Date();
     let streak = 0;
     let currentDate = new Date(today);
 
-    for (let i = 0; i < sortedLogs.length; i++) {
-      const logDate = new Date(sortedLogs[i].date);
+    for (let i = 0; i < completedLogs.length; i++) {
+      const logDate = new Date(completedLogs[i].date || completedLogs[i].created_at);
       const diffDays = Math.floor((currentDate - logDate) / (1000 * 60 * 60 * 24));
 
       if (i === 0 && diffDays <= 1) {
-        // 오늘 또는 어제 운동했으면 시작
         streak = 1;
         currentDate = logDate;
       } else if (diffDays === 1) {
-        // 연속된 날짜면 증가
         streak++;
         currentDate = logDate;
       } else {
-        // 연속성이 끊어지면 중단
         break;
       }
     }
@@ -145,61 +471,69 @@ const useWorkoutData = () => {
     return streak;
   };
 
-  // 총 월간 통계
-  const getMonthlyStats = () => {
-    const today = new Date();
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    const monthLogs = workoutLogs.filter(log => {
-      const logDate = new Date(log.date);
-      return logDate >= monthStart && logDate <= today;
-    });
-
-    const totalWorkouts = monthLogs.length;
-    const totalCalories = monthLogs.reduce((sum, log) => sum + log.calories, 0);
-    const totalDuration = monthLogs.reduce((sum, log) => sum + log.duration, 0);
-
-    // 운동 타입별 분류
-    const typeDistribution = {
-      '근력 운동': 0,
-      '유산소': 0,
-      '유연성': 0
-    };
-
-    monthLogs.forEach(log => {
-      if (log.type && typeDistribution.hasOwnProperty(log.type)) {
-        typeDistribution[log.type]++;
-      }
-    });
-
-    // 퍼센티지 계산
-    const total = Object.values(typeDistribution).reduce((sum, val) => sum + val, 0);
-    const typePercentages = {};
-    
-    for (const [key, value] of Object.entries(typeDistribution)) {
-      typePercentages[key] = total > 0 ? Math.round((value / total) * 100) : 0;
-    }
-
-    // 목표 계산 (예: 월 20회 운동 목표)
-    const targetWorkouts = 20;
-    const completionRate = Math.min(Math.round((totalWorkouts / targetWorkouts) * 100), 100);
-
-    return {
-      typePercentages,
-      totalWorkouts,
-      completionRate,
-      totalCalories,
-      totalDuration
-    };
-  };
-
   return {
+    // =================== 기존 데이터 ===================
     workoutLogs,
-    setWorkoutLogs,
+    stats,
+    loading,
+    error,
+    
+    // =================== 새로 추가된 데이터 ===================
+    exercises,
+    routines,
+    currentExercise,
+    currentRoutine,
+    logExercises,
+    
+    // =================== 기존 API 함수들 ===================
+    fetchWorkoutLogs,
+    fetchWorkoutStats,
     addWorkoutLog,
-    getWeeklyStats,
-    getStreakDays,
-    getMonthlyStats
+    updateWorkoutLog,
+    deleteWorkoutLog,
+    completeWorkout,
+    
+    // =================== 새로 추가된 운동 종목 API 함수들 ===================
+    fetchExercises,
+    fetchExerciseDetail,
+    
+    // =================== 새로 추가된 운동 루틴 API 함수들 ===================
+    fetchRoutines,
+    fetchRoutineDetail,
+    createRoutine,
+    updateRoutine,
+    deleteRoutine,
+    copyRoutine,
+    
+    // =================== 새로 추가된 운동 로그 상세 운동 API 함수들 ===================
+    fetchLogExercises,
+    addLogExercise,
+    updateLogExercise,
+    deleteLogExercise,
+    bulkAddLogExercises,
+    
+    // =================== 기존 로컬 계산 함수들 ===================
+    getLocalStats,
+    
+    // =================== 호환성을 위한 레거시 함수들 ===================
+    setWorkoutLogs,
+    getWeeklyStats: () => getLocalStats().weeklyStats,
+    getMonthlyStats: () => getLocalStats().monthlyStats,
+    getStreakDays: () => getLocalStats().streakDays,
+    
+    // =================== 새로고침 함수들 ===================
+    refetch: () => {
+      fetchWorkoutLogs();
+      fetchWorkoutStats();
+    },
+    refetchExercises: () => fetchExercises(),
+    refetchRoutines: () => fetchRoutines(),
+    
+    // =================== 상태 초기화 함수들 ===================
+    clearCurrentExercise: () => setCurrentExercise(null),
+    clearCurrentRoutine: () => setCurrentRoutine(null),
+    clearLogExercises: () => setLogExercises([]),
+    clearError: () => setError(null)
   };
 };
 

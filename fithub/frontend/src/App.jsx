@@ -43,7 +43,7 @@ const SettingsPage = () => <PlaceholderPage title="설정" />;
 
 // 인증이 필요한 페이지들을 보호하는 컴포넌트
 const ProtectedPage = ({ children }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, onboardingCompleted, isLoading } = useAuth();
   const location = useLocation();
 
   // 로딩 중
@@ -60,17 +60,15 @@ const ProtectedPage = ({ children }) => {
     return <Navigate to="/" replace />;
   }
 
-  // 온보딩 체크
+  // 온보딩 체크 - 백엔드 상태 기준
   if (user) {
-    const onboarded = localStorage.getItem(`fithub_onboarded_${user.id}`) === 'true';
-    
     // 온보딩이 안 끝났으면 온보딩 페이지로
-    if (!onboarded && location.pathname !== '/onboarding') {
+    if (!onboardingCompleted && location.pathname !== '/onboarding') {
       return <Navigate to="/onboarding" replace />;
     }
     
     // 온보딩이 끝났는데 온보딩 페이지에 있으면 홈으로
-    if (onboarded && location.pathname === '/onboarding') {
+    if (onboardingCompleted && location.pathname === '/onboarding') {
       return <Navigate to="/" replace />;
     }
   }

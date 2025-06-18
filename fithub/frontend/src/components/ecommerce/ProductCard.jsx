@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../common/Card';
+import { useCart } from '../../hooks/useCart';
 
 const ProductCard = ({
   product,
@@ -13,6 +14,7 @@ const ProductCard = ({
   
   const navigate = useNavigate();
   const [isAdded, setIsAdded] = useState(false);
+  const { addToCart, isInCart, loading } = useCart();
 
   const {
     id,
@@ -37,44 +39,23 @@ const ProductCard = ({
   };
   
   // 장바구니에 담기 핸들러 (클릭 이벤트 버블링 방지)
-  const handleAddToCart = (e) => {
+  const handleAddToCart = async (e) => {
     e.stopPropagation(); // 이벤트 버블링 방지
     
-    // 로컬 스토리지에서 현재 장바구니 상태 가져오기
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    
-    // 이미 장바구니에 있는지 확인
-    const existingItemIndex = cart.findIndex(item => item.id === id);
-    
-    if (existingItemIndex >= 0) {
-      // 이미 장바구니에 있으면 수량 증가
-      cart[existingItemIndex].quantity += 1;
-    } else {
-      // 장바구니에 없으면 새 아이템 추가
-      cart.push({
-        id,
-        name,
-        price,
-        discount,
-        discountedPrice,
-        image,
-        quantity: 1
-      });
+    try {
+      await addToCart(id, 1);
+      
+      // 사용자에게 피드백 제공
+      setIsAdded(true);
+      setTimeout(() => {
+        setIsAdded(false);
+      }, 2000); // 2초 후 메시지 사라짐
+      
+      console.log(`장바구니에 상품 추가: ${name}`);
+    } catch (error) {
+      console.error('장바구니 추가 실패:', error);
+      alert('장바구니에 상품을 추가하는 중 오류가 발생했습니다.');
     }
-    
-    // 로컬 스토리지에 장바구니 저장
-    localStorage.setItem('cart', JSON.stringify(cart));
-    
-    // 장바구니 업데이트 이벤트 발생 (헤더의 장바구니 아이콘 업데이트를 위해)
-    window.dispatchEvent(new Event('cartUpdated'));
-    
-    // 사용자에게 피드백 제공
-    setIsAdded(true);
-    setTimeout(() => {
-      setIsAdded(false);
-    }, 2000); // 2초 후 메시지 사라짐
-    
-    console.log(`장바구니에 상품 추가: ${name}`);
   };
 
   return (
@@ -140,13 +121,37 @@ const ProductCard = ({
         <div className="px-3 pb-3">
           <button 
             onClick={handleAddToCart}
+            disabled={loading}
             className={`block w-full py-2 rounded-lg font-medium text-center text-sm transition-colors
-              ${isAdded 
-                ? 'bg-green-500 hover:bg-green-600 text-white' 
-                : 'bg-primary hover:bg-orange-600 text-white'}`}
+              ${loading
+                ? 'bg-gray-400 cursor-not-allowed text-white'
+                : isAdded 
+                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  : isInCart(id)
+                    ? 'bg-gray-500 hover:bg-gray-600 text-white'
+                    : 'bg-primary hover:bg-orange-600 text-white'}`}
           >
-            <i className={`${isAdded ? 'fas fa-check' : 'fas fa-shopping-cart'} mr-1`}></i>
-            {isAdded ? '장바구니에 추가됨' : '장바구니에 담기'}
+            {loading ? (
+              <>
+                <i className="fas fa-spinner fa-spin mr-1"></i>
+                처리 중...
+              </>
+            ) : isAdded ? (
+              <>
+                <i className="fas fa-check mr-1"></i>
+                장바구니에 추가됨
+              </>
+            ) : isInCart(id) ? (
+              <>
+                <i className="fas fa-plus mr-1"></i>
+                수량 추가
+              </>
+            ) : (
+              <>
+                <i className="fas fa-shopping-cart mr-1"></i>
+                장바구니에 담기
+              </>
+            )}
           </button>
         </div>
       )}

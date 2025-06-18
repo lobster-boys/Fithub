@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { saveOnboardingData, getOnboardingData } from '../api';
+import { useOnboarding } from '../hooks/useOnboarding';
 
 import FitnessLevelStep from '../components/onboarding/FitnessLevelStep';
 import BodyInfoStep      from '../components/onboarding/BodyInfoStep';
@@ -32,43 +32,46 @@ export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, completeOnboarding } = useAuth();
+  const { 
+    onboardingData, 
+    completed, 
+    saveOnboardingData, 
+    loading: onboardingLoading, 
+    error: onboardingError 
+  } = useOnboarding();
 
   // 컴포넌트 마운트 시 기존 온보딩 데이터 확인
   useEffect(() => {
-    const checkExistingData = async () => {
+    const checkExistingData = () => {
       if (user) {
-        try {
-          const response = await getOnboardingData();
-          if (response.completed && response.data) {
-            // 기존 온보딩 데이터가 있으면 홈으로 리다이렉트 또는 수정 모드로 전환
-            const shouldUpdate = window.confirm(
-              '이미 온보딩을 완료하셨습니다. 정보를 수정하시겠습니까?'
-            );
-            if (shouldUpdate) {
-              setFormData({
-                fitness_level: response.data.fitness_level || '',
-                height: response.data.height?.toString() || '',
-                weight: response.data.weight?.toString() || '',
-                age: response.data.age?.toString() || '',
-                goals: response.data.goals || [],
-                methods: response.data.methods || [],
-                equipment: response.data.equipment || [],
-              });
-            } else {
-              navigate('/');
-              return;
-            }
+        if (completed && onboardingData?.data) {
+          // 기존 온보딩 데이터가 있으면 홈으로 리다이렉트 또는 수정 모드로 전환
+          const shouldUpdate = window.confirm(
+            '이미 온보딩을 완료하셨습니다. 정보를 수정하시겠습니까?'
+          );
+          if (shouldUpdate) {
+            const data = onboardingData.data;
+            setFormData({
+              fitness_level: data.fitness_level || '',
+              height: data.height?.toString() || '',
+              weight: data.weight?.toString() || '',
+              age: data.age?.toString() || '',
+              goals: data.goals || [],
+              methods: data.methods || [],
+              equipment: data.equipment || [],
+            });
+          } else {
+            navigate('/');
+            return;
           }
-        } catch (error) {
-          console.log('기존 온보딩 데이터 없음:', error);
         }
       }
       setIsInitializing(false);
     };
 
     checkExistingData();
-  }, [user, navigate]);
+  }, [user, navigate, completed, onboardingData]);
 
   const StepComponent = steps[current].Component;
 
@@ -143,35 +146,18 @@ export default function OnboardingPage() {
 
       console.log('온보딩 데이터 전송:', payload);
 
-      try {
-        const response = await saveOnboardingData(payload);
-        console.log('온보딩 저장 성공:', response);
-        
-        // 로컬 스토리지에도 백업으로 저장
-        if (user) {
-          localStorage.setItem(`fithub_onboarding_${user.id}`, JSON.stringify(formData));
-          localStorage.setItem(`fithub_onboarded_${user.id}`, 'true');
-        }
-        
-        alert('온보딩이 완료되었습니다! 맞춤형 추천을 받으실 수 있습니다.');
-        navigate('/');
-        
-      } catch (apiError) {
-        console.error('백엔드 API 호출 실패:', apiError);
-        
-        // API 호출이 실패해도 로컬 스토리지에 저장하여 개발 중에도 진행 가능
-        if (user) {
-          localStorage.setItem(`fithub_onboarding_${user.id}`, JSON.stringify(formData));
-          localStorage.setItem(`fithub_onboarded_${user.id}`, 'true');
-        }
-        
-        alert('온보딩 정보가 저장되었습니다. (개발 모드: 로컬 저장)');
-        navigate('/');
-      }
+      const response = await saveOnboardingData(payload);
+      console.log('온보딩 저장 성공:', response);
+      
+      // AuthContext의 온보딩 완료 상태 업데이트
+      completeOnboarding();
+      
+      alert('온보딩이 완료되었습니다! 맞춤형 추천을 받으실 수 있습니다.');
+      navigate('/');
       
     } catch (err) {
       console.error('온보딩 저장 실패:', err);
-      alert('온보딩 정보 저장에 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
+      alert('온보딩 정보 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsLoading(false);
     }

@@ -11,99 +11,111 @@ const ContentDetailPage = () => {
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [comments, setComments] = useState([]);
   
-  // 대댓글 관련 상태
-  const [replyingTo, setReplyingTo] = useState(null); // 답글 대상 댓글 ID
+  // 사용자 멘션 관련 상태
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const commentTextareaRef = useRef(null);
 
-  // 커뮤니티 훅 사용
+  // 커뮤니티 훅 사용 - 새로운 API 함수들 포함
   const {
+    fetchPost,
     getPostById,
     toggleLike,
     incrementViews,
     getCategoryName,
     getCategoryBadgeClass,
     getRelatedPosts,
+    searchUsers,
     loading,
     error
   } = useCommunity();
 
   // 게시글 데이터
-  const post = getPostById(postId);
+  const [currentPost, setCurrentPost] = useState(null);
 
-  // 페이지 로드 시 조회수 증가 (한 번만 실행)
+  // 페이지 로드 시 게시글 데이터 로드 및 조회수 증가
   useEffect(() => {
-    if (postId) {
-      incrementViews(parseInt(postId));
-    }
-  }, [postId]); // postId가 변경될 때만 실행
+    const loadPost = async () => {
+      if (postId) {
+        try {
+          // 먼저 로컬에서 찾기
+          let post = getPostById(postId);
+          
+          // 로컬에 없으면 API에서 가져오기
+          if (!post) {
+            post = await fetchPost(postId);
+          }
+          
+          setCurrentPost(post);
+          
+          // 조회수 증가
+          incrementViews(parseInt(postId));
+          
+          // 댓글 데이터 로드 (실제로는 댓글 API를 호출해야 함)
+          loadComments(post);
+        } catch (err) {
+          console.error('게시글 로드 실패:', err);
+        }
+      }
+    };
 
-  // 샘플 댓글 데이터 (실제 환경에서는 API에서 가져올 데이터)
-  useEffect(() => {
+    loadPost();
+  }, [postId, fetchPost, getPostById, incrementViews]);
+
+  // 댓글 데이터 로드 (임시 더미 데이터)
+  const loadComments = (post) => {
     if (post) {
-      setComments([
+      // 실제로는 댓글 API에서 데이터를 가져와야 함
+      const dummyComments = [
         {
           id: 1,
           author: {
             name: '운동러버',
+            username: 'workout_lover',
             avatar: 'https://randomuser.me/api/portraits/women/32.jpg'
           },
-          content: '정말 유용한 정보네요! 저도 따라해보겠습니다.',
+          content: '정말 유용한 정보네요! 저도 따라해보겠습니다. @' + (post.author?.name || '작성자') + ' 감사합니다!',
           date: '2024-01-20',
           likes: 5,
+          isLiked: false,
           replies: []
         },
         {
           id: 2,
           author: {
             name: '헬스초보',
+            username: 'gym_newbie',
             avatar: 'https://randomuser.me/api/portraits/men/25.jpg'
           },
           content: '초보자도 쉽게 따라할 수 있을까요? 조금 더 자세한 설명 부탁드려요.',
           date: '2024-01-20',
           likes: 2,
+          isLiked: false,
           replies: [
             {
               id: 3,
               author: {
                 name: post?.author?.name || '작성자',
+                username: post?.author?.username || 'author',
                 avatar: post?.author?.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'
               },
-              content: '네, 초보자분도 충분히 따라하실 수 있어요! 처음에는 가벼운 무게부터 시작하시면 됩니다.',
+              content: '@헬스초보 네, 초보자분도 충분히 따라하실 수 있어요! 처음에는 가벼운 무게부터 시작하시면 됩니다.',
               date: '2024-01-20',
-              likes: 3
+              likes: 3,
+              isLiked: false
             }
           ]
         }
-      ]);
+      ];
+      setComments(dummyComments);
     }
-  }, [post]);
-
-  // 모든 사용자 목록 가져오기 (멘션용)
-  const getAllUsers = () => {
-    const users = [post.author]; // 게시글 작성자
-    
-    // 댓글 작성자들 추가
-    comments.forEach(comment => {
-      if (!users.find(u => u.name === comment.author.name)) {
-        users.push(comment.author);
-      }
-      // 대댓글 작성자들도 추가
-      comment.replies?.forEach(reply => {
-        if (!users.find(u => u.name === reply.author.name)) {
-          users.push(reply.author);
-        }
-      });
-    });
-    
-    return users;
   };
 
   // 멘션 감지 및 처리
-  const handleCommentChange = (e) => {
+  const handleCommentChange = async (e) => {
     const value = e.target.value;
     const cursorPos = e.target.selectionStart;
     
@@ -120,8 +132,18 @@ const ContentDetailPage = () => {
       
       if (!hasSpace && afterAt.length <= 20) {
         setMentionQuery(afterAt);
-        setShowMentionDropdown(true);
         setSelectedMentionIndex(0);
+        
+        try {
+          // 사용자 검색 API 호출
+          const users = await searchUsers(afterAt);
+          setMentionSuggestions(users);
+          setShowMentionDropdown(users.length > 0);
+        } catch (err) {
+          console.error('사용자 검색 실패:', err);
+          setMentionSuggestions([]);
+          setShowMentionDropdown(false);
+        }
       } else {
         setShowMentionDropdown(false);
       }
@@ -130,14 +152,34 @@ const ContentDetailPage = () => {
     }
   };
 
-  // 필터링된 사용자 목록
-  const getFilteredUsers = () => {
-    const users = getAllUsers();
-    if (!mentionQuery) return users;
-    
-    return users.filter(user =>
-      user.name.toLowerCase().includes(mentionQuery.toLowerCase())
-    );
+  // 키보드 이벤트 핸들러
+  const handleKeyDown = (e) => {
+    if (!showMentionDropdown || mentionSuggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedMentionIndex(prev => 
+          prev < mentionSuggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedMentionIndex(prev => 
+          prev > 0 ? prev - 1 : mentionSuggestions.length - 1
+        );
+        break;
+      case 'Enter':
+      case 'Tab':
+        e.preventDefault();
+        if (mentionSuggestions[selectedMentionIndex]) {
+          insertMention(mentionSuggestions[selectedMentionIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowMentionDropdown(false);
+        break;
+    }
   };
 
   // 멘션 삽입
@@ -152,8 +194,8 @@ const ContentDetailPage = () => {
     
     if (lastAtIndex !== -1) {
       const beforeAt = content.substring(0, lastAtIndex);
-      const newContent = beforeAt + '@' + user.name + ' ' + afterCursor;
-      const newCursorPos = beforeAt.length + user.name.length + 2;
+      const newContent = beforeAt + '@' + user.username + ' ' + afterCursor;
+      const newCursorPos = beforeAt.length + user.username.length + 2;
       
       setNewComment(newContent);
       setShowMentionDropdown(false);
@@ -166,214 +208,231 @@ const ContentDetailPage = () => {
     }
   };
 
-  // 댓글/대댓글 작성 핸들러
-  const handleCommentSubmit = (e) => {
+  // 댓글 작성 핸들러
+  const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    // '@사용자명' 패턴 감지하여 대댓글 여부 판단
-    const mentionMatch = newComment.match(/@(\w+)/);
-    const isReply = mentionMatch && getAllUsers().some(user => user.name === mentionMatch[1]);
-    
-    if (isReply && mentionMatch) {
-      // 대댓글 처리
-      const mentionedUserName = mentionMatch[1];
-      const parentComment = comments.find(comment => 
-        comment.author.name === mentionedUserName || 
-        comment.replies?.some(reply => reply.author.name === mentionedUserName)
-      );
-      
-      if (parentComment) {
-        const reply = {
-          id: Date.now(), // 임시 ID
-          author: {
-            name: '사용자',
-            avatar: 'https://randomuser.me/api/portraits/lego/1.jpg'
-          },
-          content: newComment,
-          date: new Date().toISOString().split('T')[0],
-          likes: 0,
-          mentionedUser: mentionedUserName
-        };
-
-        setComments(prevComments =>
-          prevComments.map(comment =>
-            comment.id === parentComment.id
-              ? { ...comment, replies: [...(comment.replies || []), reply] }
-              : comment
-          )
-        );
-      }
-    } else {
-      // 일반 댓글 처리
-      const comment = {
+    try {
+      // 실제로는 댓글 생성 API를 호출해야 함
+      const newCommentData = {
         id: Date.now(), // 임시 ID
         author: {
-          name: '사용자',
-          avatar: 'https://randomuser.me/api/portraits/lego/1.jpg'
+          name: '현재사용자', // 실제로는 로그인한 사용자 정보
+          username: 'current_user',
+          avatar: 'https://ui-avatars.com/api/?name=현재사용자&background=random'
         },
         content: newComment,
         date: new Date().toISOString().split('T')[0],
         likes: 0,
+        isLiked: false,
         replies: []
       };
 
-      setComments([...comments, comment]);
+      setComments(prevComments => [...prevComments, newCommentData]);
+      setNewComment('');
+      setShowCommentForm(false);
+    } catch (err) {
+      console.error('댓글 작성 실패:', err);
+      alert('댓글 작성에 실패했습니다. 다시 시도해주세요.');
     }
-
-    setNewComment('');
-    setShowCommentForm(false);
-    setReplyingTo(null);
   };
 
-  // 답글 버튼 클릭 핸들러
-  const handleReplyClick = (comment) => {
-    setReplyingTo(comment.id);
-    setShowCommentForm(true);
-    setNewComment(`@${comment.author.name} `);
+  // 댓글 좋아요 토글
+  const handleCommentLike = async (commentId) => {
+    try {
+      // 실제로는 댓글 좋아요 API를 호출해야 함
+      setComments(prevComments =>
+        prevComments.map(comment =>
+          comment.id === commentId
+            ? { 
+                ...comment, 
+                likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
+                isLiked: !comment.isLiked 
+              }
+            : comment
+        )
+      );
+    } catch (err) {
+      console.error('댓글 좋아요 실패:', err);
+    }
+  };
+
+  // 게시글 좋아요 핸들러
+  const handlePostLike = async () => {
+    if (!currentPost) return;
     
-    // 텍스트 영역에 포커스
-    setTimeout(() => {
-      if (commentTextareaRef.current) {
-        commentTextareaRef.current.focus();
-        commentTextareaRef.current.setSelectionRange(
-          commentTextareaRef.current.value.length,
-          commentTextareaRef.current.value.length
-        );
-      }
-    }, 100);
+    try {
+      await toggleLike(currentPost.id);
+      // 로컬 상태 업데이트는 useCommunity 훅에서 처리됨
+    } catch (err) {
+      console.error('좋아요 처리 실패:', err);
+    }
   };
 
-  // 댓글 내용에서 멘션 하이라이트
-  const renderCommentContent = (content) => {
+  // 멘션이 포함된 텍스트 렌더링
+  const renderTextWithMentions = (content) => {
     const mentionRegex = /@(\w+)/g;
     const parts = content.split(mentionRegex);
     
     return parts.map((part, index) => {
       if (index % 2 === 1) {
         // 멘션된 사용자명
-        const user = getAllUsers().find(u => u.name === part);
-        if (user) {
-          return (
-            <span key={index} className="text-primary font-medium bg-primary bg-opacity-10 px-1 rounded">
-              @{part}
-            </span>
-          );
-        }
+        return (
+          <span key={index} className="text-primary font-medium bg-primary bg-opacity-10 px-1 rounded">
+            @{part}
+          </span>
+        );
       }
       return part;
     });
   };
 
-  // 좋아요 핸들러
-  const handleLike = () => {
-    if (post) {
-      toggleLike(post.id);
+  // 마크다운 이미지 렌더링
+  const renderMarkdownImages = (content) => {
+    const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    const parts = content.split(imageRegex);
+    
+    const result = [];
+    for (let i = 0; i < parts.length; i += 3) {
+      if (parts[i]) {
+        result.push(<span key={i}>{renderTextWithMentions(parts[i])}</span>);
+      }
+      if (parts[i + 1] !== undefined && parts[i + 2]) {
+        result.push(
+          <img
+            key={i + 1}
+            src={parts[i + 2]}
+            alt={parts[i + 1]}
+            className="max-w-full h-auto rounded-lg my-2"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        );
+      }
     }
+    
+    return result.length > 0 ? result : renderTextWithMentions(content);
   };
 
+  // 로딩 상태
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">게시글을 불러오는 중...</p>
         </div>
       </div>
     );
   }
 
-  if (error || !post) {
+  // 에러 상태
+  if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <i className="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
-          <h2 className="text-2xl font-bold mb-2">게시글을 찾을 수 없습니다</h2>
-          <p className="text-gray-600 mb-4">요청하신 게시글이 존재하지 않거나 삭제되었습니다.</p>
-          <Link 
-            to="/community" 
-            className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+      <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen">
+        <div className="text-center bg-red-50 p-8 rounded-lg">
+          <i className="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+          <h2 className="text-xl font-bold text-red-800 mb-2">오류 발생</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => navigate('/community')} 
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
           >
-            <i className="fas fa-arrow-left mr-2"></i>
             커뮤니티로 돌아가기
-          </Link>
+          </button>
         </div>
       </div>
     );
   }
+
+  // 게시글이 없는 경우
+  if (!currentPost) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen">
+        <div className="text-center bg-yellow-50 p-8 rounded-lg">
+          <i className="fas fa-search text-yellow-500 text-4xl mb-4"></i>
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">게시글을 찾을 수 없습니다</h2>
+          <p className="text-yellow-600 mb-4">요청하신 게시글이 존재하지 않거나 삭제되었습니다.</p>
+          <button 
+            onClick={() => navigate('/community')} 
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
+          >
+            커뮤니티로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 관련 게시글
+  const relatedPosts = getRelatedPosts(postId, 3);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* 뒤로가기 버튼 */}
-      <div className="mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center text-gray-600 hover:text-primary transition-colors"
-        >
-          <i className="fas fa-arrow-left mr-2"></i>
-          뒤로가기
-        </button>
-      </div>
+      <button
+        onClick={() => navigate('/community')}
+        className="flex items-center text-gray-600 hover:text-gray-800 mb-6 transition-colors"
+      >
+        <i className="fas fa-arrow-left mr-2"></i>
+        커뮤니티로 돌아가기
+      </button>
 
-      {/* 게시글 내용 */}
-      <article className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* 게시글 상세 */}
+      <article className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
         {/* 게시글 헤더 */}
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <img 
-                src={post.author.avatar} 
-                alt={post.author.name} 
+              <img
+                src={currentPost.author.avatar}
+                alt={currentPost.author.name}
                 className="w-12 h-12 rounded-full mr-4"
+                onError={(e) => {
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentPost.author.name)}&background=random`;
+                }}
               />
               <div>
-                <h3 className="font-bold text-lg">{post.author.name}</h3>
-                <div className="flex items-center text-sm text-gray-500">
-                  <span>{post.date}</span>
-                  <span className="mx-2">•</span>
-                  <span>조회 {post.views}</span>
-                </div>
+                <h3 className="font-bold text-lg">{currentPost.author.name}</h3>
+                <p className="text-sm text-gray-500">{currentPost.date}</p>
               </div>
             </div>
-            <span className={`px-3 py-1 rounded-full text-sm ${getCategoryBadgeClass(post.category)}`}>
-              {getCategoryName(post.category)}
+            <span className={`px-3 py-1 rounded-full text-sm ${getCategoryBadgeClass(currentPost.category)}`}>
+              {getCategoryName(currentPost.category)}
             </span>
           </div>
+          
+          <h1 className="text-3xl font-bold mb-4">{currentPost.title}</h1>
+        </div>
 
-          <h1 className="text-2xl font-bold mb-4">{post.title}</h1>
+        {/* 게시글 내용 */}
+        <div className="p-6">
+          <div className="prose max-w-none mb-6">
+            <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+              {renderMarkdownImages(currentPost.content)}
+            </div>
+          </div>
 
-          {/* 태그 표시 */}
-          {post.tags && post.tags.length > 0 && (
+          {/* 해시태그 */}
+          {currentPost.tags && currentPost.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
-              {post.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-block px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full"
-                >
+              {currentPost.tags.map((tag, index) => (
+                <span key={index} className="inline-block px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">
                   #{tag}
                 </span>
               ))}
             </div>
           )}
-        </div>
 
-        {/* 게시글 본문 */}
-        <div className="p-6">
-          <div className="prose max-w-none mb-6">
-            <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-              {post.content}
-            </p>
-          </div>
-
-          {/* 이미지 표시 */}
-          {post.images && post.images.length > 0 && (
-            <div className="mb-6">
-              {post.images.map((image, index) => (
-                <img 
-                  key={index}
-                  src={image} 
-                  alt={`게시글 이미지 ${index + 1}`} 
-                  className="w-full rounded-lg mb-4 last:mb-0"
-                />
+          {/* 사용자 태그 */}
+          {currentPost.userTags && currentPost.userTags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {currentPost.userTags.map((userTag, index) => (
+                <span key={index} className="inline-block px-3 py-1 bg-blue-100 text-blue-600 text-sm rounded-full">
+                  @{userTag}
+                </span>
               ))}
             </div>
           )}
@@ -382,218 +441,186 @@ const ContentDetailPage = () => {
           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
             <div className="flex items-center space-x-6">
               <button
-                onClick={handleLike}
-                className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors"
+                onClick={handlePostLike}
+                className={`flex items-center space-x-1 transition-colors ${
+                  currentPost.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                }`}
               >
-                <i className="far fa-heart"></i>
-                <span>{post.likes}</span>
+                <i className={`${currentPost.isLiked ? 'fas' : 'far'} fa-heart`}></i>
+                <span>{currentPost.likes}</span>
               </button>
+              
               <button
-                onClick={() => setShowCommentForm(!showCommentForm)}
-                className="flex items-center space-x-2 text-gray-600 hover:text-primary transition-colors"
+                onClick={() => setShowCommentForm(true)}
+                className="flex items-center space-x-1 text-gray-500 hover:text-primary transition-colors"
               >
                 <i className="far fa-comment"></i>
                 <span>{comments.length}</span>
               </button>
-              <button className="flex items-center space-x-2 text-gray-600 hover:text-primary transition-colors">
-                <i className="far fa-share-square"></i>
-                <span>공유</span>
+              
+              <div className="flex items-center space-x-1 text-gray-500">
+                <i className="far fa-eye"></i>
+                <span>{currentPost.views}</span>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button className="text-gray-500 hover:text-gray-700 transition-colors">
+                <i className="fas fa-share-alt"></i>
+              </button>
+              <button className="text-gray-500 hover:text-gray-700 transition-colors">
+                <i className="fas fa-bookmark"></i>
               </button>
             </div>
-            <button className="text-gray-600 hover:text-primary transition-colors">
-              <i className="far fa-bookmark"></i>
-            </button>
           </div>
         </div>
       </article>
 
       {/* 댓글 섹션 */}
-      <section className="mt-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-xl font-bold">댓글 {comments.length}개</h2>
-          </div>
+      <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+        <div className="p-6">
+          <h2 className="text-xl font-bold mb-6 flex items-center">
+            <i className="fas fa-comments mr-2"></i>
+            댓글 ({comments.length})
+          </h2>
 
           {/* 댓글 작성 폼 */}
           {showCommentForm && (
-            <div className="p-6 border-b border-gray-100 bg-gray-50">
-              {replyingTo && (
-                <div className="mb-3 p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
-                  <p className="text-sm text-blue-700">
-                    <i className="fas fa-reply mr-2"></i>
-                    답글 작성 중...
-                  </p>
-                </div>
-              )}
-              <form onSubmit={handleCommentSubmit}>
-                <div className="flex space-x-4">
-                  <img 
-                    src="https://randomuser.me/api/portraits/lego/1.jpg" 
-                    alt="사용자" 
-                    className="w-10 h-10 rounded-full"
-                  />
-                  <div className="flex-1 relative">
-                    <textarea
-                      ref={commentTextareaRef}
-                      value={newComment}
-                      onChange={handleCommentChange}
-                      onKeyDown={(e) => {
-                        if (showMentionDropdown) {
-                          const filteredUsers = getFilteredUsers();
-                          
-                          if (e.key === 'Escape') {
-                            setShowMentionDropdown(false);
-                            e.preventDefault();
-                          } else if (e.key === 'ArrowDown') {
-                            setSelectedMentionIndex(prev => 
-                              prev < filteredUsers.length - 1 ? prev + 1 : 0
-                            );
-                            e.preventDefault();
-                          } else if (e.key === 'ArrowUp') {
-                            setSelectedMentionIndex(prev => 
-                              prev > 0 ? prev - 1 : filteredUsers.length - 1
-                            );
-                            e.preventDefault();
-                          } else if (e.key === 'Enter' && filteredUsers.length > 0) {
-                            insertMention(filteredUsers[selectedMentionIndex]);
-                            e.preventDefault();
-                          }
-                        }
-                      }}
-                      placeholder={replyingTo ? "답글을 입력하세요... (@사용자명으로 멘션)" : "댓글을 입력하세요... (@사용자명으로 멘션)"}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 h-24 resize-none"
-                      required
-                    />
-                    
-                    {/* 멘션 드롭다운 */}
-                    {showMentionDropdown && (
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 w-full">
-                        <div className="p-2 border-b border-gray-100">
-                          <p className="text-xs text-gray-500">
-                            사용자 멘션
-                          </p>
+            <form onSubmit={handleCommentSubmit} className="mb-6">
+              <div className="relative">
+                <textarea
+                  ref={commentTextareaRef}
+                  value={newComment}
+                  onChange={handleCommentChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="댓글을 입력하세요... (@사용자명으로 멘션 가능)"
+                  rows="3"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                  required
+                />
+
+                {/* 멘션 자동완성 드롭다운 */}
+                {showMentionDropdown && mentionSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 w-full">
+                    {mentionSuggestions.map((user, index) => (
+                      <div
+                        key={user.id}
+                        onClick={() => insertMention(user)}
+                        className={`px-3 py-2 cursor-pointer flex items-center ${
+                          index === selectedMentionIndex ? 'bg-primary bg-opacity-10' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <img
+                          src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=random`}
+                          alt={user.username}
+                          className="w-6 h-6 rounded-full mr-2"
+                        />
+                        <div>
+                          <div className="font-medium">{user.username}</div>
+                          {user.name && user.name !== user.username && (
+                            <div className="text-xs text-gray-500">{user.name}</div>
+                          )}
                         </div>
-                        {getFilteredUsers().length > 0 ? (
-                          getFilteredUsers().map((user, index) => (
-                            <button
-                              key={user.name}
-                              type="button"
-                              onClick={() => insertMention(user)}
-                              className={`w-full text-left px-3 py-2 flex items-center transition-colors ${
-                                index === selectedMentionIndex 
-                                  ? 'bg-primary bg-opacity-10 text-primary' 
-                                  : 'hover:bg-gray-100'
-                              }`}
-                            >
-                              <img 
-                                src={user.avatar} 
-                                alt={user.name}
-                                className="w-6 h-6 rounded-full mr-2"
-                              />
-                              <span className="text-primary mr-2">@</span>
-                              <span>{user.name}</span>
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-3 py-2 text-gray-500 text-sm">
-                            검색 결과가 없습니다.
-                          </div>
-                        )}
                       </div>
-                    )}
-                    
-                    <div className="flex justify-between items-center mt-3">
-                      <div className="text-xs text-gray-500">
-                        💡 @를 입력하여 사용자를 멘션할 수 있습니다
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowCommentForm(false);
-                            setNewComment('');
-                            setReplyingTo(null);
-                            setShowMentionDropdown(false);
-                          }}
-                          className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                        >
-                          취소
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
-                        >
-                          {replyingTo ? '답글 작성' : '댓글 작성'}
-                        </button>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                </div>
-              </form>
-            </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end space-x-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCommentForm(false);
+                    setNewComment('');
+                    setShowMentionDropdown(false);
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  댓글 작성
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* 댓글 작성 버튼 */}
+          {!showCommentForm && (
+            <button
+              onClick={() => setShowCommentForm(true)}
+              className="w-full p-3 text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors mb-6"
+            >
+              댓글을 입력하세요...
+            </button>
           )}
 
           {/* 댓글 목록 */}
-          <div className="divide-y divide-gray-100">
+          <div className="space-y-4">
             {comments.length > 0 ? (
               comments.map((comment) => (
-                <div key={comment.id} className="p-6">
-                  <div className="flex space-x-4">
-                    <img 
-                      src={comment.author.avatar} 
-                      alt={comment.author.name} 
-                      className="w-10 h-10 rounded-full"
+                <div key={comment.id} className="border-b border-gray-100 pb-4 last:border-b-0">
+                  <div className="flex items-start space-x-3">
+                    <img
+                      src={comment.author.avatar}
+                      alt={comment.author.name}
+                      className="w-8 h-8 rounded-full"
+                      onError={(e) => {
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.author.name)}&background=random`;
+                      }}
                     />
                     <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h4 className="font-medium">{comment.author.name}</h4>
-                        <span className="text-sm text-gray-500">{comment.date}</span>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="font-medium">{comment.author.name}</span>
+                        <span className="text-xs text-gray-500">{comment.date}</span>
                       </div>
-                      <p className="text-gray-800 mb-3">{renderCommentContent(comment.content)}</p>
+                      <div className="text-gray-800 mb-2">
+                        {renderTextWithMentions(comment.content)}
+                      </div>
                       <div className="flex items-center space-x-4">
-                        <button className="flex items-center space-x-1 text-sm text-gray-600 hover:text-red-500">
-                          <i className="far fa-heart"></i>
+                        <button
+                          onClick={() => handleCommentLike(comment.id)}
+                          className={`flex items-center space-x-1 text-sm transition-colors ${
+                            comment.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                          }`}
+                        >
+                          <i className={`${comment.isLiked ? 'fas' : 'far'} fa-heart`}></i>
                           <span>{comment.likes}</span>
                         </button>
-                        <button 
-                          onClick={() => handleReplyClick(comment)}
-                          className="text-sm text-gray-600 hover:text-primary"
-                        >
+                        <button className="text-sm text-gray-500 hover:text-primary transition-colors">
                           답글
                         </button>
                       </div>
 
                       {/* 대댓글 */}
                       {comment.replies && comment.replies.length > 0 && (
-                        <div className="mt-4 ml-6 space-y-4">
+                        <div className="mt-4 space-y-3">
                           {comment.replies.map((reply) => (
-                            <div key={reply.id} className="flex space-x-3">
-                              <img 
-                                src={reply.author.avatar} 
-                                alt={reply.author.name} 
-                                className="w-8 h-8 rounded-full"
+                            <div key={reply.id} className="flex items-start space-x-3 ml-4">
+                              <img
+                                src={reply.author.avatar}
+                                alt={reply.author.name}
+                                className="w-6 h-6 rounded-full"
+                                onError={(e) => {
+                                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.author.name)}&background=random`;
+                                }}
                               />
                               <div className="flex-1">
                                 <div className="flex items-center space-x-2 mb-1">
-                                  <h5 className="font-medium text-sm">{reply.author.name}</h5>
+                                  <span className="font-medium text-sm">{reply.author.name}</span>
                                   <span className="text-xs text-gray-500">{reply.date}</span>
-                                  {reply.mentionedUser && (
-                                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                                      답글
-                                    </span>
-                                  )}
                                 </div>
-                                <p className="text-sm text-gray-800 mb-2">{renderCommentContent(reply.content)}</p>
-                                <div className="flex items-center space-x-3">
-                                  <button className="flex items-center space-x-1 text-xs text-gray-600 hover:text-red-500">
+                                <div className="text-gray-800 text-sm mb-2">
+                                  {renderTextWithMentions(reply.content)}
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                  <button className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-500 transition-colors">
                                     <i className="far fa-heart"></i>
                                     <span>{reply.likes}</span>
-                                  </button>
-                                  <button 
-                                    onClick={() => handleReplyClick(reply)}
-                                    className="text-xs text-gray-600 hover:text-primary"
-                                  >
-                                    답글
                                   </button>
                                 </div>
                               </div>
@@ -606,137 +633,43 @@ const ContentDetailPage = () => {
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center">
-                <i className="fas fa-comments text-gray-300 text-3xl mb-3"></i>
-                <p className="text-gray-500 mb-4">아직 댓글이 없습니다.</p>
-                <button
-                  onClick={() => setShowCommentForm(true)}
-                  className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
-                >
-                  <i className="fas fa-plus mr-2"></i>
-                  첫 번째 댓글 작성하기
-                </button>
+              <div className="text-center py-8 text-gray-500">
+                <i className="fas fa-comments text-4xl mb-3"></i>
+                <p>아직 댓글이 없습니다.</p>
+                <p className="text-sm">첫 번째 댓글을 작성해보세요!</p>
               </div>
             )}
           </div>
         </div>
       </section>
 
-      {/* 관련 게시글 추천 */}
-      <section className="mt-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-xl font-bold mb-6">관련 게시글</h2>
-          {(() => {
-            const relatedPosts = getRelatedPosts(postId, 3);
-            
-            if (relatedPosts.length === 0) {
-              return (
-                <div className="text-center text-gray-500 py-8">
-                  <i className="fas fa-search text-3xl mb-3"></i>
-                  <p>동일한 태그를 가진 관련 게시글이 없습니다.</p>
-                </div>
-              );
-            }
-
-            return (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {relatedPosts.map((relatedPost) => (
-                  <Link
-                    key={relatedPost.id}
-                    to={`/community/${relatedPost.id}`}
-                    className="block bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors border border-gray-200 hover:border-primary hover:shadow-md"
-                  >
-                    {/* 게시글 이미지 */}
-                    {relatedPost.images && relatedPost.images.length > 0 && (
-                      <div className="mb-3">
-                        <img
-                          src={relatedPost.images[0]}
-                          alt={relatedPost.title}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                      </div>
-                    )}
-                    
-                    {/* 카테고리 배지 */}
-                    <div className="mb-2">
-                      <span className={`inline-block px-2 py-1 text-xs rounded-full ${getCategoryBadgeClass(relatedPost.category)}`}>
-                        {getCategoryName(relatedPost.category)}
-                      </span>
-                    </div>
-                    
-                    {/* 제목 */}
-                    <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-sm">
-                      {relatedPost.title}
-                    </h3>
-                    
-                    {/* 내용 미리보기 */}
-                    <p className="text-gray-600 text-xs mb-3 line-clamp-2">
-                      {relatedPost.content}
-                    </p>
-                    
-                    {/* 공통 태그 표시 */}
-                    <div className="mb-3">
-                      <div className="flex flex-wrap gap-1">
-                        {relatedPost.commonTags.slice(0, 2).map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-block px-2 py-1 text-xs bg-primary bg-opacity-10 text-primary rounded-full"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                        {relatedPost.commonTags.length > 2 && (
-                          <span className="inline-block px-2 py-1 text-xs text-gray-500">
-                            +{relatedPost.commonTags.length - 2}개
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* 작성자 및 통계 */}
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <div className="flex items-center">
-                        <img
-                          src={relatedPost.author.avatar}
-                          alt={relatedPost.author.name}
-                          className="w-5 h-5 rounded-full mr-2"
-                        />
-                        <span>{relatedPost.author.name}</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center">
-                          <i className="far fa-heart mr-1"></i>
-                          <span>{relatedPost.likes}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <i className="far fa-comment mr-1"></i>
-                          <span>{relatedPost.comments}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <i className="far fa-eye mr-1"></i>
-                          <span>{relatedPost.views}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* 관련도 표시 */}
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">
-                          공통 태그 {relatedPost.relevanceScore}개
-                        </span>
-                        <span className="text-xs text-primary">
-                          자세히 보기 →
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
-      </section>
+      {/* 관련 게시글 */}
+      {relatedPosts.length > 0 && (
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-xl font-bold mb-6 flex items-center">
+              <i className="fas fa-link mr-2"></i>
+              관련 게시글
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {relatedPosts.map((relatedPost) => (
+                <Link
+                  key={relatedPost.id}
+                  to={`/community/${relatedPost.id}`}
+                  className="block p-4 border border-gray-200 rounded-lg hover:border-primary hover:shadow-sm transition-all"
+                >
+                  <h3 className="font-medium mb-2 line-clamp-2">{relatedPost.title}</h3>
+                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">{relatedPost.content}</p>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{relatedPost.author.name}</span>
+                    <span>{relatedPost.date}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

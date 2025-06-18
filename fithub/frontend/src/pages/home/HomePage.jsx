@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
+
 import useWorkoutData from '../../hooks/useWorkoutData';
 import { useDiet } from '../../hooks/useDiet';
 import useEcommerce from '../../hooks/useEcommerce';
@@ -41,6 +42,7 @@ function HomePage() {
 
   return (
     <div>
+
       {/* Welcome Section with User Info */}
       <section className="mb-8">
         <div className="flex items-center mb-4">
