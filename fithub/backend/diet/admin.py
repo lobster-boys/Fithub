@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Food
+from .models import Food, MealPlan, MealPlanFood
 
 @admin.register(Food)
 class FoodAdmin(admin.ModelAdmin):
@@ -37,3 +37,57 @@ class FoodAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.select_related('category', 'product')  # 외래키 관계에 대해 최적화
 
+class MealPlanFoodInline(admin.TabularInline):
+    """
+    MealPlan 편집 화면에 MealPlanFood를 인라인으로 보여줌.
+    """
+    model = MealPlanFood
+    extra = 1
+    # food 필드에 raw_id_fields 혹은 autocomplete_fields 적용
+    raw_id_fields = ('food',)
+    # 만약 Food에 autocomplete_fields 설정이 되어 있다면 아래 주석 해제 가능
+    autocomplete_fields = ('food',)
+    fields = ('food', 'quantity', 'meal_time')
+
+
+@admin.register(MealPlan)
+class MealPlanAdmin(admin.ModelAdmin):
+    list_display = (
+        'name',
+        'user',
+        'start_date',
+        'end_date',
+        'is_active',
+        'total_calories',
+    )
+    list_filter = (
+        'is_active',
+        'start_date',
+        'end_date',
+        'user',
+    )
+    search_fields = (
+        'name',
+        'description',
+        'user__username',
+    )
+    raw_id_fields = ('user',)
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'name', 'description'),
+        }),
+        ('기간 및 목표', {
+            'fields': (('start_date', 'end_date'), 'is_active', 'total_calories'),
+            'description': '식단 계획의 기간과 일일 칼로리 목표를 입력하세요.'
+        }),
+    )
+    # MealPlan 편집 화면에 MealPlanFood 인라인을 붙입니다.
+    inlines = (MealPlanFoodInline,)
+
+
+@admin.register(MealPlanFood)
+class MealPlanFoodAdmin(admin.ModelAdmin):
+    list_display = ('meal_plan', 'food', 'quantity', 'meal_time')
+    list_filter = ('meal_time', 'meal_plan__user')
+    search_fields = ('meal_plan__name', 'food__name')
+    raw_id_fields = ('meal_plan', 'food')

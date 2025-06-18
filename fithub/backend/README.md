@@ -55,7 +55,12 @@ python manage.py createsuperuser
 python manage.py flush --noinput
 
 # seed 생성
-python manage.py categories_seed
+python manage.py categories_seed --clear
 python manage.py products_seed --with-images
-python manage.py foods_seed
+python manage.py foods_seed --clear
+python manage.py mealplan_seed --clear
+
+# 옵션
+--clear: 기존 데이터를 삭제
+--noinput: 확인(경고) 메세지 표시하지 않기
 ```

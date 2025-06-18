@@ -33,6 +33,10 @@ class Product(models.Model):
     sale_price = models.DecimalField(default=0, max_digits=10, decimal_places=2, blank=True, null=True)
     stock_quantity = models.IntegerField(default=0)
     is_food = models.BooleanField(default=False)
+    unit_weight_g = models.PositiveIntegerField(
+        default=0,
+        help_text="1팩(1단위) 무게(gram). 0이면 단위 무게 정보 없음"
+    )
     is_active = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False)
     recommendations_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="추천 점수")

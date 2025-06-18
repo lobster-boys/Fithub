@@ -20,6 +20,11 @@ from .views.ecommerce.review_views import ReviewViewSet
 from .views.diet.food_views import FoodViewSet
 from .views.users.profile_views import UserProfileViewSet
 from .views.community.post_views import PostViewSet
+from .views.community import post_views, comment_views, post_like_views, comment_like_views
+from .views.social import social_views
+from .views.users import profile_views
+from .views.audit import changelog_views
+from .views.diet import food_views, food_search_views, mealplan_views
 
 app_name = "api"
 
@@ -70,7 +75,50 @@ urlpatterns = [
     # ViewSet 라우터 URL들
     path('', include(router.urls)),
     
-    # =================== 단순화된 API 엔드포인트 ===================
+    # =================== 인증 및 소셜 로그인 ===================
+    # 로그인/회원가입 URL
+    path("dj-rest-auth/", include("dj_rest_auth.urls")),
+    path("dj-rest-auth/registration/", include("dj_rest_auth.registration.urls")),
+    # 소셜 로그인 URL
+    path("dj-rest-auth/kakao/", social_views.KakaoLoginView.as_view(), name="kakao-login"),
+    path("dj-rest-auth/naver/", social_views.NaverLoginView.as_view(), name="naver-login"),
+    path("dj-rest-auth/google/", social_views.GoogleLoginView.as_view(), name="google-login"),
+    
+    # =================== 사용자 프로필 ===================
+    # 유저 프로필 URL
+    path("users/profile/", profile_views.UserProfileCreateView.as_view(), name="profile-create"),
+    path("users/profile/<int:pk>/", profile_views.UserProfileDetail.as_view(), name="profile-detail"),
+    
+    # =================== 커뮤니티 ===================
+    # 게시글 CRUD URL
+    path('community/posts/', post_views.UserPostCreateView.as_view(), name='post-create'),
+    path('community/posts/<int:pk>/', post_views.UserPostDetail.as_view(), name='post-detail'),
+    # 댓글 CRUD URL
+    path('community/posts/<int:post_id>/comments/', comment_views.UserCommentDetail.as_view(), name='comment-create'),
+    path('community/posts/<int:post_id>/comments/<int:pk>/', comment_views.UserCommentDetail.as_view(), name='comment-detail'),
+    # 게시글 좋아요 URL
+    path('community/posts/<int:pk>/like/', post_like_views.PostLikeView.as_view(), name="post-like"),
+    # 댓글 좋아요 URL
+    path('community/comments/<int:pk>/like/', comment_like_views.CommentLikeView.as_view(), name='comment-like'),
+    
+    # =================== 감사/변경 로그 ===================
+    # 변경 로그 감지 URL
+    path('audit/change-logs/', changelog_views.ChangeLogListView.as_view(), name='change-log-list'),
+    path('audit/change-logs/<int:log_id>/', changelog_views.ChangeLogDetailView.as_view(), name='change-log-detail'),
+    path('audit/restore-data/', changelog_views.RestoreDataView.as_view(), name='restore-data'),
+    path('audit/sync-failed-logs/', changelog_views.SyncFailedLogsView.as_view(), name='sync-failed-logs'),
+    path('audit/sync-status/', changelog_views.SyncStatusView.as_view(), name='sync-status'),
+    
+    # =================== 식단 관련 ===================
+    # diet URL
+    path('diet/foods/', food_views.FoodListView.as_view(), name='food-list'),
+    path('diet/foods/<int:pk>/', food_views.FoodDetailView.as_view(), name='food-detail'),
+    path('diet/foods/search/', food_search_views.FoodSearchListView.as_view(), name='food-search'),
+    # diet-MealPlan URL (새로 추가된 식단 계산 기능)
+    path('diet/mealplan/', mealplan_views.MealPlanListView.as_view(), name='mealplan-list-create'),
+    path('diet/mealplan/<int:pk>/', mealplan_views.MealPlanDetailView.as_view(), name='mealplan-detail'),
+    
+    # =================== 단순화된 API 엔드포인트 문서 ===================
     # 
     # Workouts API (프론트엔드 요구사항에 맞춘 핵심 기능만):
     # GET    /api/workouts/exercises/                    -> 운동 목록 (필터링: muscle_group, type, search)
@@ -140,6 +188,12 @@ urlpatterns = [
     # GET    /api/diet/foods/{id}/                       -> 음식 상세
     # PUT    /api/diet/foods/{id}/                       -> 음식 수정
     # DELETE /api/diet/foods/{id}/                       -> 음식 삭제
+    # GET    /api/diet/foods/search/                     -> 음식 검색
+    # GET    /api/diet/mealplan/                         -> 식단 계획 목록
+    # POST   /api/diet/mealplan/                         -> 식단 계획 생성
+    # GET    /api/diet/mealplan/{id}/                    -> 식단 계획 상세
+    # PUT    /api/diet/mealplan/{id}/                    -> 식단 계획 수정
+    # DELETE /api/diet/mealplan/{id}/                    -> 식단 계획 삭제
     #
     # Users API (프론트엔드 요구사항에 맞춘 핵심 기능만):
     # GET    /api/users/profiles/                        -> 프로필 목록
@@ -147,6 +201,9 @@ urlpatterns = [
     # GET    /api/users/profiles/{id}/                   -> 프로필 상세
     # PUT    /api/users/profiles/{id}/                   -> 프로필 수정
     # DELETE /api/users/profiles/{id}/                   -> 프로필 삭제
+    # GET    /api/users/profile/                         -> 내 프로필 조회
+    # POST   /api/users/profile/                         -> 내 프로필 생성
+    # GET    /api/users/profile/{id}/                    -> 특정 프로필 상세
     #
     # Community API (프론트엔드 요구사항에 맞춘 핵심 기능만):
     # GET    /api/community/posts/                       -> 게시글 목록 (필터링: category, search, tags)
@@ -156,6 +213,12 @@ urlpatterns = [
     # DELETE /api/community/posts/{id}/                  -> 게시글 삭제
     # GET    /api/community/posts/my_posts/              -> 내 게시글 목록
     # POST   /api/community/posts/{id}/like/             -> 게시글 좋아요
+    # GET    /api/community/posts/{post_id}/comments/    -> 댓글 목록
+    # POST   /api/community/posts/{post_id}/comments/    -> 댓글 생성
+    # GET    /api/community/posts/{post_id}/comments/{id}/ -> 댓글 상세
+    # PUT    /api/community/posts/{post_id}/comments/{id}/ -> 댓글 수정
+    # DELETE /api/community/posts/{post_id}/comments/{id}/ -> 댓글 삭제
+    # POST   /api/community/comments/{id}/like/          -> 댓글 좋아요
     #
     # Challenge API:
     # GET    /api/challenges/                            -> 챌린지 목록
@@ -176,4 +239,25 @@ urlpatterns = [
     # GET    /api/routine-share/{id}/                    -> 루틴 공유 권한 상세
     # PUT    /api/routine-share/{id}/                    -> 루틴 공유 권한 수정
     # DELETE /api/routine-share/{id}/                    -> 루틴 공유 권한 삭제
+    #
+    # GET    /api/routines/                              -> 루틴 목록
+    # POST   /api/routines/                              -> 루틴 생성
+    # GET    /api/routines/{id}/                         -> 루틴 상세
+    # PUT    /api/routines/{id}/                         -> 루틴 수정
+    # DELETE /api/routines/{id}/                         -> 루틴 삭제
+    #
+    # Authentication API:
+    # POST   /api/dj-rest-auth/login/                    -> 로그인
+    # POST   /api/dj-rest-auth/logout/                   -> 로그아웃
+    # POST   /api/dj-rest-auth/registration/             -> 회원가입
+    # POST   /api/dj-rest-auth/kakao/                    -> 카카오 로그인
+    # POST   /api/dj-rest-auth/naver/                    -> 네이버 로그인
+    # POST   /api/dj-rest-auth/google/                   -> 구글 로그인
+    #
+    # Audit API:
+    # GET    /api/audit/change-logs/                     -> 변경 로그 목록
+    # GET    /api/audit/change-logs/{id}/                -> 변경 로그 상세
+    # POST   /api/audit/restore-data/                    -> 데이터 복원
+    # POST   /api/audit/sync-failed-logs/                -> 실패 로그 동기화
+    # GET    /api/audit/sync-status/                     -> 동기화 상태 조회
 ]
