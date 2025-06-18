@@ -9,6 +9,7 @@ from .views.point_transaction_views import PointTransactionViewSet
 from .views.challenge_participant_views import ChallengeParticipantViewSet
 from .views.challenge_ranking_views import ChallengeRankingAPIView
 from api.views.routine_share_permission_viewset import RoutineSharePermissionViewSet
+from .views.routine_viewset import RoutineViewSet
 
 # ViewSets (단순화된 버전)
 from .views.workouts import ExerciseViewSet, WorkoutRoutineViewSet, WorkoutLogViewSet, WorkoutLogExerciseViewSet, WorkoutTypeViewSet, WorkoutStatsViewSet
@@ -62,6 +63,8 @@ router.register(
 router.register(
     r"routine-share", RoutineSharePermissionViewSet, basename="routine-share"
 )
+
+router.register(r"routines", RoutineViewSet, basename="routine")
 
 urlpatterns = [
     # ViewSet 라우터 URL들
