@@ -6,6 +6,9 @@ from django.db.models import Q
 from community.models import Post
 from api.serializers.community.post_serializers import UserPostSerializer
 from api.permissions import PublicReadCreateOwnerWrite
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -43,16 +46,32 @@ class PostViewSet(viewsets.ModelViewSet):
         
         return queryset.select_related('user').order_by('-created_at')
 
-    def perform_create(self, serializer):
-        """게시글 생성 시 현재 사용자를 자동으로 설정"""
-        if self.request.user.is_authenticated:
-            serializer.save(user=self.request.user)
-        else:
-            # 인증되지 않은 사용자는 생성할 수 없음
+    def create(self, request, *args, **kwargs):
+        """게시글 생성 (디버깅 정보 추가)"""
+        print(f"DEBUG: Request user: {request.user}")
+        print(f"DEBUG: Is authenticated: {request.user.is_authenticated}")
+        print(f"DEBUG: Request data: {request.data}")
+        print(f"DEBUG: Request FILES: {request.FILES}")
+        print(f"DEBUG: Content-Type: {request.content_type}")
+        
+        if not request.user.is_authenticated:
             return Response(
                 {'error': '로그인이 필요합니다.'}, 
                 status=status.HTTP_401_UNAUTHORIZED
             )
+        
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        else:
+            print(f"DEBUG: Serializer errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def perform_create(self, serializer):
+        """게시글 생성 시 현재 사용자를 자동으로 설정"""
+        serializer.save(user=self.request.user)
 
     @action(detail=False, methods=['get'])
     def my_posts(self, request):

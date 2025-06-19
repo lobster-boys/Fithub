@@ -3,6 +3,15 @@ from .comment_serializers import CommentSerializer
 from community.models import Post
 from PIL import Image
 
+# 사용자 정보 시리얼라이저 (내부 사용)
+class UserBasicSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        from users.models import User
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name']
+        read_only_fields = ['id', 'username', 'first_name', 'last_name']
+
 # 게시글 시리얼라이즈 공통 검증 로직
 class BaseUserPostSerializer(serializers.ModelSerializer):
 
@@ -62,6 +71,7 @@ class UserPostSerializer(BaseUserPostSerializer):
 
     # comments 필드를 추가하여 해당 Post의 댓글들을 중첩(nested) 시리얼라이징
     comments = CommentSerializer(many=True, read_only=True)
+    user = UserBasicSerializer(read_only=True)
     
     class Meta:
         model = Post
@@ -103,7 +113,7 @@ class UserPostSerializer(BaseUserPostSerializer):
 
 # 게시글 생성 전용 Serializer
 class UserPostCreateSerializer(BaseUserPostSerializer):
-    user = serializers.StringRelatedField(read_only=True)
+    user = UserBasicSerializer(read_only=True)
 
     class Meta:
         model = Post
@@ -132,7 +142,7 @@ class UserPostCreateSerializer(BaseUserPostSerializer):
 
 # 게시글 업데이트 전용 Serializer
 class UserPostUpdateSerializer(BaseUserPostSerializer):
-    user = serializers.StringRelatedField(read_only=True)
+    user = UserBasicSerializer(read_only=True)
     
     class Meta:
         model = Post

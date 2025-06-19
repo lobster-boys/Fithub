@@ -178,6 +178,11 @@ const CommunityPage = () => {
   const handlePostSubmit = async (e) => {
     e.preventDefault();
     
+    // 인증 상태 확인
+    const token = localStorage.getItem('access_token');
+    console.log('DEBUG: 현재 토큰:', token ? '토큰 존재' : '토큰 없음');
+    console.log('DEBUG: 게시글 데이터:', newPost);
+    
     if (!newPost.title.trim() || !newPost.content.trim()) {
       alert('제목과 내용을 모두 입력해주세요.');
       return;

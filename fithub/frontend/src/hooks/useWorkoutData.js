@@ -144,9 +144,11 @@ const useWorkoutData = () => {
     
     try {
       const params = new URLSearchParams();
-      if (filters.muscle_group) params.append('muscle_group', filters.muscle_group);
-      if (filters.type) params.append('type', filters.type);
+      if (filters.muscle_groups) params.append('muscle_groups', filters.muscle_groups);
+      if (filters.difficulty_level) params.append('difficulty_level', filters.difficulty_level);
+      if (filters.equipment_needed) params.append('equipment_needed', filters.equipment_needed);
       if (filters.search) params.append('search', filters.search);
+      if (filters.is_active !== undefined) params.append('is_active', filters.is_active);
       
       const response = await axiosInstance.get(`/workouts/exercises/?${params.toString()}`);
       setExercises(response.data.results || response.data);
@@ -181,21 +183,37 @@ const useWorkoutData = () => {
   // =================== 새로 추가된 운동 루틴 관련 기능들 ===================
   // 운동 루틴 목록 조회
   const fetchRoutines = async (filters = {}) => {
-    if (!user) return;
-
+    // 인증되지 않은 사용자도 공개 루틴은 볼 수 있도록 수정
     setLoading(true);
     setError(null);
     
     try {
       const params = new URLSearchParams();
-      if (filters.difficulty) params.append('difficulty', filters.difficulty);
+      if (filters.difficulty_level) params.append('difficulty_level', filters.difficulty_level);
+      if (filters.is_featured !== undefined) params.append('is_featured', filters.is_featured);
+      if (filters.is_public !== undefined) params.append('is_public', filters.is_public);
+      if (filters.is_template !== undefined) params.append('is_template', filters.is_template);
+      if (filters.limit) params.append('limit', filters.limit);
+      if (filters.search) params.append('search', filters.search);
+      
+      // 인증되지 않은 사용자는 공개 루틴만 볼 수 있음
+      if (!user) {
+        params.append('is_public', 'true');
+      }
       
       const response = await axiosInstance.get(`/workouts/routines/?${params.toString()}`);
       setRoutines(response.data.results || response.data);
       return response.data;
     } catch (err) {
       console.error('Failed to fetch routines:', err);
-      setError('운동 루틴을 불러오는 중 오류가 발생했습니다.');
+      
+      // 인증 오류가 아닌 경우 에러 메시지 설정
+      if (err.response?.status !== 401) {
+        setError('운동 루틴을 불러오는 중 오류가 발생했습니다.');
+      }
+      
+      // 에러 발생 시 빈 배열로 설정하여 폴백 데이터 사용 가능
+      setRoutines([]);
       throw err;
     } finally {
       setLoading(false);
@@ -411,29 +429,29 @@ const useWorkoutData = () => {
     weekStart.setDate(today.getDate() - 7);
     
     const weekLogs = workoutLogs.filter(log => {
-      const logDate = new Date(log.date || log.created_at);
-      return logDate >= weekStart && logDate <= today && log.is_completed;
+      const logDate = new Date(log.start_time || log.created_at);
+      return logDate >= weekStart && logDate <= today && log.end_time; // end_time이 있으면 완료된 것
     });
 
     // 월간 통계
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthLogs = workoutLogs.filter(log => {
-      const logDate = new Date(log.date || log.created_at);
+      const logDate = new Date(log.start_time || log.created_at);
       return logDate >= monthStart && logDate <= today;
     });
 
     return {
       weeklyStats: {
-        totalDuration: weekLogs.reduce((sum, log) => sum + (log.duration || 0), 0),
+        totalDuration: weekLogs.reduce((sum, log) => sum + (log.duration_minutes || 0), 0),
         totalCalories: weekLogs.reduce((sum, log) => sum + (log.calories_burned || 0), 0),
         workoutDays: weekLogs.length
       },
       monthlyStats: {
         totalWorkouts: monthLogs.length,
         completionRate: monthLogs.length > 0 ? 
-          Math.round((monthLogs.filter(log => log.is_completed).length / monthLogs.length) * 100) : 0,
+          Math.round((monthLogs.filter(log => log.end_time).length / monthLogs.length) * 100) : 0,
         totalCalories: monthLogs.reduce((sum, log) => sum + (log.calories_burned || 0), 0),
-        totalDuration: monthLogs.reduce((sum, log) => sum + (log.duration || 0), 0)
+        totalDuration: monthLogs.reduce((sum, log) => sum + (log.duration_minutes || 0), 0)
       },
       streakDays: calculateStreakDays()
     };
@@ -444,8 +462,8 @@ const useWorkoutData = () => {
     if (!workoutLogs.length) return 0;
 
     const completedLogs = workoutLogs
-      .filter(log => log.is_completed)
-      .sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+      .filter(log => log.end_time) // end_time이 있으면 완료된 것
+      .sort((a, b) => new Date(b.start_time || b.created_at) - new Date(a.start_time || a.created_at));
 
     if (!completedLogs.length) return 0;
 
@@ -454,7 +472,7 @@ const useWorkoutData = () => {
     let currentDate = new Date(today);
 
     for (let i = 0; i < completedLogs.length; i++) {
-      const logDate = new Date(completedLogs[i].date || completedLogs[i].created_at);
+      const logDate = new Date(completedLogs[i].start_time || completedLogs[i].created_at);
       const diffDays = Math.floor((currentDate - logDate) / (1000 * 60 * 60 * 24));
 
       if (i === 0 && diffDays <= 1) {

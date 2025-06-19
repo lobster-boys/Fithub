@@ -29,55 +29,73 @@ const WorkoutLogPage = () => {
     getWeeklyStats, 
     getMonthlyStats,
     bulkAddLogExercises,
-    fetchWorkoutLogs
+    fetchWorkoutLogs,
+    createRoutine,
+    fetchExercises,
+    exercises,
+    routines: backendRoutines,
+    fetchRoutines,
+    loading: workoutLoading,
+    error: workoutError
   } = useWorkoutData();
 
   // 주간 및 월간 통계 데이터
   const weeklyStats = getWeeklyStats();
   const monthlyStats = getMonthlyStats();
 
-  // 예시 루틴 데이터 - 상태를 최상단으로 이동
-  const [routines, setRoutines] = useState([
-    {
-      id: 1,
-      title: '상체 중점 루틴',
-      level: '중급',
-      duration: 60,
-      exercises: [
-        { name: '벤치 프레스', sets: 4, reps: 8 },
-        { name: '바벨 로우', sets: 4, reps: 10 },
-        { name: '오버헤드 프레스', sets: 3, reps: 12 }
-      ],
-      targetMuscles: ['가슴', '등', '어깨'],
-      image: 'https://picsum.photos/300/200?random=1'
-    },
-    {
-      id: 2,
-      title: '하체 강화 루틴',
-      level: '초급',
-      duration: 45,
-      exercises: [
-        { name: '스쿼트', sets: 3, reps: 12 },
-        { name: '런지', sets: 3, reps: 10 },
-        { name: '레그 프레스', sets: 3, reps: 15 }
-      ],
-      targetMuscles: ['대퇴사두', '둔근', '햄스트링'],
-      image: 'https://picsum.photos/300/200?random=2'
-    },
-    {
-      id: 3,
-      title: '전신 순환 루틴',
-      level: '중급',
-      duration: 50,
-      exercises: [
-        { name: '버피', sets: 3, reps: 15 },
-        { name: '마운틴 클라이머', sets: 3, reps: '30초' },
-        { name: '점프 스쿼트', sets: 3, reps: 12 }
-      ],
-      targetMuscles: ['전신', '심폐지구력'],
-      image: 'https://picsum.photos/300/200?random=3'
+  // 로컬 루틴 상태 (백엔드 데이터와 동기화)
+  const [routines, setRoutines] = useState([]);
+
+  // 백엔드에서 사용자의 루틴 및 운동 종목 가져오기
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        // 공개 루틴 먼저 시도 (인증 불필요)
+        await fetchRoutines({ is_public: true, limit: 10 });
+        
+        // 운동 종목 가져오기 (실패해도 폴백 데이터 사용)
+        try {
+          await fetchExercises();
+        } catch (exerciseError) {
+          console.log('운동 종목 로드 실패, 폴백 데이터 사용:', exerciseError);
+        }
+      } catch (error) {
+        console.error('루틴 데이터 로드 실패:', error);
+        // 루틴 로드 실패 시 빈 배열로 설정하여 폴백 UI 표시
+        setRoutines([]);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // 백엔드 루틴 데이터가 로드되면 로컬 상태 동기화
+  useEffect(() => {
+    if (backendRoutines && backendRoutines.length > 0) {
+      const formattedRoutines = backendRoutines
+        .filter(routine => routine && routine.id) // id가 있는 루틴만 필터링
+        .map(routine => ({
+          id: routine.id,
+          title: routine.name || '제목 없음',
+          level: routine.difficulty_level === 'beginner' ? '초급' : 
+                 routine.difficulty_level === 'intermediate' ? '중급' : '고급',
+          duration: routine.estimated_duration || 30,
+          exercises: (routine.routine_exercises || []).map((re, index) => ({
+            name: re.exercise?.name || '운동',
+            sets: re.sets || 3,
+            reps: re.reps || 10
+          })),
+          targetMuscles: routine.target_muscle_groups ? 
+            routine.target_muscle_groups.split(',').map(muscle => muscle.trim()) : ['전신'],
+          image: `https://picsum.photos/300/200?random=${routine.id}`
+        }));
+      setRoutines(formattedRoutines);
+    } else if (backendRoutines && backendRoutines.length === 0) {
+      // 백엔드에서 빈 배열을 받은 경우 로컬 폴백 데이터 사용
+      console.log('백엔드에서 루틴 데이터가 없음, 폴백 데이터 사용');
+      setRoutines([]);
     }
-  ]);
+  }, [backendRoutines]);
 
   // 루틴 만들기 모달 상태
   const [showRoutineModal, setShowRoutineModal] = useState(false);
@@ -184,50 +202,102 @@ const WorkoutLogPage = () => {
     { value: 'performance', label: '퍼포먼스 (Performance)' }
   ];
 
-  // 부위별 운동 목록
-  const exercisesByBodyPart = {
-    chest: [
-      { id: 1, name: '벤치 프레스', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
-      { id: 2, name: '푸시업', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '초급' },
-      { id: 3, name: '덤벨 플라이', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' },
-      { id: 4, name: '딥스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '8-12', difficulty: '중급' }
-    ],
-    back: [
-      { id: 5, name: '풀업', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '5-10', difficulty: '고급' },
-      { id: 6, name: '바벨 로우', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
-      { id: 7, name: '랫 풀다운', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '초급' },
-      { id: 8, name: '시티드 로우', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '초급' }
-    ],
+  // 백엔드 데이터를 기반으로 부위별 운동 목록 생성
+  const getExercisesByBodyPart = (bodyPartValue) => {
+    if (!exercises || exercises.length === 0) {
+      // 폴백 데이터
+      return getDefaultExercisesByBodyPart(bodyPartValue);
+    }
+
+    // 부위별로 운동 필터링 (백엔드 데이터 기반)
+    const bodyPartMapping = {
+      chest: ['가슴', 'chest'],
+      back: ['등', 'back'],
+      shoulders: ['어깨', 'shoulder'],
+      arms: ['팔', '이두', '삼두', 'arm', 'bicep', 'tricep'],
+      legs: ['다리', '대퇴', '종아리', 'leg', 'quad', 'calf'],
+      core: ['코어', '복근', 'core', 'abs'],
+      fullbody: ['전신', 'fullbody']
+    };
+
+    const keywords = bodyPartMapping[bodyPartValue] || [];
+    
+    const filteredExercises = exercises.filter(exercise => {
+      const muscleGroups = exercise.muscle_groups?.toLowerCase() || '';
+      const exerciseName = exercise.name?.toLowerCase() || '';
+      const exerciseType = exercise.exercise_type?.name?.toLowerCase() || '';
+      
+      return keywords.some(keyword => 
+        muscleGroups.includes(keyword.toLowerCase()) || 
+        exerciseName.includes(keyword.toLowerCase()) ||
+        exerciseType.includes(keyword.toLowerCase())
+      );
+    }).map(exercise => ({
+      id: exercise.id,
+      name: exercise.name,
+      image: exercise.video_url || `https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80`,
+      sets: '3-4',
+      reps: '8-12',
+      difficulty: exercise.difficulty_level === 'beginner' ? '초급' : 
+                  exercise.difficulty_level === 'intermediate' ? '중급' : '고급'
+    }));
+    
+    // 필터링된 운동이 없으면 폴백 데이터 사용
+    if (filteredExercises.length === 0) {
+      return getDefaultExercisesByBodyPart(bodyPartValue);
+    }
+    
+    return filteredExercises;
+  };
+
+  // 폴백 운동 데이터 (백엔드 데이터가 없을 때)
+  const getDefaultExercisesByBodyPart = (bodyPartValue) => {
+    const defaultExercises = {
+      chest: [
+        { id: 'chest1', name: '벤치 프레스', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
+        { id: 'chest2', name: '푸시업', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '초급' },
+        { id: 'chest3', name: '덤벨 플라이', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' },
+        { id: 'chest4', name: '딥스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '8-12', difficulty: '중급' }
+      ],
+      back: [
+        { id: 'back1', name: '풀업', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '5-10', difficulty: '고급' },
+        { id: 'back2', name: '바벨 로우', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
+        { id: 'back3', name: '랫 풀다운', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '초급' },
+        { id: 'back4', name: '시티드 로우', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '초급' }
+      ],
     shoulders: [
-      { id: 9, name: '오버헤드 프레스', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
-      { id: 10, name: '레터럴 레이즈', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
-      { id: 11, name: '리어 델트 플라이', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
-      { id: 12, name: '숄더 쉬러그', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '15-20', difficulty: '초급' }
+      { id: 'shoulder1', name: '오버헤드 프레스', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
+      { id: 'shoulder2', name: '레터럴 레이즈', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
+      { id: 'shoulder3', name: '리어 델트 플라이', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
+      { id: 'shoulder4', name: '숄더 쉬러그', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '15-20', difficulty: '초급' }
     ],
     arms: [
-      { id: 13, name: '바이셉 컬', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
-      { id: 14, name: '트라이셉 딥스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '중급' },
-      { id: 15, name: '해머 컬', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
-      { id: 16, name: '오버헤드 익스텐션', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' }
+      { id: 'arm1', name: '바이셉 컬', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
+      { id: 'arm2', name: '트라이셉 딥스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '중급' },
+      { id: 'arm3', name: '해머 컬', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
+      { id: 'arm4', name: '오버헤드 익스텐션', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' }
     ],
     legs: [
-      { id: 17, name: '스쿼트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '10-15', difficulty: '초급' },
-      { id: 18, name: '런지', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '초급' },
-      { id: 19, name: '데드리프트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '6-10', difficulty: '고급' },
-      { id: 20, name: '레그 프레스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' }
+      { id: 'leg1', name: '스쿼트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '10-15', difficulty: '초급' },
+      { id: 'leg2', name: '런지', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '초급' },
+      { id: 'leg3', name: '데드리프트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '6-10', difficulty: '고급' },
+      { id: 'leg4', name: '레그 프레스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' }
     ],
     core: [
-      { id: 21, name: '플랭크', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30-60초', difficulty: '초급' },
-      { id: 22, name: '크런치', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '15-20', difficulty: '초급' },
-      { id: 23, name: '러시안 트위스트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '20-30', difficulty: '중급' },
-      { id: 24, name: '마운틴 클라이머', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30초', difficulty: '중급' }
+      { id: 'core1', name: '플랭크', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30-60초', difficulty: '초급' },
+      { id: 'core2', name: '크런치', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '15-20', difficulty: '초급' },
+      { id: 'core3', name: '러시안 트위스트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '20-30', difficulty: '중급' },
+      { id: 'core4', name: '마운틴 클라이머', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30초', difficulty: '중급' }
     ],
     fullbody: [
-      { id: 25, name: '버피', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '중급' },
-      { id: 26, name: '점프 스쿼트', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' },
-      { id: 27, name: '스러스터', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '고급' },
-      { id: 28, name: '베어 크롤', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30초', difficulty: '중급' }
+      { id: 'fullbody1', name: '버피', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '중급' },
+      { id: 'fullbody2', name: '점프 스쿼트', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' },
+      { id: 'fullbody3', name: '스러스터', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '고급' },
+      { id: 'fullbody4', name: '베어 크롤', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30초', difficulty: '중급' }
     ]
+    };
+
+    return defaultExercises[bodyPartValue] || [];
   };
 
   // 운동 선택 핸들러
@@ -254,30 +324,67 @@ const WorkoutLogPage = () => {
     setSelectedExercises(prev => prev.filter(ex => ex.id !== exerciseId));
   };
 
-  // 루틴 생성 핸들러
-  const handleCreateRoutine = () => {
+  // 루틴 생성 핸들러 (백엔드 API 연동)
+  const handleCreateRoutine = async () => {
     if (!routineTitle.trim() || selectedExercises.length === 0) {
       alert('루틴 제목과 최소 1개의 운동을 선택해주세요.');
       return;
     }
 
-    const newRoutine = {
-      id: routines.length + 1,
-      title: routineTitle.trim(),
-      level: routineLevel,
-      duration: selectedExercises.length * 15, // 운동당 15분 예상
-      exercises: selectedExercises.map(ex => ({
-        name: ex.name,
-        sets: parseInt(ex.sets.split('-')[0]) || 3,
-        reps: parseInt(ex.reps.split('-')[0]) || 10
-      })),
-      targetMuscles: [bodyParts.find(p => p.value === selectedBodyPart)?.label],
-      image: `https://picsum.photos/300/200?random=${routines.length + 1}`
-    };
+    try {
+      // 운동 타입 라벨 찾기
+      const workoutTypeLabel = workoutTypes.find(t => t.value === selectedWorkoutType)?.label || selectedWorkoutType;
+      
+      // 백엔드 API 형식에 맞게 데이터 구성
+      const routineData = {
+        name: routineTitle.trim(),
+        description: `${bodyParts.find(p => p.value === selectedBodyPart)?.label} 중심의 ${workoutTypeLabel} 루틴`,
+        difficulty_level: routineLevel === '초급' ? 'beginner' : 
+                         routineLevel === '중급' ? 'intermediate' : 'advanced',
+        estimated_duration: selectedExercises.length * 15, // 운동당 15분 예상
+        is_public: true, // 홈페이지에서 보이도록 공개 루틴으로 설정
+        exercises: selectedExercises.map((exercise, index) => {
+          // sets와 reps 값을 안전하게 파싱
+          const parseSetsReps = (value) => {
+            if (!value) return 0;
+            if (typeof value === 'number') return value;
+            const strValue = String(value);
+            const firstNumber = strValue.split(/[-~×x]/)[0];
+            return parseInt(firstNumber) || 0;
+          };
+          
+          return {
+            exercise_id: typeof exercise.id === 'string' ? null : exercise.id, // 백엔드 운동 ID
+            exercise_name: exercise.name, // 폴백용 운동 이름
+            sets: parseSetsReps(exercise.sets) || 3,
+            reps: parseSetsReps(exercise.reps) || 10,
+            order: index + 1
+          };
+        })
+      };
 
-    setRoutines(prev => [...prev, newRoutine]);
-    resetRoutineModal();
-    alert('새 루틴이 성공적으로 생성되었습니다!');
+
+      
+      // 백엔드에 루틴 생성 요청
+      const createdRoutine = await createRoutine(routineData);
+      
+      console.log('생성된 루틴:', createdRoutine);
+      
+      // 성공 시 모달 닫기 및 루틴 목록 새로고침
+      resetRoutineModal();
+      await fetchRoutines(); // 루틴 목록 새로고침
+      
+      alert('새 루틴이 성공적으로 생성되었습니다!');
+      
+    } catch (error) {
+      console.error('루틴 생성 실패:', error);
+      
+      // 에러 메시지 표시
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.detail || 
+                          '루틴 생성 중 오류가 발생했습니다.';
+      alert(errorMessage);
+    }
   };
 
   // 모달 리셋
@@ -576,7 +683,7 @@ const WorkoutLogPage = () => {
               }}
               onScroll={checkScrollButtons}
             >
-              {routines.map((routine) => (
+              {(routines || []).filter(routine => routine && routine.id).map((routine) => (
                 <div 
                   key={routine.id} 
                   className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0"
@@ -606,18 +713,18 @@ const WorkoutLogPage = () => {
                     <div className="mb-3">
                       <h4 className="text-sm font-medium text-gray-700 mb-1">주요 운동:</h4>
                       <ul className="text-sm text-gray-600">
-                        {routine.exercises.slice(0, 2).map((exercise, idx) => (
-                          <li key={idx} className="mb-1">- {exercise.name} ({exercise.sets}세트 x {exercise.reps}회)</li>
+                        {(routine.exercises || []).slice(0, 2).map((exercise, idx) => (
+                          <li key={`${routine.id}-exercise-${idx}`} className="mb-1">- {exercise.name} ({exercise.sets}세트 x {exercise.reps}회)</li>
                         ))}
-                        {routine.exercises.length > 2 && (
-                          <li className="text-gray-500">+ {routine.exercises.length - 2}개 더...</li>
+                        {(routine.exercises || []).length > 2 && (
+                          <li key={`${routine.id}-more`} className="text-gray-500">+ {(routine.exercises || []).length - 2}개 더...</li>
                         )}
                       </ul>
                     </div>
                     
                     <div className="flex flex-wrap gap-1 mb-3">
-                      {routine.targetMuscles.map((muscle, idx) => (
-                        <span key={idx} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
+                      {(routine.targetMuscles || []).map((muscle, idx) => (
+                        <span key={`${routine.id}-muscle-${idx}`} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
                           {muscle}
                         </span>
                       ))}
@@ -656,7 +763,7 @@ const WorkoutLogPage = () => {
             <div className="md:hidden flex justify-center mt-4 space-x-2">
               {Array.from({ length: Math.ceil((routines.length + 1) / 2) }).map((_, index) => (
                 <div
-                  key={index}
+                  key={`scroll-indicator-${index}`}
                   className="w-2 h-2 rounded-full bg-gray-300"
                 ></div>
               ))}
@@ -737,7 +844,7 @@ const WorkoutLogPage = () => {
                     <h4 className="text-sm font-medium text-gray-600 mb-2">운동 내역</h4>
                     <ul className="space-y-2">
                       {(log.exercises || []).map((exercise, index) => (
-                        <li key={index} className="text-sm">
+                        <li key={`${log.id}-exercise-${index}`} className="text-sm">
                           <div className="flex justify-between">
                             <span className="font-medium">{exercise.exercise?.name || exercise.name || '운동'}</span>
                             {exercise.duration ? (
@@ -749,7 +856,7 @@ const WorkoutLogPage = () => {
                         </li>
                       ))}
                       {(!log.exercises || log.exercises.length === 0) && (
-                        <li className="text-sm text-gray-500 italic">운동 종목이 기록되지 않았습니다.</li>
+                        <li key={`${log.id}-no-exercises`} className="text-sm text-gray-500 italic">운동 종목이 기록되지 않았습니다.</li>
                       )}
                     </ul>
                   </div>
@@ -778,7 +885,7 @@ const WorkoutLogPage = () => {
               <div className="h-64 flex items-center justify-center">
                 <div className="grid grid-cols-7 w-full h-full gap-2">
                   {dayLabels.map((day, idx) => (
-                    <div key={idx} className="flex flex-col items-center">
+                    <div key={`weekly-day-${day}-${idx}`} className="flex flex-col items-center">
                       <div className="text-sm text-gray-500 mb-2">{day}</div>
                       <div className="flex-1 w-full bg-gray-100 rounded-lg relative">
                         <div 
@@ -832,7 +939,7 @@ const WorkoutLogPage = () => {
                   <div className="h-48 flex items-center justify-center">
                     <div className="w-full flex items-end h-full justify-around">
                       {Object.entries(monthlyStats?.typePercentages || {}).map(([type, percentage], idx) => (
-                        <div key={idx} className="flex flex-col items-center">
+                        <div key={`monthly-type-${type}-${idx}`} className="flex flex-col items-center">
                           <div 
                             className={`w-16 rounded-t-lg ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-orange-300' : 'bg-orange-200'}`} 
                             style={{ height: `${percentage}%` }}
@@ -975,7 +1082,7 @@ const WorkoutLogPage = () => {
                       <div className="bg-gray-50 p-3 rounded-lg mb-3">
                         <ul className="space-y-2">
                           {newWorkout.exercises.map((ex, idx) => (
-                            <li key={idx} className="text-sm flex justify-between">
+                            <li key={`new-exercise-${idx}`} className="text-sm flex justify-between">
                               <span>{ex.name}</span>
                               <span>{ex.sets} x {ex.reps} ({ex.weight}kg)</span>
                             </li>
@@ -1173,7 +1280,7 @@ const WorkoutLogPage = () => {
                       </div>
                       
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto">
-                        {exercisesByBodyPart[selectedBodyPart]?.map((exercise) => {
+                        {getExercisesByBodyPart(selectedBodyPart)?.map((exercise) => {
                           const isSelected = selectedExercises.some(ex => ex.id === exercise.id);
                           return (
                             <div
@@ -1343,7 +1450,7 @@ const WorkoutLogPage = () => {
                   <h4 className="text-lg font-bold mb-4">운동 내역</h4>
                   <div className="space-y-3">
                     {(selectedLog.exercises || []).map((exercise, index) => (
-                      <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div key={`detail-exercise-${index}`} className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
                           <h5 className="font-bold text-gray-800">{exercise.exercise?.name || exercise.name || '운동'}</h5>
                           <span className="text-sm bg-primary text-white px-2 py-1 rounded-full">
@@ -1487,7 +1594,7 @@ const WorkoutLogPage = () => {
                   
                   <div className="space-y-4">
                     {(editingLog.exercises || []).map((exercise, index) => (
-                      <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div key={`edit-exercise-${index}`} className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-center mb-3">
                           <h5 className="font-bold text-gray-800">운동 #{index + 1}</h5>
                           <button

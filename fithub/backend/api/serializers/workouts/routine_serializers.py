@@ -41,7 +41,7 @@ class WorkoutRoutineDetailSerializer(serializers.ModelSerializer):
 
 class WorkoutRoutineCreateUpdateSerializer(serializers.ModelSerializer):
     """루틴 생성/수정용 serializer"""
-    exercises = RoutineExerciseSerializer(many=True, write_only=True, source='routine_exercises')
+    exercises = serializers.ListField(write_only=True, child=serializers.DictField())
     
     class Meta:
         model = WorkoutRoutine
@@ -49,12 +49,47 @@ class WorkoutRoutineCreateUpdateSerializer(serializers.ModelSerializer):
                  'is_public', 'exercises']
     
     def create(self, validated_data):
-        exercises_data = validated_data.pop('routine_exercises', [])
-        user = self.context['request'].user
-        routine = WorkoutRoutine.objects.create(user=user, **validated_data)
+        from workouts.models import Exercise
         
-        for exercise_data in exercises_data:
-            RoutineExercise.objects.create(routine=routine, **exercise_data)
+        exercises_data = validated_data.pop('exercises', [])
+        
+        # user는 perform_create에서 이미 전달되므로 validated_data에서 가져오기
+        routine = WorkoutRoutine.objects.create(**validated_data)
+        
+        for idx, exercise_data in enumerate(exercises_data):
+            exercise_id = exercise_data.get('exercise_id')
+            exercise_name = exercise_data.get('exercise_name')
+            
+            # exercise_id가 있으면 해당 운동 사용, 없으면 이름으로 찾기
+            if exercise_id:
+                try:
+                    exercise = Exercise.objects.get(id=exercise_id)
+                except Exercise.DoesNotExist:
+                    # ID로 찾을 수 없으면 이름으로 찾기
+                    exercise, created = Exercise.objects.get_or_create(
+                        name=exercise_name,
+                        defaults={
+                            'muscle_groups': '전신',
+                            'difficulty_level': 'beginner'
+                        }
+                    )
+            else:
+                # 운동 이름으로 찾거나 생성
+                exercise, created = Exercise.objects.get_or_create(
+                    name=exercise_name,
+                    defaults={
+                        'muscle_groups': '전신',
+                        'difficulty_level': 'beginner'
+                    }
+                )
+            
+            RoutineExercise.objects.create(
+                routine=routine,
+                exercise=exercise,
+                sets=exercise_data.get('sets', 3),
+                reps=exercise_data.get('reps', 10),
+                order=exercise_data.get('order', idx + 1)
+            )
         
         return routine
     

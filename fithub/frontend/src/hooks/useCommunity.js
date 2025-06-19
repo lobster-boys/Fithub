@@ -204,15 +204,22 @@ const useCommunity = () => {
 
   // 백엔드 데이터를 프론트엔드 형식으로 변환
   const transformPostFromBackend = (backendPost) => {
+    // 사용자 정보 처리 (새로운 UserBasicSerializer 구조에 맞게)
+    const userData = backendPost.user || {};
+    const displayName = userData.first_name && userData.last_name 
+      ? `${userData.first_name} ${userData.last_name}`.trim()
+      : userData.username || 'Unknown';
+    
     return {
       id: backendPost.id,
       title: backendPost.title,
       content: backendPost.content,
       category: CATEGORY_MAPPING[backendPost.content_category] || 'general',
       author: {
-        name: backendPost.user?.username || backendPost.user?.name || 'Unknown',
-        id: backendPost.user?.id,
-        avatar: backendPost.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(backendPost.user?.username || 'User')}&background=random`
+        name: displayName,
+        id: userData.id,
+        username: userData.username,
+        avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`
       },
       likes: backendPost.like_count || 0,
       comments: backendPost.comments?.length || 0,
@@ -231,11 +238,21 @@ const useCommunity = () => {
 
   // 프론트엔드 데이터를 백엔드 형식으로 변환
   const transformPostToBackend = (frontendPost) => {
+    // 이미지가 있는 경우 FormData 사용
+    if (frontendPost.image && frontendPost.image instanceof File) {
+      const formData = new FormData();
+      formData.append('title', frontendPost.title);
+      formData.append('content', frontendPost.content);
+      formData.append('content_category', CATEGORY_MAPPING[frontendPost.category] || 'free_board');
+      formData.append('content_image', frontendPost.image);
+      return formData;
+    }
+    
+    // 이미지가 없는 경우 일반 객체 반환
     return {
       title: frontendPost.title,
       content: frontendPost.content,
-      content_category: CATEGORY_MAPPING[frontendPost.category] || 'free_board',
-      content_image: frontendPost.image || null
+      content_category: CATEGORY_MAPPING[frontendPost.category] || 'free_board'
     };
   };
 
@@ -376,6 +393,18 @@ const useCommunity = () => {
     
     try {
       const backendData = transformPostToBackend(postData);
+      console.log('DEBUG: 프론트엔드 원본 데이터:', postData);
+      console.log('DEBUG: 백엔드로 전송할 데이터:', backendData);
+      console.log('DEBUG: FormData 여부:', backendData instanceof FormData);
+      
+      // FormData인 경우 내용 출력
+      if (backendData instanceof FormData) {
+        console.log('DEBUG: FormData 내용:');
+        for (let [key, value] of backendData.entries()) {
+          console.log(`  ${key}:`, value);
+        }
+      }
+      
       const response = await communityAPI.createPost(backendData);
       const transformedPost = transformPostFromBackend(response);
       
@@ -384,7 +413,33 @@ const useCommunity = () => {
       
       return transformedPost;
     } catch (err) {
-      setError(err.response?.data?.detail || '게시글 작성에 실패했습니다.');
+      console.error('게시글 작성 실패:', err);
+      
+      // 구체적인 에러 메시지 처리
+      let errorMessage = '게시글 작성에 실패했습니다.';
+      
+      if (err.response?.status === 401) {
+        errorMessage = '로그인이 필요합니다.';
+      } else if (err.response?.status === 400) {
+        const errorData = err.response.data;
+        if (errorData.title) {
+          errorMessage = `제목: ${errorData.title[0]}`;
+        } else if (errorData.content) {
+          errorMessage = `내용: ${errorData.content[0]}`;
+        } else if (errorData.content_category) {
+          errorMessage = `카테고리: ${errorData.content_category[0]}`;
+        } else if (errorData.content_image) {
+          errorMessage = `이미지: ${errorData.content_image[0]}`;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        }
+      } else if (err.response?.status === 413) {
+        errorMessage = '업로드한 이미지 크기가 너무 큽니다. 5MB 이하의 이미지를 사용해주세요.';
+      } else if (err.response?.status >= 500) {
+        errorMessage = '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      }
+      
+      setError(errorMessage);
       throw err;
     } finally {
       setLoading(false);
