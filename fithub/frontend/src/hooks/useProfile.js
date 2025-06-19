@@ -63,14 +63,51 @@ export const useProfile = () => {
     setError(null);
     
     try {
-      const response = await axiosInstance.patch(`/users/profile/${profile.user}/`, profileData);
+      console.log('🔄 Profile update request:', {
+        endpoint: `/users/profiles/${profile.user}/`,
+        data: profileData
+      });
+      
+      // 정확한 API 엔드포인트 사용 (ViewSet 기반)
+      const response = await axiosInstance.patch(`/users/profiles/${profile.user}/`, profileData);
       setProfile(response.data);
       return response.data;
     } catch (err) {
       console.error('Failed to update profile:', err);
-      const errorMessage = err.response?.data?.detail || 
-                          Object.values(err.response?.data || {}).flat().join(', ') ||
-                          '프로필 업데이트 중 오류가 발생했습니다.';
+      console.error('Error response:', err.response?.data); // 디버깅용 로그 추가
+      console.error('Request data that caused error:', profileData); // 요청 데이터 로그
+      
+      // 더 자세한 에러 메시지 처리
+      let errorMessage = '프로필 업데이트 중 오류가 발생했습니다.';
+      
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        
+        // 개별 필드 에러 메시지 조합
+        const fieldErrors = [];
+        Object.entries(errorData).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            const fieldName = {
+              'birth_date': '생년월일',
+              'name': '이름',
+              'height': '키', 
+              'weight': '체중',
+              'gender': '성별',
+              'fitness_goal': '운동 목표',
+              'activity_level': '활동 수준'
+            }[field] || field;
+            
+            fieldErrors.push(`${fieldName}: ${messages.join(', ')}`);
+          }
+        });
+        
+        if (fieldErrors.length > 0) {
+          errorMessage = fieldErrors.join('\n');
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        }
+      }
+      
       setError(errorMessage);
       throw err;
     } finally {
@@ -88,7 +125,8 @@ export const useProfile = () => {
     setError(null);
     
     try {
-      await axiosInstance.delete(`/users/profile/${profile.user}/`);
+      // 정확한 API 엔드포인트 사용 (ViewSet 기반)
+      await axiosInstance.delete(`/users/profiles/${profile.user}/`);
       setProfile(null);
       return true;
     } catch (err) {

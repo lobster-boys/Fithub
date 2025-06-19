@@ -27,7 +27,9 @@ const WorkoutLogPage = () => {
     setWorkoutLogs, 
     addWorkoutLog, 
     getWeeklyStats, 
-    getMonthlyStats 
+    getMonthlyStats,
+    bulkAddLogExercises,
+    fetchWorkoutLogs
   } = useWorkoutData();
 
   // 주간 및 월간 통계 데이터
@@ -103,7 +105,7 @@ const WorkoutLogPage = () => {
   const [newWorkout, setNewWorkout] = useState({
     title: '',
     date: new Date().toISOString().split('T')[0],
-    duration: 0,
+    duration: '',
     exercises: [],
     type: '근력 운동' // 기본값
   });
@@ -111,9 +113,9 @@ const WorkoutLogPage = () => {
   // 새 운동 종목 추가 상태
   const [newExercise, setNewExercise] = useState({
     name: '',
-    sets: 0,
-    reps: 0,
-    weight: 0
+    sets: '',
+    reps: '',
+    weight: ''
   });
 
   // 로그 필터 상태
@@ -313,37 +315,116 @@ const WorkoutLogPage = () => {
   };
 
   // 운동 로그 추가 핸들러
-  const handleAddWorkout = () => {
-    const caloriesEstimate = newWorkout.exercises.length * 70 + newWorkout.duration * 5;
+  const handleAddWorkout = async () => {
+    // 입력 값 검증
+    if (!newWorkout.title.trim()) {
+      alert('운동 제목을 입력해주세요.');
+      return;
+    }
+    
+    if (!newWorkout.duration || parseInt(newWorkout.duration) <= 0) {
+      alert('운동 시간을 입력해주세요.');
+      return;
+    }
+    
+    const durationMinutes = parseInt(newWorkout.duration);
+    const caloriesEstimate = newWorkout.exercises.length * 70 + durationMinutes * 5;
+    
+    // 백엔드 API 형식에 맞게 데이터 변환
+    const startDateTime = new Date(`${newWorkout.date}T09:00:00`); // 기본 시작 시간
+    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000); // 종료 시간 계산
     
     const workoutToAdd = {
-      ...newWorkout,
-      calories: caloriesEstimate,
-      completed: true
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      duration_minutes: durationMinutes,
+      calories_burned: caloriesEstimate,
+      rating: 3, // 기본값
+      mood: 'normal', // 기본값
+      workout_type: newWorkout.type === '근력 운동' ? 'strength' : 
+                   newWorkout.type === '유산소 운동' ? 'cardio' : 
+                   newWorkout.type === '유연성 운동' ? 'flexibility' :
+                   newWorkout.type === 'HIIT' ? 'hiit' : 
+                   newWorkout.type === '요가' ? 'yoga' : 'strength',
+      notes: newWorkout.title, // 제목을 notes로 저장
+      routine_id: null // 기본적으로 루틴 없음
     };
     
-    addWorkoutLog(workoutToAdd);
-    setShowAddForm(false);
-    setNewWorkout({
-      title: '',
-      date: new Date().toISOString().split('T')[0],
-      duration: 0,
-      exercises: [],
-      type: '근력 운동'
-    });
+    try {
+      const createdLog = await addWorkoutLog(workoutToAdd);
+      
+      // 운동 종목들이 있다면 추가
+      if (newWorkout.exercises && newWorkout.exercises.length > 0) {
+        try {
+          // 운동 종목 데이터를 백엔드 형식에 맞게 변환
+          const exercisesData = newWorkout.exercises.map((exercise, index) => ({
+            exercise_name: exercise.name,
+            sets_completed: exercise.sets,
+            reps_completed: exercise.reps,
+            weight_used: exercise.weight || 0,
+            order: index + 1
+          }));
+          
+          console.log('운동 종목들 저장 중:', exercisesData);
+          await bulkAddLogExercises(createdLog.id, exercisesData);
+          console.log('운동 종목들 저장 완료');
+        } catch (exerciseError) {
+          console.error('운동 종목 추가 실패:', exerciseError);
+          alert('운동 기록은 저장되었지만 운동 종목 저장에 실패했습니다.');
+        }
+      }
+      
+      // 운동 로그 목록 새로고침
+      await fetchWorkoutLogs();
+      
+      setShowAddForm(false);
+      setNewWorkout({
+        title: '',
+        date: new Date().toISOString().split('T')[0],
+        duration: '',
+        exercises: [],
+        type: '근력 운동'
+      });
+      alert('운동 기록이 성공적으로 추가되었습니다!');
+    } catch (error) {
+      console.error('운동 로그 추가 실패:', error);
+      alert('운동 기록 추가에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   // 운동 종목 추가 핸들러
   const handleAddExercise = () => {
+    if (!newExercise.name.trim()) {
+      alert('운동 이름을 입력해주세요.');
+      return;
+    }
+    
+    if (!newExercise.sets || parseInt(newExercise.sets) <= 0) {
+      alert('세트 수를 입력해주세요.');
+      return;
+    }
+    
+    if (!newExercise.reps || parseInt(newExercise.reps) <= 0) {
+      alert('반복 횟수를 입력해주세요.');
+      return;
+    }
+    
+    const exerciseToAdd = {
+      ...newExercise,
+      sets: parseInt(newExercise.sets),
+      reps: parseInt(newExercise.reps),
+      weight: newExercise.weight ? parseFloat(newExercise.weight) : 0
+    };
+    
     setNewWorkout({
       ...newWorkout,
-      exercises: [...newWorkout.exercises, newExercise]
+      exercises: [...newWorkout.exercises, exerciseToAdd]
     });
     setNewExercise({
       name: '',
-      sets: 0,
-      reps: 0,
-      weight: 0
+      sets: '',
+      reps: '',
+      weight: ''
     });
   };
 
@@ -381,7 +462,7 @@ const WorkoutLogPage = () => {
 
   // 수정 중인 운동 종목 업데이트
   const handleUpdateExercise = (index, field, value) => {
-    const updatedExercises = [...editingLog.exercises];
+    const updatedExercises = [...(editingLog.exercises || [])];
     updatedExercises[index] = {
       ...updatedExercises[index],
       [field]: value
@@ -394,7 +475,7 @@ const WorkoutLogPage = () => {
 
   // 수정 중인 운동 종목 삭제
   const handleRemoveExerciseFromEdit = (index) => {
-    const updatedExercises = editingLog.exercises.filter((_, i) => i !== index);
+    const updatedExercises = (editingLog.exercises || []).filter((_, i) => i !== index);
     setEditingLog({
       ...editingLog,
       exercises: updatedExercises
@@ -406,7 +487,7 @@ const WorkoutLogPage = () => {
     setEditingLog({
       ...editingLog,
       exercises: [
-        ...editingLog.exercises,
+        ...(editingLog.exercises || []),
         { name: '', sets: 3, reps: 10, weight: 0 }
       ]
     });
@@ -429,7 +510,7 @@ const WorkoutLogPage = () => {
             <div className="bg-white p-4 rounded-xl shadow-sm min-w-[140px] w-full">
               <p className="text-gray-600 mb-1">총 운동 시간</p>
               <p className="text-2xl font-bold">
-                {workoutLogs.reduce((total, log) => total + log.duration, 0)} 분
+                {workoutLogs.reduce((total, log) => total + (log.duration_minutes || log.duration || 0), 0)} 분
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm min-w-[140px] w-full">
@@ -439,7 +520,7 @@ const WorkoutLogPage = () => {
             <div className="bg-white p-4 rounded-xl shadow-sm min-w-[140px] w-full">
               <p className="text-gray-600 mb-1">소모 칼로리</p>
               <p className="text-2xl font-bold">
-                {workoutLogs.reduce((total, log) => total + log.calories, 0)} kcal
+                {workoutLogs.reduce((total, log) => total + (log.calories_burned || log.calories || 0), 0)} kcal
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm min-w-[140px] w-full">
@@ -633,21 +714,21 @@ const WorkoutLogPage = () => {
                 >
                   <div className="p-4 border-b border-gray-100">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-500">{log.date}</span>
+                      <span className="text-sm text-gray-500">{new Date(log.start_time || log.date).toLocaleDateString()}</span>
                       <span className="text-xs bg-green-100 text-green-800 py-1 px-2 rounded-full">
                         완료
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold">{log.title}</h3>
+                    <h3 className="text-lg font-bold">{log.notes || '운동 기록'}</h3>
                     <div className="flex items-center text-gray-600 text-sm mt-1">
                       <i className="fas fa-clock mr-1"></i>
-                      <span>{log.duration} 분</span>
+                      <span>{log.duration_minutes || log.duration} 분</span>
                       <i className="fas fa-fire ml-3 mr-1"></i>
-                      <span>{log.calories} kcal</span>
-                      {log.type && (
+                      <span>{log.calories_burned || log.calories} kcal</span>
+                      {(log.workout_type || log.type) && (
                         <>
                           <i className="fas fa-tag ml-3 mr-1"></i>
-                          <span>{log.type}</span>
+                          <span>{log.workout_type || log.type}</span>
                         </>
                       )}
                     </div>
@@ -655,18 +736,21 @@ const WorkoutLogPage = () => {
                   <div className="p-4">
                     <h4 className="text-sm font-medium text-gray-600 mb-2">운동 내역</h4>
                     <ul className="space-y-2">
-                      {log.exercises.map((exercise, index) => (
+                      {(log.exercises || []).map((exercise, index) => (
                         <li key={index} className="text-sm">
                           <div className="flex justify-between">
-                            <span className="font-medium">{exercise.name}</span>
+                            <span className="font-medium">{exercise.exercise?.name || exercise.name || '운동'}</span>
                             {exercise.duration ? (
                               <span>{exercise.duration}분 ({exercise.distance}km)</span>
                             ) : (
-                              <span>{exercise.sets} x {exercise.reps} ({exercise.weight}kg)</span>
+                              <span>{exercise.sets_completed || exercise.sets || 0} x {exercise.reps_completed || exercise.reps || 0} ({exercise.weight_used || exercise.weight || 0}kg)</span>
                             )}
                           </div>
                         </li>
                       ))}
+                      {(!log.exercises || log.exercises.length === 0) && (
+                        <li className="text-sm text-gray-500 italic">운동 종목이 기록되지 않았습니다.</li>
+                      )}
                     </ul>
                   </div>
                   <div className="flex border-t border-gray-100">
@@ -747,7 +831,7 @@ const WorkoutLogPage = () => {
                   <h4 className="text-md font-medium mb-3">운동 타입 분포</h4>
                   <div className="h-48 flex items-center justify-center">
                     <div className="w-full flex items-end h-full justify-around">
-                      {Object.entries(monthlyStats.typePercentages).map(([type, percentage], idx) => (
+                      {Object.entries(monthlyStats?.typePercentages || {}).map(([type, percentage], idx) => (
                         <div key={idx} className="flex flex-col items-center">
                           <div 
                             className={`w-16 rounded-t-lg ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-orange-300' : 'bg-orange-200'}`} 
@@ -766,36 +850,36 @@ const WorkoutLogPage = () => {
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <div className="flex justify-between mb-1">
                         <span className="text-gray-600">총 운동 일수</span>
-                        <span className="font-medium">{monthlyStats.totalWorkouts}일</span>
+                        <span className="font-medium">{monthlyStats?.totalWorkouts || 0}일</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full" 
-                          style={{ width: `${(monthlyStats.totalWorkouts / 30) * 100}%` }}
+                          style={{ width: `${((monthlyStats?.totalWorkouts || 0) / 30) * 100}%` }}
                         ></div>
                       </div>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <div className="flex justify-between mb-1">
                         <span className="text-gray-600">목표 달성률</span>
-                        <span className="font-medium">{monthlyStats.completionRate}%</span>
+                        <span className="font-medium">{monthlyStats?.completionRate || 0}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full" 
-                          style={{ width: `${monthlyStats.completionRate}%` }}
+                          style={{ width: `${monthlyStats?.completionRate || 0}%` }}
                         ></div>
                       </div>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <div className="flex justify-between mb-1">
                         <span className="text-gray-600">총 소모 칼로리</span>
-                        <span className="font-medium">{monthlyStats.totalCalories.toLocaleString()} kcal</span>
+                        <span className="font-medium">{(monthlyStats?.totalCalories || 0).toLocaleString()} kcal</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full" 
-                          style={{ width: `${Math.min((monthlyStats.totalCalories / 10000) * 100, 100)}%` }}
+                          style={{ width: `${Math.min(((monthlyStats?.totalCalories || 0) / 10000) * 100, 100)}%` }}
                         ></div>
                       </div>
                     </div>
@@ -854,7 +938,7 @@ const WorkoutLogPage = () => {
                     <input
                       type="number"
                       value={newWorkout.duration}
-                      onChange={(e) => setNewWorkout({...newWorkout, duration: parseInt(e.target.value)})}
+                      onChange={(e) => setNewWorkout({...newWorkout, duration: e.target.value})}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       placeholder="60"
                     />
@@ -870,8 +954,10 @@ const WorkoutLogPage = () => {
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
                       <option value="근력 운동">근력 운동</option>
-                      <option value="유산소">유산소</option>
-                      <option value="유연성">유연성</option>
+                      <option value="유산소 운동">유산소 운동</option>
+                      <option value="유연성 운동">유연성 운동</option>
+                      <option value="HIIT">HIIT</option>
+                      <option value="요가">요가</option>
                     </select>
                   </div>
                   
@@ -919,7 +1005,7 @@ const WorkoutLogPage = () => {
                           <input
                             type="number"
                             value={newExercise.weight}
-                            onChange={(e) => setNewExercise({...newExercise, weight: parseInt(e.target.value)})}
+                            onChange={(e) => setNewExercise({...newExercise, weight: e.target.value})}
                             className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                             placeholder="60"
                           />
@@ -933,7 +1019,7 @@ const WorkoutLogPage = () => {
                           <input
                             type="number"
                             value={newExercise.sets}
-                            onChange={(e) => setNewExercise({...newExercise, sets: parseInt(e.target.value)})}
+                            onChange={(e) => setNewExercise({...newExercise, sets: e.target.value})}
                             className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                             placeholder="3"
                           />
@@ -945,7 +1031,7 @@ const WorkoutLogPage = () => {
                           <input
                             type="number"
                             value={newExercise.reps}
-                            onChange={(e) => setNewExercise({...newExercise, reps: parseInt(e.target.value)})}
+                            onChange={(e) => setNewExercise({...newExercise, reps: e.target.value})}
                             className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                             placeholder="10"
                           />
@@ -1231,23 +1317,23 @@ const WorkoutLogPage = () => {
               <div className="flex-1 overflow-y-auto p-6">
                 {/* 기본 정보 */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h4 className="text-lg font-bold mb-3">{selectedLog.title}</h4>
+                  <h4 className="text-lg font-bold mb-3">{selectedLog.notes || '운동 기록'}</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-gray-600 text-sm">운동 날짜</span>
-                      <p className="font-medium">{selectedLog.date}</p>
+                      <p className="font-medium">{new Date(selectedLog.start_time || selectedLog.date).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">운동 시간</span>
-                      <p className="font-medium">{selectedLog.duration}분</p>
+                      <p className="font-medium">{selectedLog.duration_minutes || selectedLog.duration}분</p>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">소모 칼로리</span>
-                      <p className="font-medium">{selectedLog.calories} kcal</p>
+                      <p className="font-medium">{selectedLog.calories_burned || selectedLog.calories} kcal</p>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">운동 타입</span>
-                      <p className="font-medium">{selectedLog.type || '일반 운동'}</p>
+                      <p className="font-medium">{selectedLog.workout_type || selectedLog.type || '일반 운동'}</p>
                     </div>
                   </div>
                 </div>
@@ -1256,10 +1342,10 @@ const WorkoutLogPage = () => {
                 <div>
                   <h4 className="text-lg font-bold mb-4">운동 내역</h4>
                   <div className="space-y-3">
-                    {selectedLog.exercises.map((exercise, index) => (
+                    {(selectedLog.exercises || []).map((exercise, index) => (
                       <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
-                          <h5 className="font-bold text-gray-800">{exercise.name}</h5>
+                          <h5 className="font-bold text-gray-800">{exercise.exercise?.name || exercise.name || '운동'}</h5>
                           <span className="text-sm bg-primary text-white px-2 py-1 rounded-full">
                             {index + 1}
                           </span>
@@ -1284,15 +1370,15 @@ const WorkoutLogPage = () => {
                             <>
                               <div>
                                 <span className="text-gray-600">세트</span>
-                                <p className="font-medium">{exercise.sets}세트</p>
+                                <p className="font-medium">{exercise.sets_completed || exercise.sets || 0}세트</p>
                               </div>
                               <div>
                                 <span className="text-gray-600">반복</span>
-                                <p className="font-medium">{exercise.reps}회</p>
+                                <p className="font-medium">{exercise.reps_completed || exercise.reps || 0}회</p>
                               </div>
                               <div>
                                 <span className="text-gray-600">중량</span>
-                                <p className="font-medium">{exercise.weight}kg</p>
+                                <p className="font-medium">{exercise.weight_used || exercise.weight || 0}kg</p>
                               </div>
                             </>
                           )}
@@ -1346,8 +1432,8 @@ const WorkoutLogPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">운동 제목</label>
                       <input
                         type="text"
-                        value={editingLog.title}
-                        onChange={(e) => setEditingLog({...editingLog, title: e.target.value})}
+                        value={editingLog.notes || editingLog.title || ''}
+                        onChange={(e) => setEditingLog({...editingLog, notes: e.target.value})}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       />
                     </div>
@@ -1355,7 +1441,7 @@ const WorkoutLogPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">운동 날짜</label>
                       <input
                         type="date"
-                        value={editingLog.date}
+                        value={editingLog.date || (editingLog.start_time ? new Date(editingLog.start_time).toISOString().split('T')[0] : '')}
                         onChange={(e) => setEditingLog({...editingLog, date: e.target.value})}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       />
@@ -1364,7 +1450,7 @@ const WorkoutLogPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">운동 시간 (분)</label>
                       <input
                         type="number"
-                        value={editingLog.duration}
+                        value={editingLog.duration || editingLog.duration_minutes || ''}
                         onChange={(e) => setEditingLog({...editingLog, duration: parseInt(e.target.value)})}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       />
@@ -1372,7 +1458,7 @@ const WorkoutLogPage = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">운동 타입</label>
                       <select
-                        value={editingLog.type || '근력 운동'}
+                        value={editingLog.type || editingLog.workout_type || '근력 운동'}
                         onChange={(e) => setEditingLog({...editingLog, type: e.target.value})}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       >
@@ -1400,7 +1486,7 @@ const WorkoutLogPage = () => {
                   </div>
                   
                   <div className="space-y-4">
-                    {editingLog.exercises.map((exercise, index) => (
+                    {(editingLog.exercises || []).map((exercise, index) => (
                       <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-center mb-3">
                           <h5 className="font-bold text-gray-800">운동 #{index + 1}</h5>
@@ -1417,7 +1503,7 @@ const WorkoutLogPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">운동명</label>
                             <input
                               type="text"
-                              value={exercise.name}
+                              value={exercise.name || exercise.exercise?.name || ''}
                               onChange={(e) => handleUpdateExercise(index, 'name', e.target.value)}
                               className="w-full border border-gray-300 rounded-lg px-3 py-2"
                               placeholder="운동명"
@@ -1430,7 +1516,7 @@ const WorkoutLogPage = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">시간 (분)</label>
                                 <input
                                   type="number"
-                                  value={exercise.duration}
+                                  value={exercise.duration || ''}
                                   onChange={(e) => handleUpdateExercise(index, 'duration', parseInt(e.target.value))}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
@@ -1440,8 +1526,8 @@ const WorkoutLogPage = () => {
                                 <input
                                   type="number"
                                   step="0.1"
-                                  value={exercise.distance || 0}
-                                  onChange={(e) => handleUpdateExercise(index, 'distance', parseFloat(e.target.value))}
+                                  value={exercise.distance || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'distance', parseFloat(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1450,8 +1536,8 @@ const WorkoutLogPage = () => {
                                 <input
                                   type="number"
                                   step="0.1"
-                                  value={exercise.speed || 0}
-                                  onChange={(e) => handleUpdateExercise(index, 'speed', parseFloat(e.target.value))}
+                                  value={exercise.speed || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'speed', parseFloat(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1462,8 +1548,8 @@ const WorkoutLogPage = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">세트</label>
                                 <input
                                   type="number"
-                                  value={exercise.sets}
-                                  onChange={(e) => handleUpdateExercise(index, 'sets', parseInt(e.target.value))}
+                                  value={exercise.sets || exercise.sets_completed || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'sets', parseInt(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1471,8 +1557,8 @@ const WorkoutLogPage = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">반복</label>
                                 <input
                                   type="number"
-                                  value={exercise.reps}
-                                  onChange={(e) => handleUpdateExercise(index, 'reps', parseInt(e.target.value))}
+                                  value={exercise.reps || exercise.reps_completed || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'reps', parseInt(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1481,8 +1567,8 @@ const WorkoutLogPage = () => {
                                 <input
                                   type="number"
                                   step="0.5"
-                                  value={exercise.weight}
-                                  onChange={(e) => handleUpdateExercise(index, 'weight', parseFloat(e.target.value))}
+                                  value={exercise.weight || exercise.weight_used || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'weight', parseFloat(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>

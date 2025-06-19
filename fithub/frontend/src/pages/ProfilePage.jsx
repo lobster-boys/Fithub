@@ -101,6 +101,27 @@ const ProfilePage = () => {
       return;
     }
 
+    // 생년월일 검증
+    if (form.birth_date) {
+      const birthDate = new Date(form.birth_date);
+      const today = new Date();
+      
+      if (birthDate > today) {
+        alert('생년월일은 오늘 날짜보다 이후일 수 없습니다.');
+        return;
+      }
+      
+      const age = today.getFullYear() - birthDate.getFullYear();
+      if (age < 13) {
+        alert('13세 이상만 가입 가능합니다.');
+        return;
+      }
+      if (age > 100) {
+        alert('올바른 생년월일을 입력해 주세요.');
+        return;
+      }
+    }
+
     setSaving(true);
     setSuccessMessage('');
 
@@ -114,12 +135,12 @@ const ProfilePage = () => {
 
       const profileData = {
         name: form.name,
-        birth_date: form.birth_date || null,
-        gender: form.gender || null,
+        birth_date: form.birth_date && form.birth_date.trim() !== '' ? form.birth_date : null,
+        gender: form.gender && form.gender.trim() !== '' ? form.gender : null,
         height: form.height ? parseFloat(form.height) : null,
         weight: form.weight ? parseFloat(form.weight) : null,
-        fitness_goal: form.fitness_goal || null,
-        activity_level: form.activity_level || null,
+        fitness_goal: form.fitness_goal && form.fitness_goal.trim() !== '' ? form.fitness_goal : null,
+        activity_level: form.activity_level && form.activity_level.trim() !== '' ? form.activity_level : null,
         profile_image: profileImageUrl || null,
         target_calories: parseInt(form.target_calories) || 2000,
         target_protein: parseFloat(form.target_protein) || 75,
@@ -150,8 +171,8 @@ const ProfilePage = () => {
   };
 
   // 목표 달성률 계산
-  const progress = form.targetCalories
-    ? Math.min(100, Math.round((user?.totalCalories || 0) / form.targetCalories * 100))
+  const progress = form.target_calories
+    ? Math.min(100, Math.round((user?.totalCalories || 0) / form.target_calories * 100))
     : 0;
 
   return (
@@ -228,6 +249,8 @@ const ProfilePage = () => {
                 name="birth_date"
                 value={form.birth_date}
                 onChange={handleChange}
+                max={new Date().toISOString().split('T')[0]} // 오늘 날짜까지만 선택 가능
+                min="1900-01-01" // 1900년부터 선택 가능
                 className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
               />
             </div>
