@@ -7,7 +7,7 @@ const LoginForm = () => {
   const { login, isLoading, error } = useAuth();
   
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: ''
   });
   
@@ -27,8 +27,8 @@ const LoginForm = () => {
     e.preventDefault();
     setLocalError('');
 
-    if (!formData.email || !formData.password) {
-      setLocalError('이메일과 비밀번호를 입력해주세요.');
+    if (!formData.username || !formData.password) {
+      setLocalError('사용자명과 비밀번호를 입력해주세요.');
       return;
     }
 
@@ -48,11 +48,11 @@ const LoginForm = () => {
 
         <form onSubmit={handleSubmit}>
           <input
-            type="email"
-            name="email"
-            value={formData.email}
+            type="text"
+            name="username"
+            value={formData.username}
             onChange={handleChange}
-            placeholder="이메일"
+            placeholder="사용자명 또는 이메일"
             className="w-full p-2 border border-gray-300 rounded mb-3"
             disabled={isLoading}
           />

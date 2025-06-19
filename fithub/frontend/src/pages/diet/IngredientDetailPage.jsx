@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDiet } from '../../hooks/useDiet';
+import { useAuth } from '../../hooks/useAuth';
 
 function IngredientDetailPage() {
   const { foodId } = useParams();
   const navigate = useNavigate();
-  const { getFoodById, foods, loading, error } = useDiet();
+  const { isAuthenticated } = useAuth();
+  
+  const { getFoodById, foods, loading, error } = isAuthenticated ? useDiet() : {
+    getFoodById: () => null,
+    foods: [],
+    loading: false,
+    error: '로그인이 필요한 서비스입니다.'
+  };
 
   // 로컬 상태
   const [food, setFood] = useState(null);

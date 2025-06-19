@@ -3,19 +3,17 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from ecommerce.models import Category
 from api.serializers.ecommerce.category_serializers import CategorySerializer
+from api.permissions import PublicReadOnly
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """
     카테고리 ViewSet
-    - list: 카테고리 목록 조회
-    - create: 카테고리 생성
-    - retrieve: 카테고리 상세 조회
-    - update/partial_update: 카테고리 수정
-    - destroy: 카테고리 삭제
+    - 읽기: 모든 사람 허용 (공통 데이터)
+    - 쓰기: 관리자만 허용
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [permissions.AllowAny]  # 개발 테스트용 - 나중에 IsAuthenticated로 변경
+    permission_classes = [PublicReadOnly]
 
     @action(detail=True, methods=['get'])
     def products(self, request, pk=None):

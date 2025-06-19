@@ -18,26 +18,47 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
 
-      // 세션 기반 인증 - 직접 사용자 정보 요청
+      // JWT 토큰 확인
+      const accessToken = localStorage.getItem('access_token');
+      console.log('🔍 loadUser - accessToken:', accessToken ? 'exists' : 'not found');
+      
+      if (!accessToken) {
+        console.log('❌ No access token, setting unauthenticated state');
+        // 토큰이 없으면 로그인하지 않은 상태로 처리
+        setIsAuthenticated(false);
+        setUser(null);
+        setOnboardingCompleted(false);
+        return;
+      }
+
+      console.log('🔄 Making request to /dj-rest-auth/user/');
+      // JWT 토큰 기반 인증으로 사용자 정보 요청
       const response = await axiosInstance.get('/dj-rest-auth/user/');
+      console.log('✅ User data loaded successfully:', response.data.username);
       setUser(response.data);
       setIsAuthenticated(true);
 
       // 온보딩 상태 확인
       try {
         const onboardingResponse = await getOnboardingStatus();
+        console.log('📋 Onboarding status:', onboardingResponse.onboarding_completed);
         setOnboardingCompleted(onboardingResponse.onboarding_completed || false);
       } catch (onboardingErr) {
         console.log('Failed to load onboarding status:', onboardingErr);
         setOnboardingCompleted(false);
       }
     } catch (err) {
-      // 403 또는 401 에러는 정상적인 상황 (로그인하지 않은 상태)
-      if (err.response?.status === 403 || err.response?.status === 401) {
-        console.log('User not authenticated - this is normal for initial load');
+      // 401 에러나 토큰 관련 에러는 토큰을 삭제하고 로그아웃 상태로 처리
+      if (err.response?.status === 401 || err.message?.includes('token')) {
+        console.log('❌ Token expired or invalid, clearing auth state');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      } else if (err.response?.status === 403) {
+        console.log('🚫 User not authenticated - this is normal for initial load');
       } else {
-        console.error('Failed to load user:', err);
+        console.error('💥 Failed to load user:', err);
       }
+      console.log('🔄 Setting unauthenticated state');
       setIsAuthenticated(false);
       setUser(null);
       setOnboardingCompleted(false);
@@ -61,7 +82,14 @@ export const AuthProvider = ({ children }) => {
         last_name: userData.lastName || ''
       });
       
-      // 세션 기반 인증이므로 토큰 저장 불필요
+      // JWT 토큰 저장
+      if (response.data.access) {
+        localStorage.setItem('access_token', response.data.access);
+      }
+      if (response.data.refresh) {
+        localStorage.setItem('refresh_token', response.data.refresh);
+      }
+      
       // 사용자 정보 설정
       setUser(response.data.user || response.data);
       setIsAuthenticated(true);
@@ -108,11 +136,18 @@ export const AuthProvider = ({ children }) => {
       setError(null);
 
       const response = await axiosInstance.post('/dj-rest-auth/login/', {
-        email: credentials.email,
+        username: credentials.username || credentials.email,
         password: credentials.password
       });
 
-      // 세션 기반 인증이므로 토큰 저장 불필요
+      // JWT 토큰 저장
+      if (response.data.access) {
+        localStorage.setItem('access_token', response.data.access);
+      }
+      if (response.data.refresh) {
+        localStorage.setItem('refresh_token', response.data.refresh);
+      }
+      
       // 사용자 정보 설정
       setUser(response.data.user || response.data);
       setIsAuthenticated(true);
@@ -153,6 +188,10 @@ export const AuthProvider = ({ children }) => {
       setOnboardingCompleted(false);
       setIsLoading(false);
       
+      // JWT 토큰 삭제
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      
       // 브라우저의 모든 쿠키 삭제
       document.cookie.split(";").forEach(function(c) { 
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
@@ -169,7 +208,18 @@ export const AuthProvider = ({ children }) => {
 
   // 초기 로드 시 사용자 정보 확인
   useEffect(() => {
-    loadUser();
+    // 토큰이 있을 때만 loadUser 호출
+    const accessToken = localStorage.getItem('access_token');
+    if (accessToken) {
+      console.log('🔄 Initial load: Token found, calling loadUser');
+      loadUser();
+    } else {
+      console.log('🔄 Initial load: No token found, setting unauthenticated');
+      setIsAuthenticated(false);
+      setUser(null);
+      setOnboardingCompleted(false);
+      setIsLoading(false);
+    }
   }, []);
 
   // 온보딩 완료 처리 함수

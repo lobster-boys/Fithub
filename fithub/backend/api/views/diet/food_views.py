@@ -4,19 +4,20 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from diet.models import Food
 from ...serializers.diet.food_serializers import FoodSerializer, FoodCreateSerializer, FoodUpdateSerializer
+from ...permissions import PublicReadOnly
 
 
 class FoodViewSet(viewsets.ModelViewSet):
     """
     음식 ViewSet
-    - list: 음식 목록 조회
-    - create: 음식 생성
-    - retrieve: 음식 상세 조회
-    - update/partial_update: 음식 수정
-    - destroy: 음식 삭제
+    - list: 음식 목록 조회 (공개)
+    - create: 음식 생성 (인증 필요)
+    - retrieve: 음식 상세 조회 (공개)
+    - update/partial_update: 음식 수정 (소유자만)
+    - destroy: 음식 삭제 (소유자만)
     """
     queryset = Food.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [PublicReadOnly]
 
     def get_serializer_class(self):
         if self.action == 'create':

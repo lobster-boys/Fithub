@@ -41,6 +41,15 @@ class CustomRegisterSerializer(RegisterSerializer):
         
         return username
     
+    def validate_email(self, email):
+        print(f"DEBUG: Validating email: {email}")
+        # 이메일 중복 체크
+        User = get_user_model()
+        if User.objects.filter(email=email).exists():
+            raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
+        
+        return email
+    
     # 비밀번호 검증 간소화
     def validate_password1(self, password):
         print(f"DEBUG: Validating password: {password}")

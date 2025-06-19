@@ -79,7 +79,16 @@ const ProtectedPage = ({ children }) => {
 // 애니메이션이 있는 라우트 컴포넌트
 const AnimatedRoutes = () => {
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // 로딩 중일 때는 안전한 로딩 화면 표시
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">로딩 중...</div>
+      </div>
+    );
+  }
   
   return (
     <AnimatePresence mode="wait">
@@ -87,9 +96,9 @@ const AnimatedRoutes = () => {
         {/* 기본 페이지 */}
         <Route path="/" element={isAuthenticated ? <HomePage /> : <WelcomePage />} />
         
-        {/* 인증 관련 페이지 (로그인하지 않은 사용자만 접근 가능) */}
-        <Route path="/auth/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" replace />} />
-        <Route path="/auth/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/" replace />} />
+        {/* 인증 관련 페이지 - 로딩 완료된 후에만 리다이렉트 */}
+        <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/register" element={<RegisterPage />} />
         
         {/* 온보딩 페이지 (로그인한 사용자만 접근 가능) */}
         <Route path="/onboarding" element={

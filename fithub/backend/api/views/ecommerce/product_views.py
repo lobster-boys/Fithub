@@ -3,6 +3,7 @@ from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from ecommerce.models import Product
 from api.serializers.ecommerce.product_serializers import ProductSerializer
+from api.permissions import PublicReadOnly
 from django.db.models import Q
 
 # Create your views here.
@@ -36,7 +37,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     - 검색 기능
     """
     serializer_class = ProductSerializer
-    permission_classes = [permissions.AllowAny]  # 개발 테스트용 - 나중에 IsAuthenticated로 변경
+    permission_classes = [PublicReadOnly]  # 공통 데이터 - 읽기는 모든 사람, 쓰기는 관리자만
     
     def get_queryset(self):
         """상품 목록 조회 (필터링 지원)"""

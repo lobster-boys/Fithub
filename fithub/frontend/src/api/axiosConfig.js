@@ -1,12 +1,12 @@
 import axios from 'axios';
 
-// CSRF 토큰 가져오기 함수
-const getCSRFToken = () => {
-  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
-                   document.cookie.split('; ')
-                     .find(row => row.startsWith('csrftoken='))
-                     ?.split('=')[1];
-  return csrfToken;
+// JWT 토큰 가져오기 함수
+const getAccessToken = () => {
+  return localStorage.getItem('access_token');
+};
+
+const getRefreshToken = () => {
+  return localStorage.getItem('refresh_token');
 };
 
 const axiosInstance = axios.create({
@@ -15,18 +15,16 @@ const axiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 10000,
-  withCredentials: true, // 세션 쿠키 자동 전송
+  withCredentials: true, // 쿠키 자동 전송 (refresh token cookie용)
 });
 
-// 요청 인터셉터 - CSRF 토큰 처리
+// 요청 인터셉터 - JWT 토큰 처리
 axiosInstance.interceptors.request.use(
   (config) => {
-    // POST, PUT, PATCH, DELETE 요청에 CSRF 토큰 추가
-    if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
-      const csrfToken = getCSRFToken();
-      if (csrfToken) {
-        config.headers['X-CSRFToken'] = csrfToken;
-      }
+    // Authorization 헤더에 JWT 토큰 추가
+    const token = getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     
     return config;
@@ -36,24 +34,53 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// 응답 인터셉터
+// 응답 인터셉터 - JWT 토큰 갱신 처리
 axiosInstance.interceptors.response.use(
   (response) => {
     // 응답 데이터 가공
     return response;
   },
-  (error) => {
-    // 에러 처리
-    const { status, data } = error?.response || {};
+  async (error) => {
+    const originalRequest = error.config;
+    const { status } = error?.response || {};
     
-    // 401/403 에러 (인증 필요) - 특정 경우에만 리다이렉트
-    if (status === 401 || status === 403) {
-      // 로그인/회원가입 관련 요청이 아닌 경우에만 리다이렉트
-      if (!error.config?.url?.includes('dj-rest-auth/user') && 
-          !error.config?.url?.includes('dj-rest-auth/login') &&
-          !error.config?.url?.includes('dj-rest-auth/registration')) {
-        window.location.href = '/auth/login';
+    // 401 에러 (토큰 만료) - 토큰 갱신 시도
+    if (status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        const refreshToken = getRefreshToken();
+        if (refreshToken) {
+          // 토큰 갱신 API 호출 (순환 참조 방지를 위해 새 axios 인스턴스 사용)
+          const response = await axios.post('http://localhost:8000/api/dj-rest-auth/token/refresh/', {
+            refresh: refreshToken
+          });
+          
+          const { access, refresh } = response.data;
+          
+          // 새 토큰 저장
+          localStorage.setItem('access_token', access);
+          if (refresh) {
+            localStorage.setItem('refresh_token', refresh);
+          }
+          
+          // 원래 요청 재시도
+          originalRequest.headers.Authorization = `Bearer ${access}`;
+          return axiosInstance(originalRequest);
+        }
+      } catch (refreshError) {
+        // 토큰 갱신 실패 - 로그아웃 처리
+        console.log('Token refresh failed, clearing tokens');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        // 강제 리다이렉트 대신 에러를 반환하여 AuthContext에서 처리하도록 함
+        return Promise.reject(refreshError);
       }
+    }
+    
+    // 403 에러 (권한 없음)
+    if (status === 403) {
+      console.error('권한이 없습니다.');
     }
     
     // 500 에러 (서버 에러)

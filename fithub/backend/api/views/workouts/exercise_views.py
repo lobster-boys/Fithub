@@ -6,15 +6,17 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from workouts.models import Exercise
 from api.serializers.workouts.exercise_serializers import ExerciseSerializer
+from api.permissions import PublicReadOnly
 
 
 class ExerciseViewSet(viewsets.ModelViewSet):
     """
     운동 종목 관리 ViewSet
-    프론트엔드 요구사항에 맞춘 단순화된 버전
+    - 읽기: 모든 사람 허용 (공통 데이터)
+    - 쓰기: 관리자만 허용
     """
     serializer_class = ExerciseSerializer
-    permission_classes = [AllowAny]  # 개발 테스트용 - 나중에 IsAuthenticated로 변경
+    permission_classes = [PublicReadOnly]
     
     def get_queryset(self):
         """기본 운동 목록 조회"""

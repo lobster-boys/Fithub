@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageTransition from '../../components/layout/PageTransition';
 import { useDiet, useDietStats } from '../../hooks/useDiet';
+import { useAuth } from '../../hooks/useAuth';
 
 const DietLogPage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   
-  // useDiet 훅 사용
+  // useDiet 훅 사용 - 인증된 사용자만
   const {
     foods,
     mealPlans,
@@ -19,10 +21,22 @@ const DietLogPage = () => {
     updateWaterIntake,
     calculateMealCalories,
     refetch
-  } = useDiet();
+  } = isAuthenticated ? useDiet() : {
+    foods: [],
+    mealPlans: [],
+    todayMealPlan: null,
+    loading: false,
+    error: '로그인이 필요한 서비스입니다.',
+    searchFoods: () => {},
+    fetchMealPlans: () => {},
+    createMealPlan: () => {},
+    updateWaterIntake: () => {},
+    calculateMealCalories: () => 0,
+    refetch: () => {}
+  };
 
-  // useDietStats 훅 사용
-  const { stats: dietStats } = useDietStats();
+  // useDietStats 훅 사용 - 인증된 사용자만
+  const { stats: dietStats } = isAuthenticated ? useDietStats() : { stats: null };
   
   // 웹킷 스크롤바 숨기기 스타일 추가
   React.useEffect(() => {

@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from api.views.base import BaseViewSet
+from api.permissions import AuthenticatedReadOwnerWrite
 from api.serializers.onboarding.onboarding_serializers import (
     OnboardingDataSerializer,
     OnboardingStatusSerializer,
@@ -23,8 +24,7 @@ class OnboardingViewSet(BaseViewSet):
     온보딩 관련 API ViewSet
     사용자의 온보딩 데이터 저장, 조회, 업데이트 기능 제공
     """
-    permission_classes = [AllowAny]  # 임시로 권한 변경
-    authentication_classes = []  # 인증 클래스 비활성화
+    permission_classes = [AuthenticatedReadOwnerWrite]  # 인증된 사용자만, 자신의 데이터만 수정 가능
     
     def get_queryset(self):
         if not self.request.user.is_authenticated:
@@ -430,9 +430,9 @@ class OnboardingViewSet(BaseViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def choices(self, request):
-        """온보딩에서 사용 가능한 선택지들 반환"""
+        """온보딩에서 사용 가능한 선택지들 반환 (공개 API)"""
         return Response({
             'fitness_levels': OnboardingData.FITNESS_LEVEL_CHOICES,
             'goals': OnboardingData.GOAL_CHOICES,

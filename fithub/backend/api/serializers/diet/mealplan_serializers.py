@@ -78,7 +78,7 @@ class MealPlanFoodWriteSerializer(serializers.ModelSerializer):
 # 식단 계획 조회
 class MealPlanDetailSerializer(serializers.ModelSerializer):
     items = MealPlanFoodReadSerializer(many=True, read_only=True)
-    user = serializers.CharField(source='user.usernmae', read_only=True) # user_id 대신 username으로 표현
+    user = serializers.CharField(source='user.username', read_only=True) # user_id 대신 username으로 표현
 
     class Meta:
         model = MealPlan
@@ -161,7 +161,7 @@ class MealPlanWriteSerializer(BaseMealPlanSerializer):
             return 
         
         # 1) raw_items가 이미 'food' 키를 갖고 있으면 재검증 생략
-        if isinstance(raw_items[0].get('food'), Food):
+        if raw_items and len(raw_items) > 0 and isinstance(raw_items[0].get('food'), Food):
             validated_items = raw_items
         else:
             ser = MealPlanFoodWriteSerializer(data=raw_items, many=True)

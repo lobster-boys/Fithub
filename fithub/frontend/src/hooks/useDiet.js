@@ -22,6 +22,12 @@ export const useDiet = () => {
       return foodsData;
     } catch (err) {
       console.error('Failed to fetch foods:', err);
+      // 401 에러 시 인증 문제로 간주하고 기본값 설정
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        setFoods([]);
+        return [];
+      }
       setError('음식 목록을 불러오는데 실패했습니다.');
       // API 실패 시 빈 배열 반환
       setFoods([]);
@@ -46,6 +52,12 @@ export const useDiet = () => {
       return foodsData;
     } catch (err) {
       console.error('Failed to search foods:', err);
+      // 401 에러 시 인증 문제로 간주
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        setFoods([]);
+        return [];
+      }
       setError('음식 검색에 실패했습니다.');
       setFoods([]);
       return [];
@@ -63,6 +75,11 @@ export const useDiet = () => {
       return foodData;
     } catch (err) {
       console.error('Failed to fetch food by ID:', err);
+      // 401 에러 시 인증 문제로 간주
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        return null;
+      }
       setError('음식 정보를 불러오는데 실패했습니다.');
       return null;
     } finally {
@@ -83,6 +100,14 @@ export const useDiet = () => {
       return mealPlansData;
     } catch (err) {
       console.error('Failed to fetch meal plans:', err);
+      // 401 에러 시 인증 문제로 간주하고 기본값 설정
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        // API 실패 시 기본 추천 식단 제공
+        const defaultMealPlans = getDefaultMealPlans();
+        setMealPlans(defaultMealPlans);
+        return defaultMealPlans;
+      }
       setError('식단 계획을 불러오는데 실패했습니다.');
       
       // API 실패 시 기본 추천 식단 제공
@@ -114,6 +139,14 @@ export const useDiet = () => {
       return todayPlan;
     } catch (err) {
       console.error('Failed to fetch today meal plan:', err);
+      // 401 에러 시 인증 문제로 간주하고 기본값 설정
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        // API 실패 시 기본 오늘 식단 생성
+        const defaultTodayPlan = createDefaultTodayPlan();
+        setTodayMealPlan(defaultTodayPlan);
+        return defaultTodayPlan;
+      }
       setError('오늘의 식단을 불러오는데 실패했습니다.');
       
       // API 실패 시 기본 오늘 식단 생성
@@ -406,6 +439,23 @@ export const useDietStats = (period = 'week') => {
       return calculatedStats;
     } catch (err) {
       console.error('Failed to fetch diet stats:', err);
+      
+      // 401 에러 시 인증 문제로 간주하고 기본 통계 제공
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        // API 실패 시 기본 통계 제공
+        const defaultStats = {
+          totalCalories: 2220,
+          avgCalories: 1110,
+          totalMeals: 6,
+          totalWater: 14,
+          avgWater: 7,
+          daysCount: 2
+        };
+        setStats(defaultStats);
+        return defaultStats;
+      }
+      
       setError('식단 통계를 불러오는데 실패했습니다.');
       
       // API 실패 시 기본 통계 제공

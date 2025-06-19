@@ -5,17 +5,18 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from community.models import Post
 from api.serializers.community.post_serializers import UserPostSerializer
+from api.permissions import PublicReadCreateOwnerWrite
 
 
 class PostViewSet(viewsets.ModelViewSet):
     """
     커뮤니티 게시글 ViewSet
-    - 기본 CRUD 작업
-    - 내 게시글 조회
-    - 좋아요 기능
+    - 읽기: 모든 사람 허용
+    - 생성: 인증된 사용자만
+    - 수정/삭제: 작성자만
     """
     serializer_class = UserPostSerializer
-    permission_classes = [AllowAny]  # 임시로 권한 변경
+    permission_classes = [PublicReadCreateOwnerWrite]
     
     def get_queryset(self):
         """게시글 목록 조회 (필터링 지원)"""

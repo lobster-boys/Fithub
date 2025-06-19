@@ -25,16 +25,14 @@ function HomePage() {
   const weeklyStats = getWeeklyStats();
   const streakDays = getStreakDays();
 
-  // 식단 데이터 훅 사용
-  const { todayDiet, loading: dietLoading, error: dietError } = useDiet();
-
-  // 이커머스 데이터 훅 사용
-  const { getHomePageRecommendations } = useEcommerce();
-  const recommendedProducts = getHomePageRecommendations(4);
-
-  // 커뮤니티 데이터 훅 사용
-  const { getPopularPosts } = useCommunity();
-  const popularPosts = getPopularPosts(2);
+  // 식단 데이터 - 인증된 사용자만 사용
+  const dietData = isAuthenticated ? useDiet() : null;
+  
+  // 전자상거래 훅 사용
+  const { products, loading: ecommerceLoading } = useEcommerce();
+  
+  // 커뮤니티 훅 사용
+  const { posts, loading: communityLoading } = useCommunity();
 
   // 목표 값들 (설정 가능)
   const weeklyWorkoutGoal = 5; // 주 5회 운동 목표
@@ -238,18 +236,30 @@ function HomePage() {
         </div>
         
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {dietLoading ? (
+          {!isAuthenticated ? (
+            <div className="p-8 text-center">
+              <i className="fas fa-utensils text-gray-300 text-3xl mb-3"></i>
+              <p className="text-gray-500 mb-3">식단 관리를 위해 로그인이 필요합니다.</p>
+              <Link 
+                to="/login" 
+                className="inline-flex items-center bg-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+              >
+                <i className="fas fa-sign-in-alt mr-1"></i>
+                로그인하기
+              </Link>
+            </div>
+          ) : dietData && dietData.loading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2 text-gray-500">식단 정보를 불러오는 중...</p>
             </div>
-          ) : dietError ? (
+          ) : dietData && dietData.error ? (
             <div className="p-8 text-center">
               <i className="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
-              <p className="text-gray-500">식단 정보를 불러올 수 없습니다.</p>
+              <p className="text-gray-500">{dietData.error}</p>
             </div>
-          ) : todayDiet && todayDiet.meals && todayDiet.meals.length > 0 ? (
-            todayDiet.meals.map((meal, index) => {
+          ) : dietData && dietData.todayMealPlan && dietData.todayMealPlan.meals && dietData.todayMealPlan.meals.length > 0 ? (
+            dietData.todayMealPlan.meals.map((meal, index) => {
               const mealIcons = {
                 '아침': 'fas fa-utensils',
                 '점심': 'fas fa-drumstick-bite',
@@ -269,7 +279,7 @@ function HomePage() {
                   key={index} 
                   to={`/diet/ingredient/${meal.id || index + 1}`} 
                   className={`block p-4 hover:bg-gray-50 transition-colors ${
-                    index < todayDiet.meals.length - 1 ? 'border-b border-gray-100' : ''
+                    index < dietData.todayMealPlan.meals.length - 1 ? 'border-b border-gray-100' : ''
                   }`}
                 >
                   <div className="flex items-center">
@@ -318,7 +328,7 @@ function HomePage() {
               모두 보기
             </Link>
           }
-          products={recommendedProducts}
+          products={products}
           compact={true}
         />
       </section>
@@ -333,13 +343,13 @@ function HomePage() {
         </div>
         
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {popularPosts.length > 0 ? (
-            popularPosts.map((post, index) => (
+          {posts.length > 0 ? (
+            posts.map((post, index) => (
               <Link 
                 key={post.id} 
                 to={`/community/${post.id}`}
                 className={`block p-4 hover:bg-gray-50 transition-colors ${
-                  index < popularPosts.length - 1 ? 'border-b border-gray-100' : ''
+                  index < posts.length - 1 ? 'border-b border-gray-100' : ''
                 }`}
               >
                 <div className="flex items-center mb-3">

@@ -10,15 +10,15 @@ from api.serializers.workouts.routine_serializers import (
     WorkoutRoutineDetailSerializer,
     WorkoutRoutineCreateUpdateSerializer
 )
+from api.permissions import IsOwnerOnly
 
 
 class WorkoutRoutineViewSet(viewsets.ModelViewSet):
     """
     운동 루틴 ViewSet
-    - 기본 CRUD 작업
-    - 루틴 복사 기능
+    - 개인 루틴: 소유자만 모든 권한
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsOwnerOnly]
     
     def get_serializer_class(self):
         if self.action == 'list':

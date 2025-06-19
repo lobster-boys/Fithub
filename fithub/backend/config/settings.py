@@ -55,6 +55,8 @@ INSTALLED_APPS = [
     # DRF & Auth
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_simplejwt",  # JWT 추가
+    "rest_framework_simplejwt.token_blacklist",  # JWT 블랙리스트
     "dj_rest_auth",
     "dj_rest_auth.registration",
     "allauth",
@@ -88,16 +90,15 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ORIGIN_ALLOW_ALL = False # 특정 도메인만 허용
 CORS_ALLOW_CREDENTIALS = True # 인증 정보 포함 요청 허용
 
-# 추가 CORS 설정 > 프론트+백엔드 통합 후 사용
+# JWT 기반 CORS 설정
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
-    'authorization',
+    'authorization',  # JWT Bearer 토큰을 위해 필수
     'content-type',
     'dnt',
     'origin',
     'user-agent',
-    'x-csrftoken',
     'x-requested-with',
 ]
 
@@ -212,12 +213,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # dj_rest_auth setting
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # 임시로 모든 권한 허용
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",  # 읽기는 허용, 쓰기는 인증 필요
     ],
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
@@ -229,30 +230,30 @@ REST_FRAMEWORK = {
 
 # JWT setting
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=3000), # 테스트를 위한 access_token 시간 변경
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),  # 1시간
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # 7일
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 
 # dj-rest-auth setting
 REST_AUTH = {
-    "USE_JWT": False,  # 임시로 JWT 비활성화
-    # "JWT_AUTH_HTTPONLY": True, 
-    # 'JWT_AUTH_REFRESH_COOKIE' : "refresh_token", 
-    'SESSION_LOGIN': True,  # 세션 로그인 활성화
+    "USE_JWT": True,  # JWT 활성화
+    "JWT_AUTH_HTTPONLY": False,  # 프론트엔드에서 토큰 접근 허용
+    "JWT_AUTH_REFRESH_COOKIE": "refresh_token", 
+    'SESSION_LOGIN': False,  # 세션 로그인 비활성화
     'LOGOUT_ON_GET': True,  # GET 요청으로도 로그아웃 허용
-    # 'JWT_AUTH_SAMESITE': 'Lax',
-    # 'JWT_AUTH_COOKIE_USE_CSRF' : False,
+    'JWT_AUTH_SAMESITE': 'Lax',
+    'JWT_AUTH_COOKIE_USE_CSRF': False,  # CSRF 사용 안함
     # users models 커스텀
     'USER_DETAILS_SERIALIZER': "api.serializers.users.registration_serializers.CustomLoginSerializer", 
     'REGISTER_SERIALIZER': 'api.serializers.users.registration_serializers.CustomRegisterSerializer',
 }
 
-# 로그인 방식: username or email
-# ACCOUNT_AUTHENTICATION_METHOD = "username_email"
-ACCOUNT_LOGIN_METHOD = {"email", "username"}
-# ACCOUNT_USERNAME_REQUIRED = False
-# ACCOUNT_EMAIL_REQUIRED = True
+# 로그인 방식: username or email (새로운 방식)
+ACCOUNT_LOGIN_METHODS = {"email", "username"}
 ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*", "first_name", "last_name"]
 ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
 

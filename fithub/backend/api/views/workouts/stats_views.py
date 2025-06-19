@@ -13,7 +13,7 @@ class WorkoutStatsViewSet(viewsets.ViewSet):
     운동 통계 ViewSet
     - 기본 통계만 제공
     """
-    permission_classes = [AllowAny]  # 임시로 권한 변경
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만
 
     @action(detail=False, methods=['get'])
     def basic(self, request):

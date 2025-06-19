@@ -6,15 +6,15 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from workouts.models import WorkoutLog
 from api.serializers.workouts.log_serializers import WorkoutLogSerializer
+from api.permissions import IsOwnerOnly
 
 
 class WorkoutLogViewSet(viewsets.ModelViewSet):
     """
     운동 로그 ViewSet
-    - 기본 CRUD 작업
-    - 운동 완료 기능
+    - 개인 운동 기록: 소유자만 모든 권한
     """
-    permission_classes = [AllowAny]  # 임시로 권한 변경
+    permission_classes = [IsOwnerOnly]
     
     serializer_class = WorkoutLogSerializer
     
