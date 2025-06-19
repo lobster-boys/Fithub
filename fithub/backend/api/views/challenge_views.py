@@ -14,6 +14,8 @@ from challenge.models import (
     ChallengePoint,
     SocialShare,
 )
+from challenge_checker.models import UserLog
+from django.db.models import Sum
 
 
 class IsCreatorOrReadOnly(permissions.BasePermission):
@@ -55,6 +57,41 @@ class ChallengeViewSet(viewsets.ModelViewSet):
         if period in [Challenge.WEEKLY, Challenge.MONTHLY]:
             qs = qs.filter(period=period)
         return qs
+
+    @action(detail=True, methods=["get"], url_path="rankings")
+    def rankings(self, request, pk=None):
+        """
+        GET /api/challenges/{pk}/rankings/
+        """
+        challenge = get_object_or_404(Challenge, pk=pk)
+
+        stats = (
+            UserLog.objects.filter(
+                user__in=ChallengeParticipant.objects.filter(
+                    challenge=challenge
+                ).values("user")
+            )
+            .filter(date__range=(challenge.start_date, challenge.end_date))
+            .values("user_id", "user__username")
+            .annotate(total=Sum("value"))
+            .order_by("-total")
+        )
+
+        ranking = [
+            {"rank": i, **e}
+            for i, e in enumerate(
+                [
+                    {
+                        "user_id": x["user_id"],
+                        "username": x["user__username"],
+                        "total": x["total"] or 0,
+                    }
+                    for x in stats
+                ],
+                start=1,
+            )
+        ]
+        return Response(ranking, status=status.HTTP_200_OK)
 
 
 class ChallengeParticipantViewSet(viewsets.ModelViewSet):

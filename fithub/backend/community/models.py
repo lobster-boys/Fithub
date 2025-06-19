@@ -1,3 +1,4 @@
+import uuid
 from django.conf import settings
 from django.db import models
 
@@ -17,17 +18,14 @@ class Routine(models.Model):
         return self.title
 
     def can_view(self, user):
-        from .models import RoutineSharePermission
 
         return RoutineSharePermission.has_view(self, user)
 
     def can_edit(self, user):
-        from .models import RoutineSharePermission
 
         return RoutineSharePermission.has_edit(self, user)
 
     def can_admin(self, user):
-        from .models import RoutineSharePermission
 
         return RoutineSharePermission.has_admin(self, user)
 
@@ -108,3 +106,58 @@ class RoutineSharePermission(models.Model):
     def has_admin(cls, routine, user):
         perm = cls.get_for(routine, user)
         return perm and perm.permission == cls.ADMIN
+
+
+class RoutineShareLink(models.Model):
+    """
+    루틴에 대해 고유한 UUID 기반 공유 링크를 생성·관리
+    """
+
+    routine = models.ForeignKey(
+        Routine,
+        on_delete=models.CASCADE,
+        related_name="share_links",
+        help_text="공유 링크를 생성할 루틴",
+    )
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+        help_text="공유 URL 토큰",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_share_links",
+        help_text="링크를 생성한 사용자",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="링크 생성 시각",
+    )
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="링크 만료 시각 (미설정 시 무제한)",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="활성화 여부 (False면 접근 차단)",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "루틴 공유 링크"
+        verbose_name_plural = "루틴 공유 링크 목록"
+
+    def __str__(self):
+        return f"{self.routine.title} → {self.uuid}"
+
+    def share_url(self, request=None):
+        """
+        Request가 주어지면 절대경로를, 아니면 상대경로(`/share/<uuid>/`)를 반환
+        """
+        path = f"/share/{self.uuid}/"
+        if request:
+            return request.build_absolute_uri(path)
+        return path
