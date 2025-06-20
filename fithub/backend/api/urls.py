@@ -32,7 +32,7 @@ from .views.users import profile_views
 from .views.users import CustomRegisterView
 from .views.users.csrf_views import get_csrf_token
 from .views.audit import changelog_views
-from .views.diet import food_views, food_search_views, mealplan_views
+from .views.diet import food_views, food_search_views, mealplan_views, recommend_views
 from .views.users.auth_views import CustomLogoutView
 
 app_name = "api"
@@ -153,6 +153,8 @@ urlpatterns = [
     # diet-MealPlan URL (새로 추가된 식단 계산 기능)
     path('diet/mealplan/', mealplan_views.MealPlanListView.as_view(), name='mealplan-list-create'),
     path('diet/mealplan/<int:pk>/', mealplan_views.MealPlanDetailView.as_view(), name='mealplan-detail'),
+    # diet-recommend URL
+    path('diet/recommend/', recommend_views.DietRecommendView.as_view(), name='diet-recommend'),
     
     # =================== 챌린지 랭킹 ===================
     # path('challenges/ranking/', ChallengeRankingAPIView.as_view(), name='challenge-ranking'),

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from diet.models import Food
-from ecommerce.models import Product
+from ecommerce.models import Product, Category
 
 # Food 시리얼라이즈 공통 검증 로직
 class BaseFoodSerializer(serializers.ModelSerializer):
@@ -67,7 +67,12 @@ class FoodCreateSerializer(BaseFoodSerializer):
     product = serializers.PrimaryKeyRelatedField(
         queryset = Product.objects.all(),
         allow_null = True,
-        required=False,
+        required = False,
+    )
+    category = serializers.PrimaryKeyRelatedField(
+        queryset = Category.objects.all(),
+        allow_null = True,
+        required = False
     )
     class Meta:
         model = Food

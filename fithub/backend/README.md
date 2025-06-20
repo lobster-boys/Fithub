@@ -50,6 +50,8 @@ python manage.py createsuperuser
 
 ## 4. Command 사용
 
+- seed를 생성하면 반드시 admin 계정으로 조회해 주세요.
+
 ```bash
 # db clear(확인 메세지 표시 x)
 python manage.py flush --noinput
@@ -63,4 +65,10 @@ python manage.py mealplan_seed --clear
 # 옵션
 --clear: 기존 데이터를 삭제
 --noinput: 확인(경고) 메세지 표시하지 않기
+```
+
+## Food Recommend 라이브러리
+
+```bash
+pip install pulp==3.2.1
 ```
