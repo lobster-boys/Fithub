@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from diet.models import Food
-from ecommerce.models import Product, Category
+from diet.models import Food, FoodCategory
+from ecommerce.models import Product
 
 # Food 시리얼라이즈 공통 검증 로직
 class BaseFoodSerializer(serializers.ModelSerializer):
@@ -44,8 +44,9 @@ class BaseFoodSerializer(serializers.ModelSerializer):
 # Food 조회 시리얼라이저
 class FoodSerializer(serializers.ModelSerializer):
 
-    category = serializers.PrimaryKeyRelatedField(read_only=True)
-    product  = serializers.PrimaryKeyRelatedField(read_only=True)
+    category = serializers.StringRelatedField(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(source='category', read_only=True)
+    product = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Food
@@ -70,7 +71,7 @@ class FoodCreateSerializer(BaseFoodSerializer):
         required = False,
     )
     category = serializers.PrimaryKeyRelatedField(
-        queryset = Category.objects.all(),
+        queryset = FoodCategory.objects.filter(is_active=True),
         allow_null = True,
         required = False
     )
@@ -97,6 +98,12 @@ class FoodCreateSerializer(BaseFoodSerializer):
 
 # Food 업데이트 시리얼라이저
 class FoodUpdateSerializer(BaseFoodSerializer):
+
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=FoodCategory.objects.filter(is_active=True),
+        allow_null=True,
+        required=False
+    )
     
     class Meta:
         model = Food
@@ -107,3 +114,16 @@ class FoodUpdateSerializer(BaseFoodSerializer):
         if instance.user != self.context['request'].user:
             raise serializers.ValidationError('자신이 추가한 음식만 수정할 수 있습니다.')
         return super().update(instance, validated_data)
+    
+# Food 카테고리 조회 시리얼라이저
+class FoodCategorySerializer(serializers.ModelSerializer):
+    foods_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FoodCategory
+        fields = ['id', 'name', 'description', 'is_active', 'foods_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_foods_count(self, obj):
+        """해당 카테고리에 속한 음식 개수"""
+        return obj.foods.count()
