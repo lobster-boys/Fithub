@@ -1,3 +1,4 @@
+import re
 from django.db import models
 from django.conf import settings
 from decimal import Decimal, InvalidOperation
@@ -18,61 +19,149 @@ UNIT_TO_G = {
     'l':    1000,
 }
 
-class Food(models.Model):
-
+# 순수 음식 카테고리 모델 (ecommerce와 분리)
+class FoodCategory(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'diet_food_category'
+        verbose_name = '음식 카테고리'
+        verbose_name_plural = '음식 카테고리'
+    
+    def __str__(self):
+        return self.name
+    
+# 추천 이력 테이블
+class RecommendHistory(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        null=True, 
-        blank=True,  
-        on_delete=models.CASCADE, 
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='recommend_histories'
+    )
+    food = models.ForeignKey(
+        'Food',
+        on_delete=models.CASCADE,
+        related_name='recommend_histories'
+    )
+    meal_type = models.CharField(
+        max_length=10,
+        choices=[
+            ('breakfast', '아침'),
+            ('lunch', '점심'),
+            ('dinner', '저녁'),
+        ]
+    )
+    recommended_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'diet_recommend_history'
+        indexes = [
+            models.Index(fields=['user', 'meal_type', 'recommended_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.food.name} ({self.meal_type})"
+    
+# 식단 기록 테이블
+class DietLog(models.Model):
+    MEAL_TYPE_CHOICES = [
+        ('breakfast', '아침'),
+        ('lunch', '점심'),
+        ('dinner', '저녁'),
+        ('snack', '간식'),
+    ]
+    
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='diet_logs'
+    )
+    food = models.ForeignKey(
+        'Food',
+        on_delete=models.CASCADE,
+        related_name='diet_logs'
+    )
+    date = models.DateField()
+    meal_type = models.CharField(max_length=10, choices=MEAL_TYPE_CHOICES)
+    calories = models.DecimalField(max_digits=7, decimal_places=2)
+    quantity = models.DecimalField(max_digits=7, decimal_places=2, help_text='섭취량(g)')
+    recommended_at = models.DateTimeField(null=True, blank=True, help_text='추천 기반 식단 여부')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'diet_log'
+        indexes = [
+            models.Index(fields=['user', 'date', 'meal_type']),
+        ]
+        unique_together = ('user', 'food', 'date', 'meal_type')
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.food.name} ({self.date} {self.meal_type})"
+    
+
+class Food(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
         related_name='custom_foods'
-        )
+    )
     category = models.ForeignKey(
-        'ecommerce.Category', 
-        on_delete=models.PROTECT, # seed 생성할 때: CASCADE, 테스트: PROTECT 사용
+        'FoodCategory', # FoodCategory로 변경
+        on_delete=models.PROTECT,
         related_name='foods',
         blank=True,
-        null=True 
-        ) # 커스텀 Food를 위한 blank, null 허용
+        null=True
+    )
     product = models.OneToOneField(
-        'ecommerce.Product', 
-        on_delete=models.CASCADE, 
+        'ecommerce.Product',
+        on_delete=models.CASCADE,
         related_name='food_info',
         blank=True,
         null=True
-        ) # 커스텀 Food를 위한 blank, null 허용
-
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-
     calories = models.DecimalField(max_digits=7, decimal_places=2, help_text='칼로리(Kcal)')
     protein = models.DecimalField(max_digits=7, decimal_places=2, help_text='단백질(g)')
     carbs = models.DecimalField(max_digits=7, decimal_places=2, help_text='탄수화물(g)')
     fat = models.DecimalField(max_digits=7, decimal_places=2, help_text='지방(g)')
     serving_size = models.CharField(max_length=50, help_text='1인분 기준량(예: "100g", "1컵" 등)')
+    
+    # 공공 API 데이터 구분을 위한 필드 추가
+    is_public_data = models.BooleanField(default=False, help_text='공공 API에서 가져온 데이터 여부')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'diet_food'
         indexes = [
-            models.Index(fields=['name'], name='idx_food_name')
+            models.Index(fields=['name'], name='idx_food_name'),
+            models.Index(fields=['is_public_data'], name='idx_food_is_public_data'),
         ]
-        # 사용자와 제품 중 하나는 반드시 존재해야 한다.
         constraints = [
             models.CheckConstraint(
                 check=(
-                    models.Q(user__isnull=False) 
-                    | models.Q(product__isnull=False)
+                    # 공공 API 데이터는 user=None, product=None 허용
+                    models.Q(is_public_data=True) |
+                    # 일반 데이터는 user 또는 product 중 하나는 필수
+                    (models.Q(is_public_data=False) & 
+                     (models.Q(user__isnull=False) | models.Q(product__isnull=False)))
                 ),
-                name = 'ck_food_user_or_product_not_null'
+                name='ck_food_user_or_product_not_null'
             ),
         ]
 
     def __str__(self):
         return self.name
     
-    
+
     def get_standard_serving(self):
         """
         serving_size를 Decimal로 변환
@@ -81,20 +170,36 @@ class Food(models.Model):
         실패 시 ValidationError.
         """
         raw = (self.serving_size or '').lower().replace(' ', '')
-
-        # g/ml/kg/l 단위 처리
-        for unit in ('kg', 'g', 'ml', 'l'):
-            if raw.endswith(unit):
-                num = raw[:-len(unit)] or '1'
-                return Decimal(num) * UNIT_TO_G[unit]
-
-        # 한글 단위 환산
-        for unit, grams in UNIT_TO_G.items():
-            if raw.endswith(unit):
-                num = raw[:-len(unit)] or '1'
-                return Decimal(num) * grams
-        raise ValidationError("serving_size 형식 오류: 지원되지 않는 단위")
-
+        
+        # 빈 값 처리
+        if not raw:
+            return Decimal('100')  # 기본값 100g
+        
+        try:
+            # g/ml/kg/l 단위 처리
+            for unit in ('kg', 'g', 'ml', 'l'):
+                if raw.endswith(unit):
+                    num_str = raw[:-len(unit)] or '1'
+                    num = Decimal(re.sub(r'[^\d.]', '', num_str) or '1')
+                    return num * UNIT_TO_G[unit]
+            
+            # 한글 단위 환산
+            for unit, grams in UNIT_TO_G.items():
+                if raw.endswith(unit):
+                    num_str = raw[:-len(unit)] or '1'
+                    num = Decimal(re.sub(r'[^\d.]', '', num_str) or '1') 
+                    return num * grams
+            
+            # 숫자만 있는 경우 (단위 없음)
+            num_only = re.sub(r'[^\d.]', '', raw)
+            if num_only:
+                return Decimal(num_only)
+            
+            # 기본값 반환
+            return Decimal('100')
+            
+        except (InvalidOperation, ValueError, TypeError):
+            return Decimal('100')  # 파싱 실패시 기본값
 
 
 class MealPlan(models.Model):
