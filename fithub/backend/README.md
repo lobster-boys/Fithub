@@ -62,6 +62,23 @@ python manage.py products_seed --with-images
 python manage.py foods_seed --clear
 python manage.py mealplan_seed --clear
 
+# 식품의약품안전처_식품영양정보에서 카테고리 분석
+python manage.py load_food_data --analyze-categories # FOOD_CAT1_NM만
+python manage.py load_food_data --collect-by-category --clear
+python manage.py load_food_data --category-filter "과일류" --max-items 200 # 특정 카테고리 가져오기
+python manage.py load_food_data --category-filter "밥류" --max-items 200
+python manage.py load_food_data --category-filter "육류" --max-items 200
+python manage.py load_food_data --category-filter "채소류" --max-items 200
+python manage.py load_food_data --category-filter "나물·숙채류" --max-items 200
+python manage.py load_food_data --category-filter "빵 및 과자류" --max-items 200
+python manage.py load_food_data --category-filter "유제품류 및 빙과류" --max-items 200
+
+# 카테고리를 FOOD_CAT1_NM 파라미터에 담고, 500개씩 가져오는 로직으로 변경해야 함
+
+# 식품의약품안전처_식품영양성분DB정보 가져오기
+python manage.py load_food_data --clear --max-items 5000
+python manage.py load_food_data --debug --max-items 5 # 디버그 모드로 테스트 (5개만 가져오기)
+
 # 옵션
 --clear: 기존 데이터를 삭제
 --noinput: 확인(경고) 메세지 표시하지 않기
