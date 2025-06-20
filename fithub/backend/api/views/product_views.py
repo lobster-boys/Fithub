@@ -4,7 +4,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from ecommerce.models import Product, ClickedItems
 from api.serializers.product_serializers import ProductSerializer
-from api.serializers.recommendation_serializers import ClickedItemsSerializer
 from django.shortcuts import get_object_or_404
 import json
 

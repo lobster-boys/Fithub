@@ -2,14 +2,21 @@ from api.views.category_views import categories, category
 from api.views.product_views import products, product
 from api.views.cart_views import CartAPI
 from api.views.order_views import OrdersAPI, OrderAPI
-from api.views.recommandation_views import ClickRecommandAPI
+from api.views.recommandation_views import ClickRecommandAPI, BestProductsViewSet, MostSoldProductsViewSet, ScoreBaseRecommandViewSet
 from django.urls import path, include
 from .views import social_views, profile_views
+from rest_framework import routers
 
 
 app_name = "api"
 
+router = routers.DefaultRouter()
+router.register('ecommerce/best-products', BestProductsViewSet, basename='best-product')
+router.register('ecommerce/most-products', MostSoldProductsViewSet, basename='most-product')
+router.register('ecommerce/rated-recommand', ScoreBaseRecommandViewSet, basename='rated-recommand')
+
 urlpatterns = [
+    path('', include(router.urls)),
     # 카테고리 URL
     path("ecommerce/categories/", categories),
     path("ecommerce/category/<int:id>", category),
