@@ -9,15 +9,29 @@ class CommentLikeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        """댓글 좋아요 토글 - 이미 좋아요가 있으면 취소, 없으면 추가"""
         comment = get_object_or_404(Comment, pk=pk)
-        like, created = CommentLike.objects.get_or_create(user=request.user, comment=comment)
+        like = CommentLike.objects.filter(user=request.user, comment=comment).first()
         
-        if not created:
-            return Response(
-                {"detail": "이미 좋아요를 누르셨습니다."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return Response({"detail": "댓글에 좋아요가 추가되었습니다."}, status=status.HTTP_201_CREATED)
+        if like:
+            # 이미 좋아요가 있으면 취소
+            like.delete()
+            liked = False
+        else:
+            # 좋아요가 없으면 추가
+            CommentLike.objects.create(user=request.user, comment=comment)
+            liked = True
+        
+        # 실제 좋아요 개수 계산 (정확한 카운트)
+        actual_like_count = CommentLike.objects.filter(comment=comment).count()
+        comment.like_count = actual_like_count
+        comment.save()
+        
+        return Response({
+            "detail": f"댓글 좋아요가 {'추가' if liked else '취소'}되었습니다.",
+            "liked": liked,
+            "like_count": actual_like_count
+        }, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
         """

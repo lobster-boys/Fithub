@@ -409,12 +409,14 @@ const WorkoutLogPage = () => {
     const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
     
     workoutLogs.forEach(log => {
-      const logDate = new Date(log.date);
+      // 백엔드 데이터 구조에 맞게 날짜 필드 수정
+      const logDate = new Date(log.start_time || log.created_at || log.date);
       const diffTime = logDate.getTime() - weekStart.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       
       if (diffDays >= 0 && diffDays < 7) {
-        weeklyData[diffDays] += log.duration;
+        // 백엔드 데이터 구조에 맞게 기간 필드 수정
+        weeklyData[diffDays] += (log.duration_minutes || log.duration || 0);
       }
     });
     

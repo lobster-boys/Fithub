@@ -88,6 +88,58 @@ export const likePost = async (postId) => {
   }
 };
 
+// ========== 댓글 (Comments) ==========
+
+// 특정 게시글의 댓글 목록 조회
+export const getComments = async (postId) => {
+  try {
+    const response = await axiosInstance.get(`/community/posts/${postId}/comments/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 댓글 생성
+export const createComment = async (postId, commentData) => {
+  try {
+    const response = await axiosInstance.post(`/community/posts/${postId}/comments/`, commentData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 댓글 수정
+export const updateComment = async (postId, commentId, commentData) => {
+  try {
+    const response = await axiosInstance.put(`/community/posts/${postId}/comments/${commentId}/`, commentData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 댓글 삭제
+export const deleteComment = async (postId, commentId) => {
+  try {
+    const response = await axiosInstance.delete(`/community/posts/${postId}/comments/${commentId}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 댓글 좋아요/좋아요 취소
+export const likeComment = async (commentId) => {
+  try {
+    const response = await axiosInstance.post(`/community/comments/${commentId}/like/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // ========== 편의 함수들 (프론트엔드에서 자주 사용하는 패턴) ==========
 
 // 카테고리별 게시글 조회

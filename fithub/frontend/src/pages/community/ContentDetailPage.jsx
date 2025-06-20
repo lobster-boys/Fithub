@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import useCommunity from '../../hooks/useCommunity';
+import * as communityAPI from '../../api/communityAPI';
 
 const ContentDetailPage = () => {
   const { postId } = useParams();
@@ -19,7 +20,30 @@ const ContentDetailPage = () => {
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const commentTextareaRef = useRef(null);
 
-  // 커뮤니티 훅 사용 - 새로운 API 함수들 포함
+  // 사용자 정보를 프론트엔드 형식으로 변환하는 공통 함수
+  const transformUserData = (userData) => {
+    if (!userData) {
+      return {
+        name: '사용자',
+        id: null,
+        username: 'user',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent('사용자')}&background=random`
+      };
+    }
+    
+    const displayName = userData.first_name && userData.last_name 
+      ? `${userData.first_name} ${userData.last_name}`.trim()
+      : userData.username || '사용자';
+    
+    return {
+      name: displayName,
+      id: userData.id,
+      username: userData.username || 'user',
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`
+    };
+  };
+
+  // 커뮤니티 훅 사용 - 댓글 API 함수들 포함
   const {
     fetchPost,
     getPostById,
@@ -29,6 +53,13 @@ const ContentDetailPage = () => {
     getCategoryBadgeClass,
     getRelatedPosts,
     searchUsers,
+    // 댓글 관련 함수들
+    fetchComments,
+    createComment,
+    updateComment,
+    deleteComment,
+    toggleCommentLike,
+    getCommentsByPostId,
     loading,
     error
   } = useCommunity();
@@ -38,79 +69,56 @@ const ContentDetailPage = () => {
 
   // 페이지 로드 시 게시글 데이터 로드 및 조회수 증가
   useEffect(() => {
-    const loadPost = async () => {
-      if (postId) {
-        try {
-          // 먼저 로컬에서 찾기
-          let post = getPostById(postId);
-          
-          // 로컬에 없으면 API에서 가져오기
-          if (!post) {
-            post = await fetchPost(postId);
-          }
-          
-          setCurrentPost(post);
-          
-          // 조회수 증가
-          incrementViews(parseInt(postId));
-          
-          // 댓글 데이터 로드 (실제로는 댓글 API를 호출해야 함)
-          loadComments(post);
-        } catch (err) {
-          console.error('게시글 로드 실패:', err);
+    const loadPostAndComments = async () => {
+      if (!postId) return;
+      
+      try {
+        // 먼저 로컬에서 찾기
+        let post = getPostById(postId);
+        
+        // 로컬에 없으면 API에서 가져오기
+        if (!post) {
+          post = await fetchPost(postId);
         }
+        
+        setCurrentPost(post);
+        
+        // 조회수 증가 (한 번만 실행)
+        incrementViews(parseInt(postId));
+        
+        // 댓글 데이터 로드 (백엔드 API 직접 호출)
+        await loadCommentsDirectly(postId);
+      } catch (err) {
+        console.error('게시글 로드 실패:', err);
       }
     };
 
-    loadPost();
-  }, [postId, fetchPost, getPostById, incrementViews]);
+    loadPostAndComments();
+  }, [postId]); // ✅ postId만 의존성으로 설정
 
-  // 댓글 데이터 로드 (임시 더미 데이터)
-  const loadComments = (post) => {
-    if (post) {
-      // 실제로는 댓글 API에서 데이터를 가져와야 함
-      const dummyComments = [
-        {
-          id: 1,
-          author: {
-            name: '운동러버',
-            username: 'workout_lover',
-            avatar: 'https://randomuser.me/api/portraits/women/32.jpg'
-          },
-          content: '정말 유용한 정보네요! 저도 따라해보겠습니다. @' + (post.author?.name || '작성자') + ' 감사합니다!',
-          date: '2024-01-20',
-          likes: 5,
-          isLiked: false,
-          replies: []
-        },
-        {
-          id: 2,
-          author: {
-            name: '헬스초보',
-            username: 'gym_newbie',
-            avatar: 'https://randomuser.me/api/portraits/men/25.jpg'
-          },
-          content: '초보자도 쉽게 따라할 수 있을까요? 조금 더 자세한 설명 부탁드려요.',
-          date: '2024-01-20',
-          likes: 2,
-          isLiked: false,
-          replies: [
-            {
-              id: 3,
-              author: {
-                name: post?.author?.name || '작성자',
-                username: post?.author?.username || 'author',
-                avatar: post?.author?.avatar || 'https://randomuser.me/api/portraits/lego/1.jpg'
-              },
-              content: '@헬스초보 네, 초보자분도 충분히 따라하실 수 있어요! 처음에는 가벼운 무게부터 시작하시면 됩니다.',
-              date: '2024-01-20',
-              likes: 3,
-              isLiked: false
-            }
-          ]
-        }
-      ];
-      setComments(dummyComments);
+  // 댓글 데이터 직접 로드 (useCommunity 훅 우회하여 불필요한 리렌더링 방지)
+  const loadCommentsDirectly = async (postId) => {
+    if (!postId) return;
+    
+    try {
+      // communityAPI 직접 호출 (useCommunity 훅 우회)
+      const commentsData = await communityAPI.getComments(postId);
+      
+      // 백엔드 댓글 데이터를 프론트엔드 형식으로 변환
+      const transformedComments = commentsData.map(comment => ({
+        id: comment.id,
+        author: transformUserData(comment.user),
+        content: comment.content,
+        date: new Date(comment.created_at).toLocaleDateString('ko-KR'),
+        likes: comment.like_count || 0,
+        isLiked: comment.is_liked || false,
+        replies: []
+      }));
+      
+      setComments(transformedComments);
+    } catch (err) {
+      console.error('댓글 로드 실패:', err);
+      setComments([]);
     }
   };
 
@@ -208,65 +216,98 @@ const ContentDetailPage = () => {
     }
   };
 
-  // 댓글 작성 핸들러
+  // 댓글 작성 핸들러 (완전 로컬 처리)
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
     try {
-      // 실제로는 댓글 생성 API를 호출해야 함
-      const newCommentData = {
-        id: Date.now(), // 임시 ID
-        author: {
-          name: '현재사용자', // 실제로는 로그인한 사용자 정보
-          username: 'current_user',
-          avatar: 'https://ui-avatars.com/api/?name=현재사용자&background=random'
-        },
-        content: newComment,
-        date: new Date().toISOString().split('T')[0],
-        likes: 0,
-        isLiked: false,
+      // communityAPI 직접 호출 (useCommunity 훅 우회)
+      const newCommentData = await communityAPI.createComment(postId, { content: newComment.trim() });
+      
+      // 새 댓글을 프론트엔드 형식으로 변환하여 즉시 추가
+      const transformedComment = {
+        id: newCommentData.id,
+        author: transformUserData(newCommentData.user),
+        content: newCommentData.content,
+        date: new Date(newCommentData.created_at).toLocaleDateString('ko-KR'),
+        likes: newCommentData.like_count || 0,
+        isLiked: newCommentData.is_liked || false,
         replies: []
       };
 
-      setComments(prevComments => [...prevComments, newCommentData]);
+      // 로컬 상태만 업데이트 (새로고침 없음)
+      setComments(prevComments => [...prevComments, transformedComment]);
+      
+      // 게시글의 댓글 수도 로컬에서 증가
+      setCurrentPost(prevPost => ({
+        ...prevPost,
+        comments: (prevPost.comments || 0) + 1
+      }));
+      
+      // 폼 초기화
       setNewComment('');
       setShowCommentForm(false);
+      
+      console.log('✅ 댓글 작성 완료 (새로고침 없음)');
     } catch (err) {
       console.error('댓글 작성 실패:', err);
       alert('댓글 작성에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
-  // 댓글 좋아요 토글
+  // 댓글 좋아요 토글 (백엔드 응답 기반)
   const handleCommentLike = async (commentId) => {
     try {
-      // 실제로는 댓글 좋아요 API를 호출해야 함
+      // communityAPI 직접 호출 (useCommunity 훅 우회)
+      const response = await communityAPI.likeComment(commentId);
+      
+      // 백엔드에서 계산된 정확한 카운트 사용
       setComments(prevComments =>
         prevComments.map(comment =>
           comment.id === commentId
             ? { 
                 ...comment, 
-                likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
-                isLiked: !comment.isLiked 
+                likes: response.like_count,
+                isLiked: response.liked
               }
             : comment
         )
       );
+      
+      console.log('✅ 댓글 좋아요 토글 완료:', {
+        commentId,
+        liked: response.liked,
+        likeCount: response.like_count
+      });
     } catch (err) {
       console.error('댓글 좋아요 실패:', err);
+      alert('댓글 좋아요에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
-  // 게시글 좋아요 핸들러
+  // 게시글 좋아요 핸들러 (백엔드 응답 기반)
   const handlePostLike = async () => {
     if (!currentPost) return;
     
     try {
-      await toggleLike(currentPost.id);
-      // 로컬 상태 업데이트는 useCommunity 훅에서 처리됨
+      // communityAPI 직접 호출 (useCommunity 훅 우회)
+      const response = await communityAPI.likePost(currentPost.id);
+      
+      // 백엔드에서 계산된 정확한 카운트 사용
+      setCurrentPost(prevPost => ({
+        ...prevPost,
+        likes: response.like_count,
+        isLiked: response.liked
+      }));
+      
+      console.log('✅ 게시글 좋아요 토글 완료:', {
+        liked: response.liked,
+        likeCount: response.like_count
+      });
     } catch (err) {
       console.error('좋아요 처리 실패:', err);
+      alert('좋아요 처리에 실패했습니다. 다시 시도해주세요.');
     }
   };
 

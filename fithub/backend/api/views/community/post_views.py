@@ -80,7 +80,7 @@ class PostViewSet(viewsets.ModelViewSet):
             return Response([])
         
         queryset = Post.objects.filter(user=request.user).order_by('-created_at')
-        serializer = UserPostSerializer(queryset, many=True)
+        serializer = UserPostSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
@@ -105,18 +105,19 @@ class PostViewSet(viewsets.ModelViewSet):
             if not created:
                 # 이미 좋아요가 있으면 삭제
                 like_obj.delete()
-                post.like_count = max(0, post.like_count - 1)
                 liked = False
             else:
                 # 새로운 좋아요
-                post.like_count += 1
                 liked = True
             
+            # 실제 좋아요 개수 계산 (정확한 카운트)
+            actual_like_count = PostLike.objects.filter(post=post).count()
+            post.like_count = actual_like_count
             post.save()
             
             return Response({
                 'liked': liked,
-                'like_count': post.like_count
+                'like_count': actual_like_count
             })
             
         except Post.DoesNotExist:

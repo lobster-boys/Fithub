@@ -222,6 +222,7 @@ const useCommunity = () => {
         avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`
       },
       likes: backendPost.like_count || 0,
+      isLiked: backendPost.is_liked || false, // 백엔드에서 제공하는 좋아요 상태 (작성자 포함)
       comments: backendPost.comments?.length || 0,
       views: 0, // 백엔드에서 지원하지 않으므로 로컬에서 관리
       date: new Date(backendPost.created_at).toISOString().split('T')[0],
@@ -506,14 +507,14 @@ const useCommunity = () => {
     try {
       const response = await communityAPI.likePost(postId);
       
-      // 좋아요 상태에 따라 로컬 state 업데이트
+      // 백엔드 응답에 따라 로컬 state 업데이트
       setPosts(prevPosts =>
         prevPosts.map(post =>
           post.id === parseInt(postId)
             ? { 
                 ...post, 
-                likes: response.liked ? post.likes + 1 : post.likes - 1,
-                isLiked: response.liked 
+                likes: response.like_count || 0, // 백엔드에서 제공하는 정확한 좋아요 수
+                isLiked: response.liked || false // 백엔드에서 제공하는 좋아요 상태
               }
             : post
         )
@@ -528,12 +529,38 @@ const useCommunity = () => {
     }
   }, []);
 
-  // 조회수 증가 (로컬 관리)
+  // 조회수 증가 (세션별 중복 방지 + 디바운싱)
   const incrementViews = useCallback(async (postId) => {
     try {
+      // 세션별 조회 기록 확인 (같은 세션에서는 1번만 조회수 증가)
+      const viewedPostsKey = 'fithub_viewed_posts';
+      const sessionViewedPosts = JSON.parse(sessionStorage.getItem(viewedPostsKey) || '[]');
+      
+      // 이미 조회한 게시글이면 조회수 증가하지 않음
+      if (sessionViewedPosts.includes(parseInt(postId))) {
+        console.log(`게시글 ${postId}는 이미 이번 세션에서 조회했습니다.`);
+        return;
+      }
+      
+      // 디바운싱: 마지막 호출로부터 500ms 대기
+      const debounceKey = `view_debounce_${postId}`;
+      const lastViewTime = parseInt(sessionStorage.getItem(debounceKey) || '0');
+      const currentTime = Date.now();
+      
+      if (currentTime - lastViewTime < 500) {
+        console.log(`게시글 ${postId} 조회수 증가 디바운싱 중...`);
+        return;
+      }
+      
+      // 새로 조회하는 게시글이면 조회수 증가
       const currentViews = getViewsFromStorage(postId);
       const newViews = currentViews + 1;
       setViewsToStorage(postId, newViews);
+      
+      // 세션 조회 기록에 추가
+      sessionViewedPosts.push(parseInt(postId));
+      sessionStorage.setItem(viewedPostsKey, JSON.stringify(sessionViewedPosts));
+      sessionStorage.setItem(debounceKey, currentTime.toString());
       
       // 로컬 state 업데이트
       setPosts(prevPosts =>
@@ -543,10 +570,156 @@ const useCommunity = () => {
             : post
         )
       );
+      
+      console.log(`게시글 ${postId} 조회수 증가: ${currentViews} → ${newViews}`);
     } catch (err) {
       console.error('조회수 증가 실패:', err);
     }
   }, []);
+
+  // ============ 댓글 관련 함수들 ============
+
+  // 댓글 목록 조회
+  const fetchComments = useCallback(async (postId) => {
+    try {
+      setLoading(true);
+      const commentsData = await communityAPI.getComments(postId);
+      setComments(prev => ({
+        ...prev,
+        [postId]: commentsData
+      }));
+      return commentsData;
+    } catch (err) {
+      console.error('댓글 조회 실패:', err);
+      setError('댓글을 불러오는 중 오류가 발생했습니다.');
+      // 실패시 빈 배열 반환
+      setComments(prev => ({
+        ...prev,
+        [postId]: []
+      }));
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 댓글 생성
+  const createComment = useCallback(async (postId, content) => {
+    try {
+      setLoading(true);
+      const newComment = await communityAPI.createComment(postId, { content });
+      
+      // 로컬 상태 업데이트
+      setComments(prev => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), newComment]
+      }));
+      
+      // 게시글의 댓글 수 증가
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === parseInt(postId)
+            ? { ...post, comments: (post.comments || 0) + 1 }
+            : post
+        )
+      );
+      
+      return newComment;
+    } catch (err) {
+      console.error('댓글 생성 실패:', err);
+      setError('댓글 작성에 실패했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 댓글 수정
+  const updateComment = useCallback(async (postId, commentId, content) => {
+    try {
+      setLoading(true);
+      const updatedComment = await communityAPI.updateComment(postId, commentId, { content });
+      
+      // 로컬 상태 업데이트
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId ? updatedComment : comment
+        )
+      }));
+      
+      return updatedComment;
+    } catch (err) {
+      console.error('댓글 수정 실패:', err);
+      setError('댓글 수정에 실패했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 댓글 삭제
+  const deleteComment = useCallback(async (postId, commentId) => {
+    try {
+      setLoading(true);
+      await communityAPI.deleteComment(postId, commentId);
+      
+      // 로컬 상태 업데이트
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).filter(comment => comment.id !== commentId)
+      }));
+      
+      // 게시글의 댓글 수 감소
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === parseInt(postId)
+            ? { ...post, comments: Math.max((post.comments || 0) - 1, 0) }
+            : post
+        )
+      );
+      
+      return true;
+    } catch (err) {
+      console.error('댓글 삭제 실패:', err);
+      setError('댓글 삭제에 실패했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 댓글 좋아요 토글
+  const toggleCommentLike = useCallback(async (postId, commentId) => {
+    try {
+      const response = await communityAPI.likeComment(commentId);
+      
+      // 로컬 상태 업데이트
+      setComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId 
+            ? { 
+                ...comment, 
+                like_count: response.like_count,
+                isLiked: response.liked 
+              }
+            : comment
+        )
+      }));
+      
+      return response;
+    } catch (err) {
+      console.error('댓글 좋아요 실패:', err);
+      setError('댓글 좋아요에 실패했습니다.');
+      throw err;
+    }
+  }, []);
+
+  // 특정 게시글의 댓글 가져오기
+  const getCommentsByPostId = useCallback((postId) => {
+    return comments[postId] || [];
+  }, [comments]);
 
   // ============ 사용자 태그 관련 함수들 ============
 
@@ -827,6 +1000,14 @@ const useCommunity = () => {
     deletePost,
     toggleLike,
     incrementViews,
+
+    // 댓글 관련 함수들
+    fetchComments,
+    createComment,
+    updateComment,
+    deleteComment,
+    toggleCommentLike,
+    getCommentsByPostId,
 
     // 사용자 태그 관련
     searchUsers,

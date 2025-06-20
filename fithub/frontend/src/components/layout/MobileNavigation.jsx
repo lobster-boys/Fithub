@@ -17,6 +17,11 @@ const MobileNavigation = () => {
       label: '운동'
     },
     {
+      path: '/diet',
+      icon: 'fas fa-utensils',
+      label: '식단'
+    },
+    {
       path: '/shop',
       icon: 'fas fa-shopping-bag',
       label: '스토어'

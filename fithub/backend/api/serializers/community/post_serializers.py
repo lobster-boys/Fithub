@@ -72,6 +72,7 @@ class UserPostSerializer(BaseUserPostSerializer):
     # comments 필드를 추가하여 해당 Post의 댓글들을 중첩(nested) 시리얼라이징
     comments = CommentSerializer(many=True, read_only=True)
     user = UserBasicSerializer(read_only=True)
+    is_liked = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -83,11 +84,20 @@ class UserPostSerializer(BaseUserPostSerializer):
             'content_category',
             'content_image',
             'like_count',
+            'is_liked',
             'comments',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'user', 'like_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'like_count', 'is_liked', 'created_at', 'updated_at']
+
+    def get_is_liked(self, obj):
+        """현재 사용자가 이 게시글에 좋아요를 눌렀는지 확인 (작성자 포함)"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            from community.models import PostLike
+            return PostLike.objects.filter(user=request.user, post=obj).exists()
+        return False
         extra_kwargs = {
             'content_image': {
                 'required': False,
@@ -114,6 +124,7 @@ class UserPostSerializer(BaseUserPostSerializer):
 # 게시글 생성 전용 Serializer
 class UserPostCreateSerializer(BaseUserPostSerializer):
     user = UserBasicSerializer(read_only=True)
+    is_liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -124,9 +135,14 @@ class UserPostCreateSerializer(BaseUserPostSerializer):
             'content',
             'content_category',
             'content_image',
+            'is_liked',
             'created_at'
         ]
-        read_only_fields = ['id', 'user', 'created_at']
+        read_only_fields = ['id', 'user', 'is_liked', 'created_at']
+
+    def get_is_liked(self, obj):
+        """새로 생성된 게시글은 좋아요가 없으므로 False 반환"""
+        return False
         extra_kwargs = {
             'content_image': {
                 'required': False,
@@ -143,6 +159,7 @@ class UserPostCreateSerializer(BaseUserPostSerializer):
 # 게시글 업데이트 전용 Serializer
 class UserPostUpdateSerializer(BaseUserPostSerializer):
     user = UserBasicSerializer(read_only=True)
+    is_liked = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
@@ -154,10 +171,19 @@ class UserPostUpdateSerializer(BaseUserPostSerializer):
             'content_category',
             'content_image',
             'like_count',
+            'is_liked',
             'comments',
             'updated_at'
         ]
-        read_only_fields = ['id', 'user', 'like_count', 'updated_at']
+        read_only_fields = ['id', 'user', 'like_count', 'is_liked', 'updated_at']
+
+    def get_is_liked(self, obj):
+        """현재 사용자가 이 게시글에 좋아요를 눌렀는지 확인"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            from community.models import PostLike
+            return PostLike.objects.filter(user=request.user, post=obj).exists()
+        return False
         extra_kwargs = {
             'content_image': {
                 'required': False,

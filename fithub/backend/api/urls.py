@@ -21,7 +21,7 @@ from .views.diet.food_views import FoodViewSet
 from .views.users.profile_views import UserProfileViewSet
 from .views.onboarding.onboarding_views import OnboardingViewSet
 from .views.community.post_views import PostViewSet
-from .views.community import post_views, comment_views, post_like_views, comment_like_views
+from .views.community import post_views, comment_views, comment_like_views
 from .views.social import social_views
 from .views.users import profile_views
 from .views.users import CustomRegisterView
@@ -103,12 +103,13 @@ urlpatterns = [
     path("users/profile/<int:pk>/", profile_views.UserProfileDetail.as_view(), name="profile-detail"),
     
     # =================== 커뮤니티 ===================
-    # 게시글 CRUD는 router 기반 PostViewSet 사용 (/api/community/posts/)
+    # 게시글 CRUD 및 좋아요는 router 기반 PostViewSet 사용
+    # - 게시글 목록: GET /api/community/posts/
+    # - 게시글 상세: GET /api/community/posts/{id}/
+    # - 게시글 좋아요: POST /api/community/posts/{id}/like/
     # 댓글 CRUD URL
     path('community/posts/<int:post_id>/comments/', comment_views.UserCommentDetail.as_view(), name='comment-create'),
     path('community/posts/<int:post_id>/comments/<int:pk>/', comment_views.UserCommentDetail.as_view(), name='comment-detail'),
-    # 게시글 좋아요 URL
-    path('community/posts/<int:pk>/like/', post_like_views.PostLikeView.as_view(), name="post-like"),
     # 댓글 좋아요 URL
     path('community/comments/<int:pk>/like/', comment_like_views.CommentLikeView.as_view(), name='comment-like'),
     
