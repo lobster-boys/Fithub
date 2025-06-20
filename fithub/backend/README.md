@@ -65,6 +65,8 @@ python manage.py mealplan_seed --clear
 # 식품의약품안전처_식품영양성분DB정보 가져오기
 python manage.py load_food_data --clear --collect-by-category
 python manage.py load_food_data --debug --max-items 5 # 디버그 모드로 테스트 (5개만 가져오기)
+python manage.py load_food_data --category-filter "과일류"
+python manage.py load_food_data --category-filter "유제품류"
 
 # 옵션
 --clear: 기존 데이터를 삭제
