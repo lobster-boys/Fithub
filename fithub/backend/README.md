@@ -62,27 +62,32 @@ python manage.py products_seed --with-images
 python manage.py foods_seed --clear
 python manage.py mealplan_seed --clear
 
-# 식품의약품안전처_식품영양정보에서 카테고리 분석
-python manage.py load_food_data --analyze-categories # FOOD_CAT1_NM만
-python manage.py load_food_data --collect-by-category --clear
-python manage.py load_food_data --category-filter "과일류" --max-items 200 # 특정 카테고리 가져오기
-python manage.py load_food_data --category-filter "밥류" --max-items 200
-python manage.py load_food_data --category-filter "육류" --max-items 200
-python manage.py load_food_data --category-filter "채소류" --max-items 200
-python manage.py load_food_data --category-filter "나물·숙채류" --max-items 200
-python manage.py load_food_data --category-filter "빵 및 과자류" --max-items 200
-python manage.py load_food_data --category-filter "유제품류 및 빙과류" --max-items 200
-
-# 카테고리를 FOOD_CAT1_NM 파라미터에 담고, 500개씩 가져오는 로직으로 변경해야 함
-
 # 식품의약품안전처_식품영양성분DB정보 가져오기
-python manage.py load_food_data --clear --max-items 5000
+python manage.py load_food_data --clear --collect-by-category
 python manage.py load_food_data --debug --max-items 5 # 디버그 모드로 테스트 (5개만 가져오기)
 
 # 옵션
 --clear: 기존 데이터를 삭제
 --noinput: 확인(경고) 메세지 표시하지 않기
+--max-items 1000: 최대 수집할 항목 수 설정
+--start-page 1: 시작 페이지 설정  
+--collect-by-category:  카테고리별 균형잡힌 수집 (추천)
+--category-filter "과일류": 특정 카테고리만 수집
+--debug: 디버그 모드
+--analyze-categories: API 카테고리 분포 분석
+
+# load_food_data 실행 순서
+# 1단계: 카테고리 분석 (선택사항)
+python manage.py load_food_data --analyze-categories
+
+# 2단계: 전체 데이터 수집 (필수)
+python manage.py load_food_data --clear --collect-by-category
+
+# 3단계: 추천 시스템 테스트
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/diet/recommend/
 ```
+
+
 
 ## Food Recommend 라이브러리
 
