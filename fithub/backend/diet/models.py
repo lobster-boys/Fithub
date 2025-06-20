@@ -126,7 +126,7 @@ class Food(models.Model):
         null=True
     )
     name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, null=True)
     calories = models.DecimalField(max_digits=7, decimal_places=2, help_text='칼로리(Kcal)')
     protein = models.DecimalField(max_digits=7, decimal_places=2, help_text='단백질(g)')
     carbs = models.DecimalField(max_digits=7, decimal_places=2, help_text='탄수화물(g)')
@@ -227,17 +227,28 @@ class MealPlan(models.Model):
     def _grams_from_quantity(self, item):
         """
         MealPlanFood.quantity를 실제 gram(혹은 ml)로 환산
-        1. food.product.unit_weight_g > 0 ➜ quantity(팩 수) x unit_weight_g
-        2. food.product.unit_weight_g = 0 ➜ quantity 자체가 이미 g로 간주
+        1. 공공 API 데이터(is_public_data=True): quantity를 서빙 단위로 해석
+        2. 상품 연동 데이터: quantity(팩 수) x unit_weight_g
+        3. 사용자 커스텀 데이터: quantity를 g로 해석
         """
         food = item.food
         product = food.product
         qty = Decimal(item.quantity)
-
-        if product and product.is_food and product.unit_weight_g:
-            return qty * Decimal(product.unit_weight_g) # 팩 수 x g
         
-        return qty # g로 입력된 경우 
+        # 공공 API 데이터인 경우: quantity를 서빙 단위로 해석
+        if food.is_public_data:
+            try:
+                serving_g = food.get_standard_serving()  # 100g
+                return qty * serving_g  # quantity(서빙수) × 서빙크기(g)
+            except Exception:
+                return qty  # 파싱 실패시 g로 간주
+        
+        # 상품 연동 데이터인 경우: 팩 수 × 단위 중량
+        if product and product.is_food and product.unit_weight_g:
+            return qty * Decimal(product.unit_weight_g)
+        
+        # 사용자 커스텀 데이터인 경우: g로 간주
+        return qty
 
     def calculate_nutrition(self):
         """
@@ -255,7 +266,7 @@ class MealPlan(models.Model):
 
             # Food.serving_size(예: '100g') 파싱
             try:
-                std_g = food.get_standard_serving() # Decimal
+                std_g = food.get_standard_serving()
             except Exception:
                 continue  # 잘못된 serving_size면 건너뜀
 
