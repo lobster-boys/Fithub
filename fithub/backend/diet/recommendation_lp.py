@@ -1,5 +1,6 @@
 import random
 import pulp
+
 from typing import Tuple, Dict, List, Optional, Any
 from django.core.exceptions import ValidationError
 from diet.models import Food
@@ -27,10 +28,37 @@ def calculate_nutrient_targets(target_cal: float) -> Dict[str, float]:
     return {"protein": protein, "carbs": carbs, "fat": fat}
 
 def _validate_user_profile(user) -> float:
-    profile = user.profile
-    if not profile.target_calories or profile.target_calories <= 0:
-        raise ValidationError("사용자 프로필에 유효한 목표 칼로리 값이 설정되어야 합니다.")
-    return float(profile.target_calories)
+    """
+    사용자 프로필의 목표 칼로리 값을 안전하게 검증하고 반환합니다.
+    UserProfile이 존재하지 않거나 target_calories가 설정되지 않은 경우 기본값을 사용합니다.
+    """
+    try:
+        # hasattr로 먼저 확인
+        if not hasattr(user, 'profile'):
+            raise ValidationError("사용자 프로필이 설정되지 않았습니다. 온보딩을 먼저 완료해주세요.")
+        
+        profile = user.profile
+        
+        # target_calories 값 검증
+        if not hasattr(profile, 'target_calories') or not profile.target_calories or profile.target_calories <= 0:
+            # 기본 칼로리 값 사용 (성인 기준 평균)
+            default_calories = 2000
+            print(f"Warning: User {user.id} has no valid target_calories, using default: {default_calories}")
+            return float(default_calories)
+            
+        return float(profile.target_calories)
+        
+    except AttributeError as e:
+        # OneToOneField 관련 오류 처리
+        print(f"Error: User {user.id} profile access failed: {str(e)}")
+        raise ValidationError("사용자 프로필이 존재하지 않습니다. 온보딩을 먼저 완료해주세요.")
+    except Exception as e:
+        # 기타 예상치 못한 오류 처리
+        print(f"Unexpected error in _validate_user_profile for user {user.id}: {str(e)}")
+        # 안전한 기본값으로 폴백
+        default_calories = 2000
+        print(f"Using fallback calories value: {default_calories}")
+        return float(default_calories)
 
 def _get_candidate_foods(meal_type: Optional[str] = None, 
                            candidate_food_ids: Optional[List[int]] = None) -> List[Dict[str, Any]]:

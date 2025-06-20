@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
+import DietRecommendationModal from '../../components/diet/DietRecommendationModal';
 
 import useWorkoutData from '../../hooks/useWorkoutData';
 import { useDiet } from '../../hooks/useDiet';
@@ -23,7 +24,10 @@ function HomePage() {
   // 운동 데이터 훅 사용
   const { 
     routines,
+    workoutLogs,
     fetchRoutines,
+    fetchWorkoutLogs,
+    refreshWorkoutLogs,
     getWeeklyStats, 
     getStreakDays,
     loading: workoutLoading,
@@ -36,20 +40,49 @@ function HomePage() {
   // 추천 루틴 상태
   const [recommendedRoutines, setRecommendedRoutines] = useState([]);
 
-  // 컴포넌트 마운트 시 추천 루틴 가져오기
+  // 식단 추천 모달 상태
+  const [showDietModal, setShowDietModal] = useState(false);
+
+  // 운동 탭 상태 (맞춤 추천 vs 운동 로그)
+  const [workoutTab, setWorkoutTab] = useState('recommended'); // 'recommended' or 'logs'
+
+  // 글로벌 새로고침 함수 등록 (운동 완료 시 사용)
   useEffect(() => {
-    const loadRecommendedRoutines = async () => {
+    if (refreshWorkoutLogs) {
+      console.log('🌐 HomePage: 글로벌 새로고침 함수 등록');
+      window.refreshWorkoutLogs = refreshWorkoutLogs;
+    } else {
+      console.log('⚠️ HomePage: refreshWorkoutLogs 함수가 없음');
+    }
+    
+    return () => {
+      // 컴포넌트 언마운트 시에만 정리
+      if (!refreshWorkoutLogs) {
+        console.log('🧹 HomePage: 글로벌 새로고침 함수 해제');
+        delete window.refreshWorkoutLogs;
+      }
+    };
+  }, []); // 의존성 배열을 빈 배열로 변경하여 무한 등록/해제 방지
+
+  // 컴포넌트 마운트 시 추천 루틴과 운동 로그 가져오기
+  useEffect(() => {
+    const loadData = async () => {
       try {
         // 인증 여부와 관계없이 공개 루틴을 가져옴
         await fetchRoutines({ is_public: true, limit: 3 });
+        
+        // 인증된 사용자에게만 운동 로그 가져오기
+        if (isAuthenticated && fetchWorkoutLogs) {
+          await fetchWorkoutLogs({ limit: 5 });
+        }
       } catch (error) {
-        console.log('추천 루틴 로드 실패, 폴백 데이터 사용:', error);
+        console.log('데이터 로드 실패, 폴백 데이터 사용:', error);
         // 에러 발생 시에도 폴백 카드를 표시하도록 함
       }
     };
     
-    loadRecommendedRoutines();
-  }, []);
+    loadData();
+  }, [isAuthenticated]);
 
   // 페이지 포커스 시 루틴 데이터 새로고침 (새 루틴이 추가되었을 때 반영)
   useEffect(() => {
@@ -73,9 +106,31 @@ function HomePage() {
     }
   }, [routines]);
 
-  // 식단 데이터 - 인증된 사용자만 사용
-  const dietData = isAuthenticated ? useDiet() : null;
+  // 식단 데이터 - 인증된 사용자만 사용하지만 무한 API 호출 방지를 위해 제거
+  // const dietData = isAuthenticated ? useDiet() : null;
+  const [dietData, setDietData] = useState(null);
   
+  // 인증된 사용자에게만 간단한 식단 데이터 로드
+  useEffect(() => {
+    if (isAuthenticated) {
+      // 홈페이지에서는 간단한 예시 데이터만 표시
+      const sampleDietData = {
+        loading: false,
+        error: null,
+        todayMealPlan: {
+          meals: [
+            { id: 1, name: '아침', foods: ['오트밀', '바나나', '우유'], calories: 350 },
+            { id: 2, name: '점심', foods: ['현미밥', '닭가슴살', '브로콜리'], calories: 450 },
+            { id: 3, name: '저녁', foods: ['연어', '고구마', '샐러드'], calories: 400 }
+          ]
+        }
+      };
+      setDietData(sampleDietData);
+    } else {
+      setDietData(null);
+    }
+  }, [isAuthenticated]);
+
   // 전자상거래 훅 사용
   const { products, loading: ecommerceLoading } = useEcommerce();
   
@@ -305,81 +360,172 @@ function HomePage() {
         </div>
       </section>
 
-      {/* 추천 운동 섹션 */}
+      {/* 운동 & 루틴 섹션 */}
       <section className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">맞춤 추천 운동</h2>
+          <h2 className="text-xl font-bold">운동 & 루틴</h2>
           <Link to="/workouts" className="text-primary font-medium">
             더보기
           </Link>
         </div>
         
-        {workoutLoading ? (
-          // 로딩 상태
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, index) => (
-              <div key={`loading-${index}`} className="bg-white rounded-xl shadow-sm animate-pulse">
-                <div className="w-full h-40 bg-gray-200"></div>
-                <div className="p-4">
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-2 w-3/4"></div>
-                  <div className="flex justify-between items-center">
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : workoutError ? (
-          // 에러 상태
-          <div className="bg-red-50 rounded-xl p-6 text-center">
-            <i className="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
-            <p className="text-red-600 mb-3">추천 운동을 불러오는 중 오류가 발생했습니다.</p>
-            <button 
-              onClick={() => fetchRoutines({ limit: 3 })}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          {/* 탭 헤더 */}
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setWorkoutTab('recommended')}
+              className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
+                workoutTab === 'recommended'
+                  ? 'text-primary border-b-2 border-primary bg-orange-50'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
             >
-              다시 시도
+              <i className="fas fa-star mr-2"></i>
+              맞춤 추천
+            </button>
+            <button
+              onClick={() => setWorkoutTab('logs')}
+              className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
+                workoutTab === 'logs'
+                  ? 'text-primary border-b-2 border-primary bg-orange-50'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <i className="fas fa-clipboard-list mr-2"></i>
+              운동 로그
             </button>
           </div>
-        ) : recommendedRoutines.length > 0 ? (
-          // 실제 데이터 표시
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recommendedRoutines.map((routine, index) => renderWorkoutCard(routine, index))}
+
+          {/* 탭 컨텐츠 */}
+          <div className="p-6">
+            {workoutTab === 'recommended' ? (
+              // 추천 운동 탭 컨텐츠
+              <div>
+                {workoutLoading ? (
+                  // 로딩 상태
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[...Array(3)].map((_, index) => (
+                      <div key={`loading-${index}`} className="bg-gray-50 rounded-xl animate-pulse">
+                        <div className="w-full h-40 bg-gray-200 rounded-xl"></div>
+                        <div className="p-4">
+                          <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded mb-2 w-3/4"></div>
+                          <div className="flex justify-between items-center">
+                            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : workoutError ? (
+                  // 에러 상태
+                  <div className="bg-red-50 rounded-xl p-6 text-center">
+                    <i className="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
+                    <p className="text-red-600 mb-3">추천 운동을 불러오는 중 오류가 발생했습니다.</p>
+                    <button 
+                      onClick={() => fetchRoutines({ limit: 3 })}
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                      다시 시도
+                    </button>
+                  </div>
+                ) : recommendedRoutines.length > 0 ? (
+                  // 실제 데이터 표시
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {recommendedRoutines.map((routine, index) => renderWorkoutCard(routine, index))}
+                  </div>
+                ) : !isAuthenticated ? (
+                  // 비로그인 상태
+                  <div className="text-center py-8">
+                    <i className="fas fa-dumbbell text-gray-300 text-4xl mb-4"></i>
+                    <h3 className="text-lg font-bold text-gray-700 mb-2">맞춤 추천 운동</h3>
+                    <p className="text-gray-500 mb-4">로그인하면 개인화된 운동 루틴을 추천받을 수 있습니다.</p>
+                    <Link 
+                      to="/auth/login" 
+                      className="inline-flex items-center bg-primary text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                    >
+                      <i className="fas fa-sign-in-alt mr-2"></i>
+                      로그인하기
+                    </Link>
+                  </div>
+                ) : (
+                  // 데이터가 없을 때 폴백 표시
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {renderFallbackCards()}
+                    </div>
+                    <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                      <i className="fas fa-info-circle text-yellow-600 mr-2"></i>
+                      <span className="text-yellow-800">아직 추천 운동이 없습니다. 곧 다양한 운동 루틴이 추가될 예정입니다!</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // 운동 로그 탭 컨텐츠
+              <div>
+                {workoutLogs && workoutLogs.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-bold">최근 운동 기록</h3>
+                      <Link 
+                        to="/workouts" 
+                        className="text-primary font-medium text-sm hover:underline"
+                      >
+                        전체 보기
+                      </Link>
+                    </div>
+                    {workoutLogs.slice(0, 3).map((log, index) => (
+                      <div key={log.id || index} className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-medium">{log.routine_name || '운동'}</h4>
+                          <span className="text-sm text-gray-500">
+                            {new Date(log.date || log.start_time).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>소모 칼로리: {log.calories_burned || 0} kcal</span>
+                          <span>운동 시간: {log.duration || log.duration_minutes || 0} 분</span>
+                        </div>
+                        {log.exercises && log.exercises.length > 0 && (
+                          <div className="mt-2 text-xs text-gray-500">
+                            {log.exercises.length}개 운동 완료
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <Link 
+                      to="/workouts" 
+                      className="w-full block text-center bg-primary text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                    >
+                      운동 기록하기
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <i className="fas fa-clipboard-list text-gray-300 text-4xl mb-4"></i>
+                    <h3 className="text-lg font-bold text-gray-700 mb-2">운동 로그</h3>
+                    <p className="text-gray-500 mb-4">아직 운동 기록이 없습니다. 첫 운동을 시작해보세요!</p>
+                    <Link 
+                      to="/workouts" 
+                      className="inline-flex items-center bg-primary text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                    >
+                      <i className="fas fa-plus mr-2"></i>
+                      운동 기록하기
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        ) : !isAuthenticated ? (
-          // 비로그인 상태
-          <div className="bg-gray-50 rounded-xl p-8 text-center">
-            <i className="fas fa-dumbbell text-gray-300 text-4xl mb-4"></i>
-            <h3 className="text-lg font-bold text-gray-700 mb-2">맞춤 추천 운동</h3>
-            <p className="text-gray-500 mb-4">로그인하면 개인화된 운동 루틴을 추천받을 수 있습니다.</p>
-            <Link 
-              to="/auth/login" 
-              className="inline-flex items-center bg-primary text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              <i className="fas fa-sign-in-alt mr-2"></i>
-              로그인하기
-            </Link>
-          </div>
-        ) : (
-          // 데이터가 없을 때 폴백 표시
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {renderFallbackCards()}
-            </div>
-            <div className="bg-yellow-50 rounded-lg p-4 text-center">
-              <i className="fas fa-info-circle text-yellow-600 mr-2"></i>
-              <span className="text-yellow-800">아직 추천 운동이 없습니다. 곧 다양한 운동 루틴이 추가될 예정입니다!</span>
-            </div>
-          </div>
-        )}
+        </div>
       </section>
 
       {/* 식단 섹션 */}
       <section className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">오늘의 식단</h2>
+          <h2 className="text-xl font-bold">식단 관리</h2>
           <Link to="/diet" className="text-primary font-medium">
             더보기
           </Link>
@@ -409,62 +555,88 @@ function HomePage() {
               <p className="text-gray-500">{dietData.error}</p>
             </div>
           ) : dietData && dietData.todayMealPlan && dietData.todayMealPlan.meals && dietData.todayMealPlan.meals.length > 0 ? (
-            dietData.todayMealPlan.meals.map((meal, index) => {
-              const mealIcons = {
-                '아침': 'fas fa-utensils',
-                '점심': 'fas fa-drumstick-bite',
-                '저녁': 'fas fa-utensils',
-                '간식': 'fas fa-apple-alt'
-              };
-              
-              const mealTypes = {
-                '아침': '고단백',
-                '점심': '균형 잡힌',
-                '저녁': '저칼로리',
-                '간식': '건강한 지방'
-              };
+            <>
+              {dietData.todayMealPlan.meals.map((meal, index) => {
+                const mealIcons = {
+                  '아침': 'fas fa-utensils',
+                  '점심': 'fas fa-drumstick-bite',
+                  '저녁': 'fas fa-utensils',
+                  '간식': 'fas fa-apple-alt'
+                };
+                
+                const mealTypes = {
+                  '아침': '고단백',
+                  '점심': '균형 잡힌',
+                  '저녁': '저칼로리',
+                  '간식': '건강한 지방'
+                };
 
-              return (
-                <Link 
-                  key={index} 
-                  to={`/diet/ingredient/${meal.id || index + 1}`} 
-                  className={`block p-4 hover:bg-gray-50 transition-colors ${
-                    index < dietData.todayMealPlan.meals.length - 1 ? 'border-b border-gray-100' : ''
-                  }`}
+                return (
+                  <Link 
+                    key={index} 
+                    to={`/diet/ingredient/${meal.id || index + 1}`} 
+                    className={`block p-4 hover:bg-gray-50 transition-colors ${
+                      index < dietData.todayMealPlan.meals.length - 1 ? 'border-b border-gray-100' : ''
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center mr-4">
+                        <i className={`${mealIcons[meal.name] || 'fas fa-utensils'} text-primary text-xl`}></i>
+                      </div>
+                      <div className="flex-grow">
+                        <h3 className="font-bold">{meal.name}</h3>
+                        <p className="text-sm text-gray-600">
+                          {meal.foods.join(', ')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-primary">{meal.calories} kcal</p>
+                        <p className="text-xs text-gray-500">{mealTypes[meal.name] || '영양가 있는'}</p>
+                      </div>
+                      <div className="ml-3">
+                        <i className="fas fa-chevron-right text-gray-400"></i>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+              {/* 식단 추천 버튼 */}
+              <div className="p-4 border-t border-gray-100 bg-gray-50">
+                <button
+                  onClick={() => setShowDietModal(true)}
+                  className="w-full bg-primary text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center"
                 >
-                  <div className="flex items-center">
-                    <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center mr-4">
-                      <i className={`${mealIcons[meal.name] || 'fas fa-utensils'} text-primary text-xl`}></i>
-                    </div>
-                    <div className="flex-grow">
-                      <h3 className="font-bold">{meal.name}</h3>
-                      <p className="text-sm text-gray-600">
-                        {meal.foods.join(', ')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-primary">{meal.calories} kcal</p>
-                      <p className="text-xs text-gray-500">{mealTypes[meal.name] || '영양가 있는'}</p>
-                    </div>
-                    <div className="ml-3">
-                      <i className="fas fa-chevron-right text-gray-400"></i>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })
+                  <i className="fas fa-lightbulb mr-2"></i>
+                  맞춤 식단 추천 받기
+                </button>
+              </div>
+            </>
           ) : (
-            <div className="p-8 text-center">
-              <i className="fas fa-utensils text-gray-300 text-3xl mb-3"></i>
-              <p className="text-gray-500 mb-3">오늘 등록된 식사가 없습니다.</p>
-              <Link 
-                to="/diet" 
-                className="inline-flex items-center text-primary hover:text-primary-dark font-medium"
-              >
-                <i className="fas fa-plus mr-1"></i>
-                식사 추가하기
-              </Link>
-            </div>
+            <>
+              <div className="p-8 text-center">
+                <i className="fas fa-utensils text-gray-300 text-3xl mb-3"></i>
+                <p className="text-gray-500 mb-3">오늘 등록된 식사가 없습니다.</p>
+                <Link 
+                  to="/diet" 
+                  className="inline-flex items-center text-primary hover:text-primary-dark font-medium"
+                >
+                  <i className="fas fa-plus mr-1"></i>
+                  식사 추가하기
+                </Link>
+              </div>
+              {/* 로그인했지만 식사가 없는 경우에도 식단 추천 버튼 표시 */}
+              {isAuthenticated && (
+                <div className="p-4 border-t border-gray-100 bg-gray-50">
+                  <button
+                    onClick={() => setShowDietModal(true)}
+                    className="w-full bg-primary text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center"
+                  >
+                    <i className="fas fa-lightbulb mr-2"></i>
+                    맞춤 식단 추천 받기
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -558,6 +730,12 @@ function HomePage() {
           )}
         </div>
       </section>
+
+      {/* 식단 추천 모달 */}
+      <DietRecommendationModal 
+        isOpen={showDietModal}
+        onClose={() => setShowDietModal(false)}
+      />
     </div>
   );
 }

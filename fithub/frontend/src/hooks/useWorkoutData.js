@@ -27,14 +27,52 @@ const useWorkoutData = () => {
       if (filters.completed !== undefined) params.append('completed', filters.completed);
       
       const response = await axiosInstance.get(`/workouts/logs/?${params.toString()}`);
-      setWorkoutLogs(response.data.results || response.data);
-      return response.data;
+      
+      // 응답 데이터 정규화 - 백엔드 API 응답 구조에 맞게 처리
+      const logs = response.data.results || response.data || [];
+      
+      // 데이터 구조 정규화
+      const normalizedLogs = logs.map(log => ({
+        id: log.id,
+        routine_name: log.routine?.name || '운동',
+        date: log.start_time,
+        start_time: log.start_time,
+        end_time: log.end_time,
+        duration: log.duration_minutes,
+        duration_minutes: log.duration_minutes,
+        calories_burned: log.calories_burned,
+        rating: log.rating,
+        mood: log.mood,
+        workout_type: log.workout_type,
+        notes: log.notes,
+        exercises: log.exercises || [],
+        routine: log.routine,
+        user: log.user
+      }));
+      
+      setWorkoutLogs(normalizedLogs);
+      return { results: normalizedLogs, ...response.data };
     } catch (err) {
       console.error('Failed to fetch workout logs:', err);
       setError('운동 로그를 불러오는 중 오류가 발생했습니다.');
       throw err;
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 운동 로그 새로고침 (세션 완료 후 호출용)
+  const refreshWorkoutLogs = async () => {
+    console.log('🔄 refreshWorkoutLogs 함수 실행 시작');
+    try {
+      console.log('📡 운동 로그 데이터 새로고침 중...');
+      await fetchWorkoutLogs();
+      console.log('📈 운동 통계 데이터 새로고침 중...');
+      await fetchWorkoutStats();
+      console.log('✅ 운동 데이터 새로고침 완료');
+    } catch (error) {
+      console.error('❌ 운동 데이터 새로고침 실패:', error);
+      throw error;
     }
   };
 
@@ -183,7 +221,6 @@ const useWorkoutData = () => {
   // =================== 새로 추가된 운동 루틴 관련 기능들 ===================
   // 운동 루틴 목록 조회
   const fetchRoutines = async (filters = {}) => {
-    // 인증되지 않은 사용자도 공개 루틴은 볼 수 있도록 수정
     setLoading(true);
     setError(null);
     
@@ -191,13 +228,17 @@ const useWorkoutData = () => {
       const params = new URLSearchParams();
       if (filters.difficulty_level) params.append('difficulty_level', filters.difficulty_level);
       if (filters.is_featured !== undefined) params.append('is_featured', filters.is_featured);
-      if (filters.is_public !== undefined) params.append('is_public', filters.is_public);
       if (filters.is_template !== undefined) params.append('is_template', filters.is_template);
       if (filters.limit) params.append('limit', filters.limit);
       if (filters.search) params.append('search', filters.search);
       
+      // is_public 파라미터 처리
+      if (filters.is_public !== undefined) {
+        params.append('is_public', filters.is_public.toString());
+      }
+      
       // 인증되지 않은 사용자는 공개 루틴만 볼 수 있음
-      if (!user) {
+      if (!user && !params.has('is_public')) {
         params.append('is_public', 'true');
       }
       
@@ -227,6 +268,7 @@ const useWorkoutData = () => {
     
     try {
       const response = await axiosInstance.get(`/workouts/routines/${routineId}/`);
+      console.log('백엔드에서 받은 루틴 상세 데이터:', response.data);
       setCurrentRoutine(response.data);
       return response.data;
     } catch (err) {
@@ -310,6 +352,36 @@ const useWorkoutData = () => {
     } catch (err) {
       console.error('Failed to copy routine:', err);
       setError('운동 루틴 복사 중 오류가 발생했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 루틴 공개 상태 토글
+  const toggleRoutinePublic = async (routineId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axiosInstance.post(`/workouts/routines/${routineId}/toggle_public/`);
+      
+      // 현재 루틴 상태 업데이트
+      if (currentRoutine && currentRoutine.id === parseInt(routineId)) {
+        setCurrentRoutine(prev => ({ ...prev, is_public: response.data.is_public }));
+      }
+      
+      // 루틴 목록 상태 업데이트
+      setRoutines(prev => prev.map(routine => 
+        routine.id === parseInt(routineId) 
+          ? { ...routine, is_public: response.data.is_public }
+          : routine
+      ));
+      
+      return response.data;
+    } catch (err) {
+      console.error('Failed to toggle routine public:', err);
+      setError('루틴 공개 상태 변경 중 오류가 발생했습니다.');
       throw err;
     } finally {
       setLoading(false);
@@ -489,6 +561,18 @@ const useWorkoutData = () => {
     return streak;
   };
 
+  // 현재 사용자 정보 확인 (디버깅용)
+  const checkCurrentUser = async () => {
+    try {
+      const response = await axiosInstance.get('/auth/user-info/');
+      console.log('현재 로그인된 사용자:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('사용자 정보 확인 실패:', error);
+      throw error;
+    }
+  };
+
   return {
     // =================== 기존 데이터 ===================
     workoutLogs,
@@ -505,6 +589,7 @@ const useWorkoutData = () => {
     
     // =================== 기존 API 함수들 ===================
     fetchWorkoutLogs,
+    refreshWorkoutLogs,
     fetchWorkoutStats,
     addWorkoutLog,
     updateWorkoutLog,
@@ -522,6 +607,7 @@ const useWorkoutData = () => {
     updateRoutine,
     deleteRoutine,
     copyRoutine,
+    toggleRoutinePublic,
     
     // =================== 새로 추가된 운동 로그 상세 운동 API 함수들 ===================
     fetchLogExercises,
@@ -551,7 +637,10 @@ const useWorkoutData = () => {
     clearCurrentExercise: () => setCurrentExercise(null),
     clearCurrentRoutine: () => setCurrentRoutine(null),
     clearLogExercises: () => setLogExercises([]),
-    clearError: () => setError(null)
+    clearError: () => setError(null),
+    
+    // 새로 추가된 함수들
+    checkCurrentUser
   };
 };
 

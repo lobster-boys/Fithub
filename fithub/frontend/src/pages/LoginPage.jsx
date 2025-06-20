@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import LoginForm from '../components/auth/LoginForm.jsx';
+import LoginForm from '../components/auth/LoginForm';
 
 const LoginPage = () => {
   const { isAuthenticated, isLoading } = useAuth();

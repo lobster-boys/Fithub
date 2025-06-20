@@ -21,8 +21,9 @@ import ShoppingCartPage from './pages/ecommerce/ShoppingCartPage';
 import WorkoutDetailPage from './pages/workout/WorkoutDetailPage';
 import IngredientDetailPage from './pages/diet/IngredientDetailPage';
 import DietLogPage from './pages/diet/DietLogPage';
+
 import OnboardingPage from './pages/OnboardingPage';
-import ProfilePage from './pages/ProfilePage.jsx';
+import ProfilePage from './pages/ProfilePage';
 
 // Context and Hooks
 import { AuthProvider } from './context/AuthContext';
@@ -135,6 +136,8 @@ const AnimatedRoutes = () => {
             <IngredientDetailPage />
           </ProtectedPage>
         } />
+
+
         
         {/* 커뮤니티 관련 페이지 (인증 필요) */}
         <Route path="/community" element={

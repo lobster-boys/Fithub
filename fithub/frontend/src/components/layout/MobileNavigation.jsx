@@ -22,14 +22,14 @@ const MobileNavigation = () => {
       label: '식단'
     },
     {
-      path: '/shop',
-      icon: 'fas fa-shopping-bag',
-      label: '스토어'
-    },
-    {
       path: '/community',
       icon: 'fas fa-users',
       label: '커뮤니티'
+    },
+    {
+      path: '/shop',
+      icon: 'fas fa-shopping-bag',
+      label: '스토어'
     },
     {
       path: '/profile',

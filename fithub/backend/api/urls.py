@@ -18,6 +18,7 @@ from api.views.routine_feed_viewset import RoutineFeedViewSet
 
 # ViewSets (단순화된 버전)
 from .views.workouts import ExerciseViewSet, WorkoutRoutineViewSet, WorkoutLogViewSet, WorkoutLogExerciseViewSet, WorkoutTypeViewSet, WorkoutStatsViewSet
+from .views.workouts.session_views import WorkoutSessionViewSet
 from .views.ecommerce import CategoryViewSet, ProductViewSet
 from .views.ecommerce.cart_views import CartViewSet, CartItemViewSet
 from .views.ecommerce.order_views import OrderViewSet
@@ -33,7 +34,7 @@ from .views.users import CustomRegisterView
 from .views.users.csrf_views import get_csrf_token
 from .views.audit import changelog_views
 from .views.diet import food_views, food_search_views, mealplan_views, recommend_views
-from .views.users.auth_views import CustomLogoutView
+from .views.users.auth_views import CustomLogoutView, current_user_info
 
 app_name = "api"
 
@@ -49,6 +50,7 @@ router.register(r"transactions", PointTransactionViewSet, basename="point-transa
 # Workouts 앱 ViewSets
 router.register(r'workouts/exercises', ExerciseViewSet, basename='exercise')
 router.register(r'workouts/routines', WorkoutRoutineViewSet, basename='routine')
+router.register(r'workouts/sessions', WorkoutSessionViewSet, basename='workout-session')
 router.register(r'workouts/logs', WorkoutLogViewSet, basename='log')
 router.register(r'workouts/log-exercises', WorkoutLogExerciseViewSet, basename='log-exercise')
 router.register(r'workouts/types', WorkoutTypeViewSet, basename='workout-type')
@@ -82,7 +84,7 @@ router.register(
 )
 
 # ── 루틴 기본 CRUD ─────────────────────────────────────
-router.register(r"routines", RoutineViewSet, basename="routine")
+router.register(r"routines", RoutineViewSet, basename="community-routine")
 
 # ── 공유 링크 생성·관리 (cc-share-1) ─────────────────────
 router.register(
@@ -108,6 +110,9 @@ router.register(
 urlpatterns = [
     # ViewSet 라우터 URL들
     path('', include(router.urls)),
+    
+    # =================== 사용자 인증 정보 확인 ===================
+    path("auth/user-info/", current_user_info, name="current-user-info"),
     
     # =================== 추천 시스템 (이커머스 전용) ===================
     # Router 기반 API와 별도로 추천 시스템용 API 유지

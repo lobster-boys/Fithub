@@ -13,7 +13,8 @@ const api = axios.create({
 // 요청 인터셉터 (인증 토큰 추가 등)
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
+    // axiosConfig.js와 동일하게 access_token 사용
+    const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -31,8 +32,9 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // 인증 실패 시 로그인 페이지로 리다이렉트
-      localStorage.removeItem('authToken');
+      // 인증 실패 시 토큰 정리 (axiosConfig.js와 일치)
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       window.location.href = '/auth/login';
     }
     return Promise.reject(error);

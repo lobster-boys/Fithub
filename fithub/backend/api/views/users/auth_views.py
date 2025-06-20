@@ -4,7 +4,9 @@ from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from django.contrib.auth.models import User
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -36,4 +38,17 @@ class CustomLogoutView(APIView):
     
     def get(self, request, *args, **kwargs):
         """GET 요청으로도 로그아웃 허용 (개발 편의상)"""
-        return self.post(request, *args, **kwargs) 
+        return self.post(request, *args, **kwargs)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user_info(request):
+    """현재 로그인된 사용자 정보 확인"""
+    user = request.user
+    return Response({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'is_authenticated': user.is_authenticated,
+        'is_staff': user.is_staff,
+    }) 

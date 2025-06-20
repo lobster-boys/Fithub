@@ -480,36 +480,33 @@ class Command(BaseCommand):
         created_count = 0
         total_count = 0
 
+        # 카테고리 이름으로 Category 객체들을 미리 가져오기
+        from ecommerce.models import Category
+        categories = {cat.name: cat for cat in Category.objects.all()}
+
         for category_name, foods in foods_data.items():
+            # 카테고리 확인
+            if category_name not in categories:
+                self.stdout.write(self.style.WARNING(f"카테고리가 없습니다: {category_name}"))
+                continue
+                
+            category = categories[category_name]
+            
             for food_data in foods:
                 total_count += 1
-                # Product는 products_seed.py에서 미리 생성되어 있어야 하며, 이름으로 연결한다.
-                product = Product.objects.filter(name=food_data['name']).first()
-                if not product:
-                    self.stdout.write(self.style.WARNING(f"연결할 Product가 없습니다: {food_data['name']}"))
-                    continue
-
-                # 이미 Product와 연결된 Food가 exist하면 건너뛴다.
-                if hasattr(product, 'food_info'):
+                
+                # 이미 존재하는 Food인지 확인 (이름으로)
+                if Food.objects.filter(name=food_data['name']).exists():
                     self.stdout.write(f"Food 이미 존재합니다: {food_data['name']}")
                     continue
-
-                # Product의 is_food 값이 True이면 Product의 name, description을 사용
-                # 그렇지 않으면 foods_data에 있는 값을 사용
-                if product.is_food:
-                    final_name = product.name
-                    final_description = product.description
-                else:
-                    final_name = food_data['name']
-                    final_description = food_data['description']
 
                 try:
                     food = Food.objects.create(
                         user=default_user,
-                        category=product.category,  # 연결된 Product의 카테고리 사용
-                        product=product,
-                        name=final_name,
-                        description=final_description,
+                        category=category,  # 카테고리 직접 사용
+                        product=None,  # Product 연결 없이 생성
+                        name=food_data['name'],
+                        description=food_data['description'],
                         calories=Decimal(str(food_data['calories'])),
                         protein=Decimal(str(food_data['protein'])),
                         carbs=Decimal(str(food_data['carbs'])),

@@ -80,14 +80,24 @@ def log_model_deletion(sender, instance, **kwargs):
 
 def model_to_dict(instance):
     """모델 인스턴스를 딕셔너리로 변환"""
+    from datetime import datetime, date
+    import decimal
+    
     data = {}
     for field in instance._meta.fields:
         if field.name.startswith('_'):
             continue
         value = getattr(instance, field.name)
+        
         if field.is_relation:
             # 관계형 필드: 값이 있으면 pk, 없으면 None
             data[field.name] = value.pk if value is not None else None
+        elif isinstance(value, (datetime, date)):
+            # datetime/date 필드: ISO 포맷 문자열로 변환
+            data[field.name] = value.isoformat() if value is not None else None
+        elif isinstance(value, decimal.Decimal):
+            # Decimal 필드: float으로 변환
+            data[field.name] = float(value) if value is not None else None
         else:
             data[field.name] = value
     return data

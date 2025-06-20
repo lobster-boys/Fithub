@@ -139,6 +139,64 @@ export const dietService = {
       start_date: startDate, 
       end_date: endDate 
     });
+  },
+
+  // ========== 식단 추천 (Diet Recommendations) ==========
+
+  // 기본 식단 추천 (사용자 프로필 기반)
+  getBasicRecommendation: async () => {
+    try {
+      // 디버깅: API 호출 재활성화
+      console.log('Diet recommend API call - attempting to reach backend');
+      
+      const response = await api.get('/diet/recommend/');
+      console.log('Diet recommend API call successful:', response);
+      return response.data;
+    } catch (error) {
+      console.error('기본 식단 추천 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 맞춤형 식단 추천 (상세 옵션 포함)
+  getCustomRecommendation: async (options = {}) => {
+    try {
+      const {
+        mealCount = 3,
+        topN = 5,
+        candidateFoodIds = null,
+        mealType = null
+      } = options;
+
+      const requestData = {
+        meal_count: mealCount,
+        top_n: topN,
+        ...(candidateFoodIds && { candidate_food_ids: candidateFoodIds }),
+        ...(mealType && { meal_type: mealType })
+      };
+
+      const response = await api.post('/diet/recommend/', requestData);
+      return response.data;
+    } catch (error) {
+      console.error('맞춤형 식단 추천 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 특정 음식들을 기반으로 한 추천
+  getRecommendationWithFoods: async (foodIds, options = {}) => {
+    return dietService.getCustomRecommendation({
+      ...options,
+      candidateFoodIds: foodIds
+    });
+  },
+
+  // 특정 식사 타입에 대한 추천 (아침, 점심, 저녁 등)
+  getRecommendationByMealType: async (mealType, options = {}) => {
+    return dietService.getCustomRecommendation({
+      ...options,
+      mealType
+    });
   }
 };
 

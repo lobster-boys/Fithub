@@ -520,6 +520,15 @@ const DietLogPage = () => {
             <h2 className="text-xl font-bold">식단 로그</h2>
             
             <div className="flex items-center">
+              {/* 식단 추천 버튼 */}
+              <Link
+                to="/diet/recommendation"
+                className="bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 flex items-center shadow-sm mr-3"
+              >
+                <i className="fas fa-lightbulb mr-2"></i>
+                <span>식단 추천</span>
+              </Link>
+              
               {/* 식사 추가 버튼 */}
               <button
                 onClick={() => setShowAddMealModal(true)}

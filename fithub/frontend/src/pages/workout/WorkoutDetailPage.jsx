@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import useWorkoutData from '../../hooks/useWorkoutData';
+import { useAuth } from '../../context/AuthContext';
+import WorkoutTimer from '../../components/workouts/WorkoutTimer';
 
 const WorkoutDetailPage = () => {
   const { workoutId, exerciseId } = useParams();
+  const { user } = useAuth();
   const {
     // 데이터
     currentExercise,
@@ -19,6 +22,7 @@ const WorkoutDetailPage = () => {
     fetchExercises,
     fetchLogExercises,
     updateRoutine,
+    copyRoutine,
     
     // 상태 초기화 함수들
     clearCurrentExercise,
@@ -29,6 +33,7 @@ const WorkoutDetailPage = () => {
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [customRoutine, setCustomRoutine] = useState([]);
   const [showAdditionalExercises, setShowAdditionalExercises] = useState(false);
+  const [showWorkoutTimer, setShowWorkoutTimer] = useState(false);
 
   useEffect(() => {
     // 컴포넌트 마운트 시 상태 초기화
@@ -47,8 +52,14 @@ const WorkoutDetailPage = () => {
 
   // 루틴 데이터가 로드되면 커스텀 루틴에 설정
   useEffect(() => {
-    if (currentRoutine && currentRoutine.routine_exercises) {
-      setCustomRoutine(currentRoutine.routine_exercises);
+    if (currentRoutine) {
+      console.log('CurrentRoutine 데이터:', currentRoutine);
+      
+      // exercises, routine_exercises 필드를 확인 (백엔드에서 다른 필드명으로 올 수 있음)
+      const exercisesList = currentRoutine.exercises || currentRoutine.routine_exercises || [];
+      console.log('운동 목록:', exercisesList);
+      
+      setCustomRoutine(exercisesList);
     }
   }, [currentRoutine]);
 
@@ -61,6 +72,19 @@ const WorkoutDetailPage = () => {
 
   const handleExerciseClick = (exercise) => {
     setSelectedExercise(exercise);
+  };
+
+  // 내 루틴에 추가 (복사) 기능
+  const handleCopyToMyRoutines = async () => {
+    if (!currentRoutine) return;
+    
+    try {
+      const result = await copyRoutine(currentRoutine.id);
+      alert(`"${result.name}" 루틴이 내 루틴에 추가되었습니다!`);
+    } catch (error) {
+      console.error('루틴 복사 실패:', error);
+      alert('루틴 복사에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   const handleAddExercise = async (exercise) => {
@@ -227,7 +251,10 @@ const WorkoutDetailPage = () => {
                 )}
                 
                 <div className="pt-4">
-                  <button className="w-full bg-primary hover:bg-orange-600 text-white py-3 px-6 rounded-lg font-medium transition-colors">
+                  <button 
+                    onClick={() => setShowWorkoutTimer(true)}
+                    className="w-full bg-primary hover:bg-orange-600 text-white py-3 px-6 rounded-lg font-medium transition-colors"
+                  >
                     <i className="fas fa-play mr-2"></i>
                     운동 시작하기
                   </button>
@@ -236,6 +263,25 @@ const WorkoutDetailPage = () => {
             </div>
           </div>
           
+          {/* 타이머 컴포넌트 - 개별 운동용 */}
+          {showWorkoutTimer && (
+            <div className="mt-8">
+              <WorkoutTimer
+                routineId={null} // 개별 운동이므로 루틴 ID 없음
+                exerciseId={currentExercise.id}
+                onSessionEnd={(session) => {
+                  setShowWorkoutTimer(false);
+                  alert('운동이 완료되었습니다! 수고하셨습니다.');
+                }}
+                onSessionError={(error) => {
+                  console.error('세션 오류:', error);
+                  alert('운동 세션 중 오류가 발생했습니다.');
+                  setShowWorkoutTimer(false);
+                }}
+              />
+            </div>
+          )}
+
           {/* 운동 팁 및 주의사항 */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-blue-50 p-6 rounded-xl">
@@ -294,16 +340,30 @@ const WorkoutDetailPage = () => {
       <div className="container mx-auto p-4">
         {/* 운동 상세 정보 헤더 */}
         <div className="mb-8">
-          <div className="flex items-center mb-4">
-            <button
-              onClick={() => window.history.back()}
-              className="mr-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-            >
-              <i className="fas fa-arrow-left"></i>
-            </button>
-            <h1 className="text-3xl font-bold">{currentRoutine.name}</h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <button
+                onClick={() => window.history.back()}
+                className="mr-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                <i className="fas fa-arrow-left"></i>
+              </button>
+              <h1 className="text-3xl font-bold">{currentRoutine.name}</h1>
+            </div>
+            
+            {/* 내 루틴에 추가 버튼 - 다른 사람의 루틴인 경우에만 표시 */}
+            {user && currentRoutine.user && currentRoutine.user.username !== user.username && (
+              <button
+                onClick={handleCopyToMyRoutines}
+                className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center"
+              >
+                <i className="fas fa-plus mr-2"></i>
+                내 루틴에 추가
+              </button>
+            )}
           </div>
           
+          {/* 루틴 정보 표시 */}
           <div className="flex items-center mb-2">
             <span className={`px-3 py-1 rounded-full text-sm mr-2 ${getDifficultyStyle(currentRoutine.difficulty_level)}`}>
               {getDifficultyText(currentRoutine.difficulty_level)}
@@ -318,10 +378,66 @@ const WorkoutDetailPage = () => {
             )}
           </div>
           
+          {/* 루틴 작성자 정보 */}
+          {currentRoutine.user && (
+            <div className="text-sm text-gray-600 mb-2">
+              <i className="fas fa-user mr-1"></i>
+              작성자: {currentRoutine.user.username}
+            </div>
+          )}
+          
           {currentRoutine.description && (
             <p className="text-gray-700 mb-3">{currentRoutine.description}</p>
           )}
         </div>
+
+        {/* 운동 시작 버튼 */}
+        {!showWorkoutTimer && customRoutine && customRoutine.length > 0 && (
+          <div className="mb-8 text-center">
+            <button
+              onClick={() => setShowWorkoutTimer(true)}
+              className="bg-gradient-to-r from-primary to-orange-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-orange-600 hover:to-primary transition-all transform hover:scale-105 shadow-lg"
+            >
+              <i className="fas fa-play mr-3"></i>
+              운동 시작하기
+            </button>
+          </div>
+        )}
+
+        {/* 타이머 컴포넌트 */}
+        {showWorkoutTimer && (
+          <div className="mb-8">
+            <WorkoutTimer
+              routineId={currentRoutine.id}
+              onSessionEnd={({ duration, session, workoutLog }) => {
+                setShowWorkoutTimer(false);
+                
+                if (workoutLog) {
+                  // 운동 로그 정보로 더 상세한 완료 메시지 표시
+                  const exerciseCount = workoutLog.exercises?.length || 0;
+                  const totalCalories = workoutLog.calories_burned || 0;
+                  const durationMinutes = Math.round(duration / 60);
+                  
+                  alert(`🎉 운동 완료! 수고하셨습니다!\n\n` +
+                        `📊 운동 결과:\n` +
+                        `• 운동 시간: ${durationMinutes}분\n` +
+                        `• 완료한 운동: ${exerciseCount}개\n` +
+                        `• 소모 칼로리: ${totalCalories}kcal\n\n` +
+                        `운동 로그가 자동으로 저장되었습니다.`);
+                  
+                  console.log('운동 완료 - 로그 저장됨:', workoutLog);
+                } else {
+                  alert('🎉 운동이 완료되었습니다! 수고하셨습니다.');
+                }
+              }}
+              onSessionError={(error) => {
+                console.error('세션 오류:', error);
+                alert('운동 세션 중 오류가 발생했습니다.');
+                setShowWorkoutTimer(false);
+              }}
+            />
+          </div>
+        )}
 
         {/* 기본 운동 루틴 */}
         <div className="mb-8">
@@ -335,31 +451,44 @@ const WorkoutDetailPage = () => {
             </button>
           </div>
           
-          {customRoutine.length > 0 ? (
+          {customRoutine && customRoutine.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {customRoutine.map((routineExercise, index) => {
+                // 데이터 구조 확인 및 안전한 접근
+                console.log(`운동 ${index + 1} 데이터:`, routineExercise);
+                
+                // exercise 객체 추출 (여러 가능한 구조를 고려)
                 const exercise = routineExercise.exercise || routineExercise;
+                
+                // 기본 정보 추출
+                const exerciseName = exercise.name || exercise.exercise_name || `운동 ${index + 1}`;
+                const exerciseId = exercise.id || routineExercise.exercise_id || index;
+                const sets = routineExercise.sets || exercise.sets || 3;
+                const reps = routineExercise.reps || exercise.reps || 10;
+                const muscleGroup = exercise.muscle_groups || exercise.primary_muscle_group || exercise.target_muscle_group || '전신';
+                const imageUrl = exercise.image_url || exercise.video_url || `https://picsum.photos/300/200?random=${exerciseId}`;
+                
                 return (
                   <div 
-                    key={exercise.id || index} 
+                    key={exerciseId} 
                     className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
                     onClick={() => handleExerciseClick(routineExercise)}
                   >
                     <img 
-                      src={exercise.image_url || 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80'} 
-                      alt={exercise.name}
+                      src={imageUrl} 
+                      alt={exerciseName}
                       className="w-full h-48 object-cover"
                       onError={(e) => {
                         e.target.src = 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80';
                       }}
                     />
                     <div className="p-4">
-                      <h3 className="text-xl font-semibold mb-2">{exercise.name}</h3>
+                      <h3 className="text-xl font-semibold mb-2">{exerciseName}</h3>
                       <p className="text-gray-500 mb-1">
-                        타겟: {exercise.primary_muscle_group || '미설정'}
+                        타겟: {muscleGroup}
                       </p>
                       <div className="flex justify-between text-sm text-gray-600 mt-2">
-                        <span>{routineExercise.sets || 3}세트 x {routineExercise.reps || 10}회</span>
+                        <span>{sets}세트 x {reps}회</span>
                         {routineExercise.rest_time && (
                           <span>휴식: {routineExercise.rest_time}초</span>
                         )}

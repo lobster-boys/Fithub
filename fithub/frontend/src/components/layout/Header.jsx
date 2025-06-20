@@ -64,6 +64,26 @@ const Header = () => {
                     >
                       <i className="fas fa-user mr-2"></i>프로필
                     </Link>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <Link 
+                      to="/routine-feed" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <i className="fas fa-share-alt mr-2"></i>루틴 피드
+                    </Link>
+                    <Link 
+                      to="/diet/recommendation" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <i className="fas fa-utensils mr-2"></i>식단 추천
+                    </Link>
+                    <Link 
+                      to="/community" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <i className="fas fa-users mr-2"></i>커뮤니티
+                    </Link>
+                    <div className="border-t border-gray-100 my-1"></div>
                     <Link 
                       to="/settings" 
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

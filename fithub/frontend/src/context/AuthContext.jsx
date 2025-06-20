@@ -1,9 +1,18 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import axiosInstance from '../api/axiosConfig';
 import { getOnboardingStatus } from '../api';
 
 // 인증 컨텍스트 생성
 export const AuthContext = createContext();
+
+// useAuth 훅 추가
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

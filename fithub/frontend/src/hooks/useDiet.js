@@ -486,4 +486,201 @@ export const useDietStats = (period = 'week') => {
   };
 };
 
+// 식단 추천 관리 커스텀 훅
+export const useDietRecommendation = () => {
+  const [recommendations, setRecommendations] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // 기본 추천 조회
+  const fetchBasicRecommendation = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('useDietRecommendation: Starting basic recommendation fetch');
+      const data = await dietService.getBasicRecommendation();
+      console.log('useDietRecommendation: Basic recommendation fetch successful');
+      setRecommendations(data);
+      return data;
+    } catch (err) {
+      console.error('useDietRecommendation: Basic recommendation fetch error:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        message: err.message,
+        url: err.config?.url
+      });
+      
+      // 401 (인증 오류) 에러는 재시도하지 않고 조용히 처리
+      if (err.response?.status === 401) {
+        console.log('useDietRecommendation: 401 Unauthorized - authentication required');
+        setError('로그인이 필요한 서비스입니다.');
+        // 401 에러 시에는 샘플 데이터도 제공하지 않음
+        setRecommendations(null);
+        return null;
+      }
+      
+      if (err.response?.status === 404 || err.response?.status === 500) {
+        console.log('useDietRecommendation: API not available, providing sample data');
+        // 백엔드 API가 구현되지 않은 경우 샘플 데이터 제공
+        const sampleData = {
+          summary: {
+            total_calories: 2000,
+            meal_count: 3,
+            food_count: 9
+          },
+          meals: [
+            {
+              meal_type: 'breakfast',
+              total_calories: 600,
+              foods: [
+                { name: '오트밀', calories: 150, protein: 5, carbs: 27, fat: 3 },
+                { name: '바나나', calories: 90, protein: 1, carbs: 23, fat: 0 },
+                { name: '저지방 우유', calories: 80, protein: 8, carbs: 12, fat: 0 }
+              ]
+            },
+            {
+              meal_type: 'lunch',
+              total_calories: 700,
+              foods: [
+                { name: '현미밥', calories: 220, protein: 5, carbs: 45, fat: 2 },
+                { name: '닭가슴살', calories: 165, protein: 31, carbs: 0, fat: 4 },
+                { name: '브로콜리', calories: 25, protein: 3, carbs: 5, fat: 0 }
+              ]
+            },
+            {
+              meal_type: 'dinner',
+              total_calories: 700,
+              foods: [
+                { name: '연어구이', calories: 250, protein: 35, carbs: 0, fat: 12 },
+                { name: '고구마', calories: 100, protein: 2, carbs: 23, fat: 0 },
+                { name: '샐러드', calories: 50, protein: 3, carbs: 10, fat: 0 }
+              ]
+            }
+          ]
+        };
+        setRecommendations(sampleData);
+        return sampleData;
+      }
+      
+      // 기타 에러의 경우 에러 메시지 설정
+      setError('기본 식단 추천을 불러오는데 실패했습니다.');
+      setRecommendations(null);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 맞춤형 추천 조회
+  const fetchCustomRecommendation = useCallback(async (options = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('useDietRecommendation: Starting custom recommendation fetch with options:', options);
+      const data = await dietService.getCustomRecommendation(options);
+      console.log('useDietRecommendation: Custom recommendation fetch successful');
+      setRecommendations(data);
+      return data;
+    } catch (err) {
+      console.error('useDietRecommendation: Custom recommendation fetch error:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        message: err.message,
+        url: err.config?.url,
+        options
+      });
+      
+      // 401 (인증 오류) 에러는 재시도하지 않고 조용히 처리
+      if (err.response?.status === 401) {
+        console.log('useDietRecommendation: 401 Unauthorized - authentication required');
+        setError('로그인이 필요한 서비스입니다.');
+        setRecommendations(null);
+        return null;
+      }
+      
+      setError('맞춤형 식단 추천을 불러오는데 실패했습니다.');
+      setRecommendations(null);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 특정 음식들을 기반으로 한 추천
+  const fetchRecommendationWithFoods = useCallback(async (foodIds, options = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await dietService.getRecommendationWithFoods(foodIds, options);
+      setRecommendations(data);
+      return data;
+    } catch (err) {
+      console.error('Food-based recommendation fetch error:', err);
+      
+      // 401 (인증 오류) 에러는 재시도하지 않고 조용히 처리
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        return null;
+      }
+      
+      setError('음식 기반 식단 추천을 불러오는데 실패했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 특정 식사 타입에 대한 추천
+  const fetchRecommendationByMealType = useCallback(async (mealType, options = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await dietService.getRecommendationByMealType(mealType, options);
+      setRecommendations(data);
+      return data;
+    } catch (err) {
+      console.error('Meal type recommendation fetch error:', err);
+      
+      // 401 (인증 오류) 에러는 재시도하지 않고 조용히 처리
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        return null;
+      }
+      
+      setError('식사 타입별 식단 추천을 불러오는데 실패했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 추천 결과 초기화
+  const clearRecommendations = useCallback(() => {
+    setRecommendations(null);
+    setError(null);
+  }, []);
+
+  // 에러 초기화
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  return {
+    // 상태
+    recommendations,
+    loading,
+    error,
+
+    // 추천 관련 함수들
+    fetchBasicRecommendation,
+    fetchCustomRecommendation,
+    fetchRecommendationWithFoods,
+    fetchRecommendationByMealType,
+
+    // 유틸리티 함수들
+    clearRecommendations,
+    clearError
+  };
+};
+
 export default useDiet; 

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageTransition from '../../components/layout/PageTransition';
 import useWorkoutData from '../../hooks/useWorkoutData';
+import { useAuth } from '../../context/AuthContext';
 
 const WorkoutLogPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   // 웹킷 스크롤바 숨기기 스타일 추가
   React.useEffect(() => {
@@ -30,13 +32,17 @@ const WorkoutLogPage = () => {
     getMonthlyStats,
     bulkAddLogExercises,
     fetchWorkoutLogs,
+    refreshWorkoutLogs,
     createRoutine,
     fetchExercises,
     exercises,
     routines: backendRoutines,
     fetchRoutines,
     loading: workoutLoading,
-    error: workoutError
+    error: workoutError,
+    deleteRoutine,
+    toggleRoutinePublic,
+    checkCurrentUser
   } = useWorkoutData();
 
   // 주간 및 월간 통계 데이터
@@ -50,8 +56,11 @@ const WorkoutLogPage = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // 공개 루틴 먼저 시도 (인증 불필요)
-        await fetchRoutines({ is_public: true, limit: 10 });
+        // 사용자의 개인 루틴 가져오기 (공개 루틴이 아닌)
+        await fetchRoutines({ is_public: false, limit: 10 }); // is_public: false로 변경
+        
+        // 운동 로그 가져오기
+        await fetchWorkoutLogs();
         
         // 운동 종목 가져오기 (실패해도 폴백 데이터 사용)
         try {
@@ -87,7 +96,8 @@ const WorkoutLogPage = () => {
           })),
           targetMuscles: routine.target_muscle_groups ? 
             routine.target_muscle_groups.split(',').map(muscle => muscle.trim()) : ['전신'],
-          image: `https://picsum.photos/300/200?random=${routine.id}`
+          image: `https://picsum.photos/300/200?random=${routine.id}`,
+          is_public: routine.is_public || false
         }));
       setRoutines(formattedRoutines);
     } else if (backendRoutines && backendRoutines.length === 0) {
@@ -102,6 +112,8 @@ const WorkoutLogPage = () => {
   const [selectedBodyPart, setSelectedBodyPart] = useState('');
   const [selectedWorkoutType, setSelectedWorkoutType] = useState('');
   const [showExercises, setShowExercises] = useState(false);
+  
+
   
   // 루틴 생성 관련 상태
   const [selectedExercises, setSelectedExercises] = useState([]);
@@ -138,6 +150,21 @@ const WorkoutLogPage = () => {
 
   // 로그 필터 상태
   const [logPeriod, setLogPeriod] = useState('daily'); // 'daily', 'weekly', 'monthly'
+
+  // 글로벌 새로고침 함수 등록 (운동 완료 시 사용)
+  useEffect(() => {
+    if (refreshWorkoutLogs) {
+      console.log('🌐 WorkoutLogPage: 글로벌 새로고침 함수 등록');
+      window.refreshWorkoutLogs = refreshWorkoutLogs;
+    } else {
+      console.log('⚠️ WorkoutLogPage: refreshWorkoutLogs 함수가 없음');
+    }
+    
+    return () => {
+      console.log('🧹 WorkoutLogPage: 글로벌 새로고침 함수 해제');
+      delete window.refreshWorkoutLogs;
+    };
+  }, [refreshWorkoutLogs]);
 
   // 캐러셀 스크롤 상태 확인
   const checkScrollButtons = () => {
@@ -327,63 +354,51 @@ const WorkoutLogPage = () => {
   // 루틴 생성 핸들러 (백엔드 API 연동)
   const handleCreateRoutine = async () => {
     if (!routineTitle.trim() || selectedExercises.length === 0) {
-      alert('루틴 제목과 최소 1개의 운동을 선택해주세요.');
+      alert('루틴 제목과 운동을 선택해주세요.');
       return;
     }
 
     try {
-      // 운동 타입 라벨 찾기
-      const workoutTypeLabel = workoutTypes.find(t => t.value === selectedWorkoutType)?.label || selectedWorkoutType;
+      // 난이도 매핑
+      const difficultyMap = { '초급': 'beginner', '중급': 'intermediate', '고급': 'advanced' };
       
-      // 백엔드 API 형식에 맞게 데이터 구성
+      // 운동들을 routine_exercises 형태로 변환
+      const routineExercises = selectedExercises.map((exercise, index) => {
+        // sets와 reps 파싱 함수
+        const parseSetsReps = (value) => {
+          if (typeof value === 'string' && value.includes('x')) {
+            return parseInt(value.split('x')[0]) || 3;
+          }
+          return parseInt(value) || 3;
+        };
+
+        return {
+          exercise_id: exercise.id,
+          exercise_name: exercise.name,
+          sets: parseSetsReps(exercise.sets),
+          reps: parseSetsReps(exercise.reps),
+          order: index + 1
+        };
+      });
+
       const routineData = {
         name: routineTitle.trim(),
-        description: `${bodyParts.find(p => p.value === selectedBodyPart)?.label} 중심의 ${workoutTypeLabel} 루틴`,
-        difficulty_level: routineLevel === '초급' ? 'beginner' : 
-                         routineLevel === '중급' ? 'intermediate' : 'advanced',
-        estimated_duration: selectedExercises.length * 15, // 운동당 15분 예상
-        is_public: true, // 홈페이지에서 보이도록 공개 루틴으로 설정
-        exercises: selectedExercises.map((exercise, index) => {
-          // sets와 reps 값을 안전하게 파싱
-          const parseSetsReps = (value) => {
-            if (!value) return 0;
-            if (typeof value === 'number') return value;
-            const strValue = String(value);
-            const firstNumber = strValue.split(/[-~×x]/)[0];
-            return parseInt(firstNumber) || 0;
-          };
-          
-          return {
-            exercise_id: typeof exercise.id === 'string' ? null : exercise.id, // 백엔드 운동 ID
-            exercise_name: exercise.name, // 폴백용 운동 이름
-            sets: parseSetsReps(exercise.sets) || 3,
-            reps: parseSetsReps(exercise.reps) || 10,
-            order: index + 1
-          };
-        })
+        description: `${selectedExercises.map(ex => ex.name).join(', ')} 루틴`,
+        difficulty_level: difficultyMap[routineLevel] || 'beginner',
+        estimated_duration: selectedExercises.length * 15,
+        is_public: false,
+        routine_exercises: routineExercises
       };
 
-
+      await createRoutine(routineData);
       
-      // 백엔드에 루틴 생성 요청
-      const createdRoutine = await createRoutine(routineData);
+      // 성공 시 루틴 목록 새로고침
+      await fetchRoutines({ is_public: false, limit: 10 });
       
-      console.log('생성된 루틴:', createdRoutine);
-      
-      // 성공 시 모달 닫기 및 루틴 목록 새로고침
       resetRoutineModal();
-      await fetchRoutines(); // 루틴 목록 새로고침
-      
-      alert('새 루틴이 성공적으로 생성되었습니다!');
-      
     } catch (error) {
       console.error('루틴 생성 실패:', error);
-      
-      // 에러 메시지 표시
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.detail || 
-                          '루틴 생성 중 오류가 발생했습니다.';
-      alert(errorMessage);
+      alert('루틴 생성에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -396,6 +411,47 @@ const WorkoutLogPage = () => {
     setSelectedExercises([]);
     setRoutineTitle('');
     setRoutineLevel('초급');
+  };
+
+  // 루틴 공개 상태 토글 핸들러
+  const handleToggleRoutinePublic = async (routine) => {
+    try {
+      const result = await toggleRoutinePublic(routine.id);
+      // 로컬 상태 업데이트
+      setRoutines(prev => prev.map(r => 
+        r.id === routine.id 
+          ? { ...r, is_public: result.is_public }
+          : r
+      ));
+    } catch (error) {
+      console.error('루틴 공개 상태 토글 실패:', error);
+    }
+  };
+
+  // 루틴 삭제 함수 추가
+  const handleDeleteRoutine = async (routineId, routineName) => {
+    try {
+      // 현재 사용자 정보 확인 (디버깅용)
+      await checkCurrentUser();
+      
+      console.log(`루틴 삭제 시도: ID=${routineId}, 이름=${routineName}`);
+      
+      await deleteRoutine(routineId);
+      
+      // 성공 시 루틴 목록 새로고침
+      await fetchRoutines({ is_public: false, limit: 10 });
+      
+    } catch (error) {
+      console.error('루틴 삭제 실패:', error);
+      
+      // 에러 상세 정보 출력
+      if (error.response) {
+        console.error('응답 상태:', error.response.status);
+        console.error('응답 데이터:', error.response.data);
+      }
+      
+      alert('루틴 삭제에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   // 주간 데이터 계산 (차트용)
@@ -494,7 +550,7 @@ const WorkoutLogPage = () => {
         exercises: [],
         type: '근력 운동'
       });
-      alert('운동 기록이 성공적으로 추가되었습니다!');
+      // alert 제거로 UX 개선
     } catch (error) {
       console.error('운동 로그 추가 실패:', error);
       alert('운동 기록 추가에 실패했습니다. 다시 시도해주세요.');
@@ -562,11 +618,9 @@ const WorkoutLogPage = () => {
 
   // 운동 로그 삭제 핸들러
   const handleDeleteLog = (logId) => {
-    if (confirm('정말로 이 운동 기록을 삭제하시겠습니까?')) {
-      setWorkoutLogs(prev => prev.filter(log => log.id !== logId));
-      setShowDetailModal(false);
-      setShowEditModal(false);
-    }
+    setWorkoutLogs(prev => prev.filter(log => log.id !== logId));
+    setShowDetailModal(false);
+    setShowEditModal(false);
   };
 
   // 수정 중인 운동 종목 업데이트
@@ -685,67 +739,126 @@ const WorkoutLogPage = () => {
               }}
               onScroll={checkScrollButtons}
             >
-              {(routines || []).filter(routine => routine && routine.id).map((routine) => (
-                <div 
-                  key={routine.id} 
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0"
-                  style={{ 
-                    minWidth: '280px', 
-                    width: '280px',
-                    scrollSnapAlign: 'start'
-                  }}
-                >
-                  <img 
-                    src={routine.image}
-                    alt={routine.title}
-                    className="w-full h-40 object-cover"
-                  />
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-bold">{routine.title}</h3>
-                      <span className="bg-primary text-white text-xs px-2 py-1 rounded-full">
-                        {routine.level}
-                      </span>
-                    </div>
-                    
-                    <p className="text-sm text-gray-600 mb-3">
-                      <i className="far fa-clock mr-1"></i> {routine.duration}분 운동
-                    </p>
-                    
-                    <div className="mb-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">주요 운동:</h4>
-                      <ul className="text-sm text-gray-600">
-                        {(routine.exercises || []).slice(0, 2).map((exercise, idx) => (
-                          <li key={`${routine.id}-exercise-${idx}`} className="mb-1">- {exercise.name} ({exercise.sets}세트 x {exercise.reps}회)</li>
-                        ))}
-                        {(routine.exercises || []).length > 2 && (
-                          <li key={`${routine.id}-more`} className="text-gray-500">+ {(routine.exercises || []).length - 2}개 더...</li>
-                        )}
-                      </ul>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {(routine.targetMuscles || []).map((muscle, idx) => (
-                        <span key={`${routine.id}-muscle-${idx}`} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
-                          {muscle}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <Link
-                        to={`/workouts/${routine.id}`}
-                        className="text-primary hover:text-primary-dark font-medium text-sm"
+              {(routines || []).filter(routine => routine && routine.id).map((routine) => {
+                // 디버깅: 루틴 데이터 확인
+                console.log('루틴 데이터:', {
+                  id: routine.id,
+                  name: routine.name,
+                  is_copied: routine.is_copied,
+                  user: routine.user,
+                  currentUser: user
+                });
+                
+                return (
+                  <div 
+                    key={routine.id} 
+                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0 relative group"
+                    style={{ 
+                      minWidth: '280px', 
+                      width: '280px',
+                      scrollSnapAlign: 'start'
+                    }}
+                  >
+                    {/* 삭제 버튼 - 복사된 루틴이거나 본인이 만든 루틴인 경우에만 표시 */}
+                    {/* 디버깅: 모든 루틴에 삭제 버튼 표시하여 데이터 확인 */}
+                    {(routine.is_copied || routine.user?.username === user?.username || true) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRoutine(routine.id, routine.name);
+                        }}
+                        className="absolute top-2 right-2 z-10 bg-white/80 hover:bg-orange-500 text-gray-600 hover:text-white w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm shadow-md"
+                        title="루틴 삭제"
                       >
-                        자세히 보기
-                      </Link>
-                      <button className="text-primary hover:text-primary-dark font-medium text-sm">
-                        시작하기
+                        <i className="fas fa-times text-sm"></i>
                       </button>
+                    )}
+                    
+                    <div className="aspect-video bg-gradient-to-r from-blue-400 to-blue-600 relative">
+                      <div className="absolute inset-0 flex flex-col justify-center items-center text-white p-4">
+                        <h3 className="font-bold text-lg mb-2 text-center">{routine.name || routine.title}</h3>
+                        
+                        {/* 복사된 루틴 표시 */}
+                        {routine.is_copied && routine.original_author && (
+                          <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs mb-2">
+                            <i className="fas fa-copy mr-1"></i>
+                            {routine.original_author}님의 루틴
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center space-x-4 text-sm">
+                          <span className="flex items-center">
+                            <i className="fas fa-clock mr-1"></i>
+                            {routine.estimated_duration || routine.duration || 30}분
+                          </span>
+                          <span className="flex items-center">
+                            <i className="fas fa-dumbbell mr-1"></i>
+                            {routine.exercise_count || (routine.exercises && routine.exercises.length) || 0}개
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-lg font-bold">{routine.title}</h3>
+                        <span className="bg-primary text-white text-xs px-2 py-1 rounded-full">
+                          {routine.level}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-3">
+                        <i className="far fa-clock mr-1"></i> {routine.duration}분 운동
+                      </p>
+                      
+                      <div className="mb-3">
+                        <h4 className="text-sm font-medium text-gray-700 mb-1">주요 운동:</h4>
+                        <ul className="text-sm text-gray-600">
+                          {(routine.exercises || []).slice(0, 2).map((exercise, idx) => (
+                            <li key={`${routine.id}-exercise-${idx}`} className="mb-1">- {exercise.name} ({exercise.sets}세트 x {exercise.reps}회)</li>
+                          ))}
+                          {(routine.exercises || []).length > 2 && (
+                            <li key={`${routine.id}-more`} className="text-gray-500">+ {(routine.exercises || []).length - 2}개 더...</li>
+                          )}
+                        </ul>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {(routine.targetMuscles || []).map((muscle, idx) => (
+                          <span key={`${routine.id}-muscle-${idx}`} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
+                            {muscle}
+                          </span>
+                        ))}
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/workouts/${routine.id}`}
+                            className="text-primary hover:text-primary-dark font-medium text-sm"
+                          >
+                            자세히 보기
+                          </Link>
+                          <button 
+                            onClick={() => handleToggleRoutinePublic(routine)}
+                            className={`font-medium text-sm flex items-center ${
+                              routine.is_public 
+                                ? 'text-green-600 hover:text-green-800' 
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                            title={routine.is_public ? '공개 중 (클릭하여 비공개로 변경)' : '비공개 (클릭하여 공개로 변경)'}
+                          >
+                            <i className={`fas ${routine.is_public ? 'fa-unlock' : 'fa-lock'} mr-1`}></i>
+                            {routine.is_public ? '공개' : '비공개'}
+                          </button>
+                        </div>
+                        <button className="text-primary hover:text-primary-dark font-medium text-sm">
+                          시작하기
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {/* 새 루틴 추가 카드 */}
               <div 
@@ -1717,6 +1830,8 @@ const WorkoutLogPage = () => {
             </div>
           </div>
         )}
+
+
       </div>
     </PageTransition>
   );
