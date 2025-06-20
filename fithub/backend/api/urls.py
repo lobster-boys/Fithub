@@ -7,9 +7,9 @@ from rest_framework.routers import DefaultRouter
 from .views.challenge_views import ChallengeViewSet,ChallengePointViewSet,SocialShareViewSet
 from .views.point_transaction_views import PointTransactionViewSet
 from .views.challenge_participant_views import ChallengeParticipantViewSet
-from .views.challenge_ranking_views import ChallengeRankingAPIView
 from api.views.routine_share_permission_viewset import RoutineSharePermissionViewSet
 from .views.routine_viewset import RoutineViewSet
+from .views.routine_share_link_viewset import RoutineShareLinkViewSet
 
 # ViewSets (단순화된 버전)
 from .views.workouts import ExerciseViewSet, WorkoutRoutineViewSet, WorkoutLogViewSet, WorkoutLogExerciseViewSet, WorkoutTypeViewSet, WorkoutStatsViewSet
@@ -37,6 +37,7 @@ router = DefaultRouter()
 router.register(r"challenges", ChallengeViewSet, basename="challenge")
 router.register(r"points", ChallengePointViewSet, basename="challenge-point")
 router.register(r"shares", SocialShareViewSet, basename="social-share")
+router.register(r"transactions", PointTransactionViewSet, basename="point-transaction")
 
 # Workouts 앱 ViewSets
 router.register(r'workouts/exercises', ExerciseViewSet, basename='exercise')
@@ -77,6 +78,12 @@ router.register(
 )
 
 router.register(r"routines", RoutineViewSet, basename="shared-routine")
+
+router.register(
+    r"routine-shares",
+    RoutineShareLinkViewSet,
+    basename="routine-share-link",
+)
 
 urlpatterns = [
     # ViewSet 라우터 URL들
@@ -128,5 +135,5 @@ urlpatterns = [
     path('diet/mealplan/<int:pk>/', mealplan_views.MealPlanDetailView.as_view(), name='mealplan-detail'),
     
     # =================== 챌린지 랭킹 ===================
-    path('challenges/ranking/', ChallengeRankingAPIView.as_view(), name='challenge-ranking'),
+    # path('challenges/ranking/', ChallengeRankingAPIView.as_view(), name='challenge-ranking'),
 ]
