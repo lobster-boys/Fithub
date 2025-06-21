@@ -1,6 +1,6 @@
-from rest_framework.views import APIView
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status, permissions
 from django.shortcuts import get_object_or_404
 from datetime import datetime, date
 from diet.models import DietLog
@@ -9,32 +9,35 @@ from ...serializers.diet.diet_log_serializers import (
     DietLogFromRecommendationSerializer
 )
 
-class DietLogListView(APIView):
+class DietLogViewSet(viewsets.ModelViewSet):
     """
-    GET /api/diet/log/ - DietLog 조회 (날짜별, 식사타입별 필터링 지원)
-    POST /api/diet/log/ - 수동 DietLog 생성
+    DietLog CRUD 작업을 위한 ViewSet
+    
+    list: GET /api/diet/log/ - DietLog 목록 조회 (필터링 지원)
+    create: POST /api/diet/log/ - 수동 DietLog 생성
+    retrieve: GET /api/diet/log/{id}/ - 특정 DietLog 조회
+    update: PUT /api/diet/log/{id}/ - DietLog 전체 수정
+    partial_update: PATCH /api/diet/log/{id}/ - DietLog 부분 수정
+    destroy: DELETE /api/diet/log/{id}/ - DietLog 삭제
     """
     permission_classes = [permissions.IsAuthenticated]
     
-    def get(self, request):
-        """DietLog 조회 - 쿼리 파라미터로 필터링"""
-        queryset = DietLog.objects.filter(user=request.user).select_related('food', 'food__category')
+    def get_queryset(self):
+        """사용자별 DietLog 조회 및 필터링"""
+        queryset = DietLog.objects.filter(user=self.request.user).select_related('food', 'food__category')
         
         # 날짜 필터링
-        date_param = request.query_params.get('date')
+        date_param = self.request.query_params.get('date')
         if date_param:
             try:
                 filter_date = datetime.strptime(date_param, '%Y-%m-%d').date()
                 queryset = queryset.filter(date=filter_date)
             except ValueError:
-                return Response({
-                    "status": "error",
-                    "detail": "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요."
-                }, status=status.HTTP_400_BAD_REQUEST)
+                pass  # 잘못된 날짜 형식은 무시
         
         # 날짜 범위 필터링
-        date_from = request.query_params.get('date_from')
-        date_to = request.query_params.get('date_to')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
         if date_from:
             try:
                 from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
@@ -50,18 +53,12 @@ class DietLogListView(APIView):
                 pass
         
         # 식사 타입 필터링
-        meal_type = request.query_params.get('meal_type')
-        if meal_type:
-            if meal_type in ['breakfast', 'lunch', 'dinner', 'snack']:
-                queryset = queryset.filter(meal_type=meal_type)
-            else:
-                return Response({
-                    "status": "error",
-                    "detail": "meal_type은 breakfast, lunch, dinner, snack 중 하나여야 합니다."
-                }, status=status.HTTP_400_BAD_REQUEST)
+        meal_type = self.request.query_params.get('meal_type')
+        if meal_type and meal_type in ['breakfast', 'lunch', 'dinner', 'snack']:
+            queryset = queryset.filter(meal_type=meal_type)
         
         # 추천 기반 여부 필터링
-        is_recommended = request.query_params.get('is_recommended')
+        is_recommended = self.request.query_params.get('is_recommended')
         if is_recommended is not None:
             if is_recommended.lower() == 'true':
                 queryset = queryset.filter(recommended_at__isnull=False)
@@ -69,20 +66,48 @@ class DietLogListView(APIView):
                 queryset = queryset.filter(recommended_at__isnull=True)
         
         # 정렬 (최신순)
-        queryset = queryset.order_by('-date', '-created_at')
+        return queryset.order_by('-date', '-created_at')
+    
+    def get_serializer_class(self):
+        """액션별 적절한 Serializer 반환"""
+        if self.action == 'create':
+            return DietLogCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return DietLogUpdateSerializer
+        return DietLogSerializer
+    
+    def list(self, request, *args, **kwargs):
+        """DietLog 목록 조회 (필터링 지원)"""
+        queryset = self.get_queryset()
         
-        serializer = DietLogSerializer(queryset, many=True)
+        # 필터 검증
+        meal_type = request.query_params.get('meal_type')
+        if meal_type and meal_type not in ['breakfast', 'lunch', 'dinner', 'snack']:
+            return Response({
+                "status": "error",
+                "detail": "meal_type은 breakfast, lunch, dinner, snack 중 하나여야 합니다."
+            }, status=status.HTTP_400_BAD_REQUEST)
         
+        date_param = request.query_params.get('date')
+        if date_param:
+            try:
+                datetime.strptime(date_param, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({
+                    "status": "error",
+                    "detail": "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요."
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = self.get_serializer(queryset, many=True)
         return Response({
             "status": "success",
             "count": queryset.count(),
             "data": serializer.data
         }, status=status.HTTP_200_OK)
     
-    def post(self, request):
+    def create(self, request, *args, **kwargs):
         """수동 DietLog 생성"""
-        serializer = DietLogCreateSerializer(data=request.data, context={'request': request})
-        
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             diet_log = serializer.save()
             output_serializer = DietLogSerializer(diet_log)
@@ -96,33 +121,20 @@ class DietLogListView(APIView):
             "status": "error",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-
-class DietLogDetailView(APIView):
-    """
-    GET /api/diet/log/{id}/ - 특정 DietLog 조회
-    PATCH /api/diet/log/{id}/ - DietLog 수정
-    DELETE /api/diet/log/{id}/ - DietLog 삭제
-    """
-    permission_classes = [permissions.IsAuthenticated]
     
-    def get_object(self, pk, user):
-        return get_object_or_404(DietLog, pk=pk, user=user)
-    
-    def get(self, request, pk):
+    def retrieve(self, request, *args, **kwargs):
         """특정 DietLog 조회"""
-        diet_log = self.get_object(pk, request.user)
-        serializer = DietLogSerializer(diet_log)
-        
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
         return Response({
             "status": "success",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
     
-    def patch(self, request, pk):
-        """DietLog 수정"""
-        diet_log = self.get_object(pk, request.user)
-        serializer = DietLogUpdateSerializer(diet_log, data=request.data, partial=True)
-        
+    def partial_update(self, request, *args, **kwargs):
+        """DietLog 부분 수정"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             updated_diet_log = serializer.save()
             output_serializer = DietLogSerializer(updated_diet_log)
@@ -137,33 +149,29 @@ class DietLogDetailView(APIView):
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    def delete(self, request, pk):
+    def destroy(self, request, *args, **kwargs):
         """DietLog 삭제"""
-        diet_log = self.get_object(pk, request.user)
-        diet_log.delete()
-        
+        instance = self.get_object()
+        instance.delete()
         return Response({
             "status": "success",
             "message": "식단 기록이 삭제되었습니다."
         }, status=status.HTTP_204_NO_CONTENT)
-
-class DietLogFromRecommendationView(APIView):
-    """
-    POST /api/diet/log/from-recommendation/ - 추천 기반 DietLog 생성
-    """
-    permission_classes = [permissions.IsAuthenticated]
     
-    def post(self, request):
-        """추천 기반 DietLog 생성"""
+    @action(detail=False, methods=['post'], url_path='from-recommendation')
+    def from_recommendation(self, request):
+        """
+        추천 기반 DietLog 생성
+        POST /api/diet/log/from-recommendation/
+        """
         serializer = DietLogFromRecommendationSerializer(
-            data=request.data, 
+            data=request.data,
             context={'request': request}
         )
         
         if serializer.is_valid():
             created_logs = serializer.save()
             output_serializer = DietLogSerializer(created_logs, many=True)
-            
             return Response({
                 "status": "success",
                 "count": len(created_logs),
@@ -175,15 +183,13 @@ class DietLogFromRecommendationView(APIView):
             "status": "error",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-
-class DietLogStatsView(APIView):
-    """
-    GET /api/diet/log/stats/ - 식단 통계 (일별, 주별, 월별)
-    """
-    permission_classes = [permissions.IsAuthenticated]
     
-    def get(self, request):
-        """식단 통계 조회"""
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """
+        식단 통계 조회
+        GET /api/diet/log/stats/
+        """
         date_param = request.query_params.get('date', date.today().strftime('%Y-%m-%d'))
         
         try:
