@@ -2,7 +2,8 @@ import re
 from django.db import models
 from django.conf import settings
 from decimal import Decimal, InvalidOperation
-from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import timedelta
 
 # 임의로 사전에 g를 정의(외부 영양 api를 받으면 대체)
 UNIT_TO_G = {
@@ -65,6 +66,32 @@ class RecommendHistory(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.food.name} ({self.meal_type})"
+    
+    @classmethod
+    def get_food_recommendation_frequency(cls, user, food_id, days=30):
+        """특정 음식의 최근 추천 빈도 조회"""
+        cutoff_date = timezone.now() - timedelta(days=days)
+        return cls.objects.filter(
+            user=user,
+            food_id=food_id,
+            recommended_at__gte=cutoff_date
+        ).count()
+    
+    @classmethod
+    def get_frequently_recommended_foods(cls, user, meal_type, days=30, threshold=3):
+        """자주 추천된 음식들 조회"""
+        from django.db.models import Count
+        
+        cutoff_date = timezone.now() - timedelta(days=days)
+        frequent_foods = cls.objects.filter(
+            user=user,
+            meal_type=meal_type,
+            recommended_at__gte=cutoff_date
+        ).values('food_id').annotate(
+            count=Count('food_id')
+        ).filter(count__gte=threshold).values_list('food_id', flat=True)
+        
+        return list(frequent_foods)
     
 # 식단 기록 테이블
 class DietLog(models.Model):
