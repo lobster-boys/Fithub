@@ -8,7 +8,7 @@ import urllib3
 from decimal import Decimal, InvalidOperation
 from dotenv import load_dotenv
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.db import transaction, models
 from diet.models import Food, FoodCategory
 
 # SSL 경고 억제
@@ -53,7 +53,6 @@ class Command(BaseCommand):
         
         # 지방 그룹
         "견과 및 종실류": "지방",
-        "유지류": "지방",
         "튀김류": "지방",
         "볶음류": "지방",
         
@@ -80,6 +79,7 @@ class Command(BaseCommand):
         "음료 및 차류": "간식",
         
         # 기타
+        "곡류": "기타",
         "어패류": "기타",
         "난류": "기타",
         "장류": "기타",
@@ -209,30 +209,76 @@ class Command(BaseCommand):
             self.stdout.write(f"✅ {target_cat}: {source_counts}개 (출처: {mapped_sources})")
 
     def _collect_by_category(self, options):
-        """카테고리별 순차 수집 - 프로세스 요구사항에 따른 균형잡힌 데이터 확보"""
-        self.stdout.write(self.style.SUCCESS("카테고리별 순차 수집 시작..."))
+        """target_calories 기반 동적 데이터 수집"""
+        # 기본 수집량
+        base_amounts = {
+            "단백질": 250,
+            "탄수화물": 300,
+            "지방": 200,
+            "과일": 200,
+            "유제품": 150,
+            "채소": 200,
+        }
         
+        # 사용자 평균 목표 칼로리에 따른 동적 조정
+        try:
+            from users.models import UserProfile
+            avg_target_calories = UserProfile.objects.filter(
+                target_calories__gt=0
+            ).aggregate(
+                avg_calories=models.Avg('target_calories')
+            )['avg_calories'] or 2000
+            
+            # 평균 목표 칼로리가 높으면 더 많은 데이터 수집
+            multiplier = min(avg_target_calories / 2000, 2.0)  # 최대 2배
+            
+            for category in base_amounts:
+                base_amounts[category] = int(base_amounts[category] * multiplier)
+                
+            logger.info(f"평균 목표 칼로리: {avg_target_calories:.0f}kcal, 수집량 배수: {multiplier:.2f}")         
+        except Exception as e:
+            logger.warning(f"동적 수집량 계산 실패, 기본값 사용: {e}")
+
+        self.stdout.write(self.style.SUCCESS("카테고리별 순차 수집 시작..."))
         self._create_default_categories()
         
         # 프로세스 요구사항에 따른 우선순위 카테고리
         priority_categories = [
-            # breakfast 필수 카테고리
+            # 단백질 카테고리 
+            ("육류", "단백질", 250),
+            ("수·조·어·육류", "단백질", 150),        
+            ("구이류", "단백질", 250),
+
+            # 탄수화물 카테고리
+            ("면 및 만두류", "탄수화물", 200),
+            ("밥류", "탄수화물", 250),
+            ("면 및 만두류", "탄수화물", 200),
+            ("국 및 탕류", "탄수화물", 200),
+            ("찜류", "탄수화물", 200),
+            ("떡류", "탄수화물", 150),
+            ("부침류", "탄수화물", 150),
+            ("죽 및 스프류", "탄수화물", 150),
+            ("찌개 및 전골류", "탄수화물", 200),
+
+            # 지방 카테고리
+            ("견과 및 종실류", "지방", 200),
+            ("튀김류", "지방", 150),
+            ("볶음류", "지방", 200),
+            
+            # 과일 카테고리
             ("과일류", "과일", 200),
+            
+            # 유제품 카테고리
             ("유가공품류", "유제품", 150),
             ("유제품류", "유제품", 150),
             
-            # lunch/dinner 필수 카테고리
-            ("육류", "단백질", 300),
-            ("구이류", "단백질", 300),
-            ("견과 및 종실류", "지방", 200),
-            ("유지류", "지방", 100),
-            
-            # 모든 식사 공통
-            ("채소류", "채소", 250),
-            ("곡류", "탄수화물", 300),
-            ("밥류", "탄수화물", 200),
+            # 채소 카테고리
+            ("채소류", "채소", 200),
+            ("김치류", "채소", 150),
+            ("나물·숙채류", "채소", 200),
+            ("생채·무침류", "채소", 200),
+            ("장아찌·절임류", "채소", 150),
         ]
-        
         total_collected = 0
         
         for api_category, target_category, max_items in priority_categories:
@@ -242,7 +288,7 @@ class Command(BaseCommand):
                 collected = self._collect_specific_category(api_category, max_items)
                 total_collected += collected
                 self.stdout.write(self.style.SUCCESS(f"✅ {api_category}: {collected}개 수집 완료"))
-                
+            
                 # API 호출 제한 방지
                 time.sleep(1)
                 
