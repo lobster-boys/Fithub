@@ -20,6 +20,7 @@ GET /api/diet/foods/search/?created_after=2025-05-30T00:00:00&created_before=202
 
 - 상품 및 카테고리 관련 필터
 GET /api/diet/foods/search/?product_name=juice&product_category=2
+GET /api/diet/foods/search/?category=1
 
 - 정렬 옵션 추가 (예: 칼로리 오름차순, 최신순 등)
 GET /api/diet/foods/search/?ordering=calories
@@ -33,30 +34,32 @@ GET /api/diet/foods/search/?search=apple&calories_min=100&calories_max=300&order
 class FoodSearchListView(generics.ListAPIView):
     queryset = Food.objects.all()
     serializer_class = FoodSerializer
-
+    
     # 필터, 검색, 정렬 백엔드 추가
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
         filters.OrderingFilter
     ]
+    
     filterset_class = FoodFilter  # 커스텀 필터 클래스 지정
 
-    # SearchFilter에서 사용할 필드들 
+    # SearchFilter에서 사용할 필드들
     search_fields = [
-        'name', 
-        'description', 
-        'product__name', 
+        'name',
+        'description',
+        'product__name',
         'category__name'
     ]
-    
+
     # OrderingFilter에서 사용할 필드들
     ordering_fields = [
-        'created_at', 
-        'updated_at', 
-        'calories', 
-        'protein', 
-        'carbs', 
+        'created_at',
+        'updated_at',
+        'calories',
+        'protein',
+        'carbs',
         'fat'
     ]
+
     ordering = ['-created_at']  # 기본 정렬 옵션

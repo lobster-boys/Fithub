@@ -1,0 +1,173 @@
+from rest_framework import serializers
+from django.db import transaction
+from django.utils import timezone
+from diet.models import DietLog, Food
+
+class FoodBasicSerializer(serializers.ModelSerializer):
+    """DietLog에서 사용할 기본 Food 정보"""
+    category_name = serializers.StringRelatedField(source='category', read_only=True)
+    
+    class Meta:
+        model = Food
+        fields = ['id', 'name', 'calories', 'protein', 'carbs', 'fat', 'serving_size', 'category_name']
+
+class DietLogSerializer(serializers.ModelSerializer):
+    """DietLog 조회용 serializer"""
+    food = FoodBasicSerializer(read_only=True)
+    user_name = serializers.StringRelatedField(source='user.username', read_only=True)
+    meal_type_display = serializers.CharField(source='get_meal_type_display', read_only=True)
+    is_recommended = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DietLog
+        fields = [
+            'id', 'user_name', 'food', 'date', 'meal_type', 'meal_type_display',
+            'calories', 'quantity', 'is_recommended', 'recommended_at', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+    
+    def get_is_recommended(self, obj):
+        """추천 기반 식단인지 여부"""
+        return obj.recommended_at is not None
+
+class DietLogCreateSerializer(serializers.ModelSerializer):
+    """수동 DietLog 생성용 serializer"""
+    food_id = serializers.PrimaryKeyRelatedField(
+        source='food', 
+        queryset=Food.objects.all(),
+        write_only=True
+    )
+    
+    class Meta:
+        model = DietLog
+        fields = ['food_id', 'date', 'meal_type', 'quantity']
+        
+    def validate_meal_type(self, value):
+        if value not in ['breakfast', 'lunch', 'dinner', 'snack']:
+            raise serializers.ValidationError("meal_type은 breakfast, lunch, dinner, snack 중 하나여야 합니다.")
+        return value
+    
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("섭취량은 0보다 커야 합니다.")
+        return value
+    
+    def create(self, validated_data):
+        # 사용자 자동 할당
+        user = self.context['request'].user
+        food = validated_data['food']
+        quantity = validated_data['quantity']
+        
+        # 칼로리 계산 (food.calories는 serving_size 기준)
+        try:
+            serving_g = food.get_standard_serving()
+            ratio = quantity / serving_g if serving_g > 0 else 0
+            calculated_calories = food.calories * ratio
+        except Exception:
+            calculated_calories = 0
+        
+        return DietLog.objects.create(
+            user=user,
+            calories=calculated_calories,
+            recommended_at=None,  # 수동 생성은 추천 기반 아님
+            **validated_data
+        )
+
+class DietLogUpdateSerializer(serializers.ModelSerializer):
+    """DietLog 수정용 serializer"""
+    
+    class Meta:
+        model = DietLog
+        fields = ['quantity', 'meal_type']
+        
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("섭취량은 0보다 커야 합니다.")
+        return value
+    
+    def update(self, instance, validated_data):
+        # quantity가 변경되면 칼로리 재계산
+        if 'quantity' in validated_data:
+            food = instance.food
+            new_quantity = validated_data['quantity']
+            
+            try:
+                serving_g = food.get_standard_serving()
+                ratio = new_quantity / serving_g if serving_g > 0 else 0
+                instance.calories = food.calories * ratio
+            except Exception:
+                pass  # 계산 실패시 기존 칼로리 유지
+        
+        # 다른 필드 업데이트
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        instance.save()
+        return instance
+
+class RecommendationItemSerializer(serializers.Serializer):
+    """추천 기반 DietLog 생성을 위한 입력 serializer"""
+    food_id = serializers.IntegerField()
+    quantity = serializers.DecimalField(max_digits=7, decimal_places=2)
+    meal_type = serializers.ChoiceField(choices=['breakfast', 'lunch', 'dinner'])
+    
+    def validate_food_id(self, value):
+        try:
+            Food.objects.get(id=value)
+        except Food.DoesNotExist:
+            raise serializers.ValidationError(f"ID {value}에 해당하는 음식이 존재하지 않습니다.")
+        return value
+    
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("섭취량은 0보다 커야 합니다.")
+        return value
+
+class DietLogFromRecommendationSerializer(serializers.Serializer):
+    """추천 기반 DietLog 생성용 serializer"""
+    recommendations = RecommendationItemSerializer(many=True)
+    date = serializers.DateField()
+    
+    def validate_recommendations(self, value):
+        if not value:
+            raise serializers.ValidationError("추천 항목이 비어있습니다.")
+        return value
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        user = self.context['request'].user
+        recommendations = validated_data['recommendations']
+        date = validated_data['date']
+        recommended_at = timezone.now()
+        
+        created_logs = []
+        
+        for item in recommendations:
+            food = Food.objects.get(id=item['food_id'])
+            quantity = item['quantity']
+            meal_type = item['meal_type']
+            
+            # 칼로리 계산
+            try:
+                serving_g = food.get_standard_serving()
+                ratio = quantity / serving_g if serving_g > 0 else 0
+                calculated_calories = food.calories * ratio
+            except Exception:
+                calculated_calories = 0
+            
+            # 중복 체크 및 생성/업데이트
+            diet_log, created = DietLog.objects.update_or_create(
+                user=user,
+                food=food,
+                date=date,
+                meal_type=meal_type,
+                defaults={
+                    'quantity': quantity,
+                    'calories': calculated_calories,
+                    'recommended_at': recommended_at
+                }
+            )
+            
+            created_logs.append(diet_log)
+        
+        return created_logs

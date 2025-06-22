@@ -1,11 +1,34 @@
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.contrib.contenttypes.models import ContentType
+from django.db.models.fields.files import ImageFieldFile, FieldFile
+import json
 from .middleware import get_current_user
 from .models import ChangeLog
 
 # 추적할 모델들 정의
 TRACKED_MODELS = ['WorkoutRoutine', 'WorkoutLog', 'MealPlan', 'DietLog', 'Post']
+
+def serialize_for_json(obj):
+    """JSON 직렬화를 위해 객체를 변환"""
+    if isinstance(obj, (ImageFieldFile, FieldFile)):
+        # 파일이 있으면 URL 반환, 없으면 None
+        return obj.url if obj else None
+    elif hasattr(obj, '__dict__') and not isinstance(obj, (str, int, float, bool, type(None))):
+        # 다른 복합 객체들을 딕셔너리로 변환 (기본 타입은 제외)
+        return {key: serialize_for_json(value) for key, value in obj.__dict__.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [serialize_for_json(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: serialize_for_json(value) for key, value in obj.items()}
+    else:
+        # 기본 타입이거나 JSON 직렬화 가능한 객체는 그대로 반환
+        try:
+            json.dumps(obj) 
+            return obj
+        except (TypeError, ValueError):
+            # 직렬화 불가능한 경우 문자열로 변환
+            return str(obj)
 
 @receiver(pre_save)
 def capture_previous_data(sender, instance, **kwargs):
@@ -26,6 +49,10 @@ def capture_previous_data(sender, instance, **kwargs):
 def log_model_changes(sender, instance, created, **kwargs):
     """모델 변경 시 로그 생성"""
     if sender.__name__ not in TRACKED_MODELS:
+        return
+    
+    # ChangeLog 모델 자체의 변경은 기록하지 않음 (무한 루프 방지)
+    if sender == ChangeLog:
         return
     
     # 현재 요청의 사용자 정보 가져오기
@@ -65,6 +92,10 @@ def log_model_deletion(sender, instance, **kwargs):
     if sender.__name__ not in TRACKED_MODELS:
         return
     
+    # ChangeLog 모델 자체의 변경은 기록하지 않음 (무한 루프 방지)
+    if sender == ChangeLog:
+        return
+    
     user = getattr(instance, '_current_user', None) or get_current_user()
     if not user:
         return
@@ -79,26 +110,19 @@ def log_model_deletion(sender, instance, **kwargs):
     )
 
 def model_to_dict(instance):
-    """모델 인스턴스를 딕셔너리로 변환"""
-    from datetime import datetime, date
-    import decimal
-    
+    """모델 인스턴스를 딕셔너리로 변환 (JSON 직렬화 가능한 형태로)"""
     data = {}
     for field in instance._meta.fields:
         if field.name.startswith('_'):
             continue
+        
         value = getattr(instance, field.name)
         
         if field.is_relation:
             # 관계형 필드: 값이 있으면 pk, 없으면 None
             data[field.name] = value.pk if value is not None else None
-        elif isinstance(value, (datetime, date)):
-            # datetime/date 필드: ISO 포맷 문자열로 변환
-            data[field.name] = value.isoformat() if value is not None else None
-        elif isinstance(value, decimal.Decimal):
-            # Decimal 필드: float으로 변환
-            data[field.name] = float(value) if value is not None else None
         else:
-            data[field.name] = value
+            # 일반 필드: JSON 직렬화 가능한 형태로 변환
+            data[field.name] = serialize_for_json(value)
+    
     return data
-

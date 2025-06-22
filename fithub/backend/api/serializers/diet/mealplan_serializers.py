@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from diet.models import Food, MealPlan, MealPlanFood
+from diet.models import Food, MealPlan, MealPlanFood, FoodCategory
 from decimal import Decimal
 
 # 공통 검증
@@ -29,6 +29,10 @@ class BaseMealPlanSerializer(serializers.ModelSerializer):
 
 # Food 테이블의 주요 정보
 class FoodDetailSerializer(serializers.ModelSerializer):
+
+    category_name = serializers.StringRelatedField(source='category', read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(source='category', read_only=True)
+
     class Meta:
         model = Food
         fields = [
@@ -40,6 +44,8 @@ class FoodDetailSerializer(serializers.ModelSerializer):
             'carbs',
             'fat',
             'serving_size',
+            'category_name',
+            'category_id',
         ]
 
 # MealPlanFood의 조회 시 사용하는 시리얼라이저

@@ -62,6 +62,16 @@ class Command(BaseCommand):
                 'description': '실생활에서 많이 사용하는 가전 제품',
                 'is_active': True,
             },
+            {
+                'name': '간식',
+                'description': '빵, 과자 등 간식과 관련된 식품',
+                'is_active': True,
+            },
+            {
+                'name': '기타',
+                'description': '음료, 차, 향신료 등',
+                'is_active': True,
+            }
         ]
 
 

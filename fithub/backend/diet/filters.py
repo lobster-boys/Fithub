@@ -1,9 +1,20 @@
 import django_filters
 from django_filters import rest_framework as filters
 from django.db import models
-from .models import Food
+from .models import Food, FoodCategory
 
 class FoodFilter(django_filters.FilterSet):
+    # 음식 이름 검색 (부분 일치)
+    name = django_filters.CharFilter(lookup_expr='icontains')
+    
+    # FoodCategory 필터 (활성화된 카테고리만)
+    category = django_filters.ModelChoiceFilter(
+        queryset=FoodCategory.objects.filter(is_active=True),
+        empty_label="모든 카테고리"
+    )
+    
+    # 공공 데이터 여부 필터 추가
+    is_public_data = django_filters.BooleanFilter()
 
     # 칼로리, 단백질 범위 필터
     calories_min = filters.NumberFilter(field_name="calories", lookup_expr='gte')
@@ -26,28 +37,29 @@ class FoodFilter(django_filters.FilterSet):
     # 서빙 사이즈(1회 제공량) 필터: 부분 일치 (케이스 무시, icontains)
     serving_size = filters.CharFilter(field_name='serving_size', lookup_expr='icontains')
     
-    # 상품 관련 필터
+    # 상품 관련 필터 (ecommerce.Product 연동)
     product_name = filters.CharFilter(field_name='product__name', lookup_expr='icontains')
-    product_category = filters.NumberFilter(field_name='product__category__id')
+    product_category = filters.NumberFilter(field_name='product__category__id')  # ecommerce.Category
     
-    # 복합 검색 필터: 음식 이름, 설명, 제품명 => 하나의 검색어로 검색
+    # 복합 검색 필터: 음식 이름, 설명, 제품명, 카테고리명 => 하나의 검색어로 검색
     search = filters.CharFilter(method='custom_search')
 
     class Meta:
         model = Food
         fields = {
-            'category': ['exact', 'in'],  # 다중 카테고리 필터 지원
+            'category': ['exact', 'in'],  # FoodCategory 다중 필터 지원
             'name': ['exact', 'icontains'],
             'description': ['icontains'],
+            'is_public_data': ['exact'],  # 공공 데이터 여부 필터 추가
         }
 
     def custom_search(self, queryset, name, value):
         """
-        음식 이름, 설명, 상품 이름 내에 검색어가 포함된 항목들을 필터링
+        음식 이름, 설명, 상품 이름, FoodCategory 이름 내에 검색어가 포함된 항목들을 필터링
         """
         return queryset.filter(
             models.Q(name__icontains=value) |
             models.Q(description__icontains=value) |
-            models.Q(product__name__icontains=value)
-            # models.Q(category__name__icontains=value) 카테고리명 
+            models.Q(product__name__icontains=value) |
+            models.Q(category__name__icontains=value)  # FoodCategory 이름 검색 활성화
         )
