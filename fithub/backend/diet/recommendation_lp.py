@@ -1,13 +1,8 @@
 import logging
 import random
 import pulp
-<<<<<<< HEAD
-
 from typing import Tuple, Dict, List, Optional, Any
-=======
-from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
->>>>>>> origin/back-feat-dl-api
 from django.core.exceptions import ValidationError
 from django.db import models 
 from diet.models import Food, RecommendHistory
@@ -37,7 +32,6 @@ def calculate_nutrient_targets(daily_kcal: float) -> Dict[str, float]:
     }
 
 def _validate_user_profile(user) -> float:
-<<<<<<< HEAD
     """
     사용자 프로필의 목표 칼로리 값을 안전하게 검증하고 반환합니다.
     UserProfile이 존재하지 않거나 target_calories가 설정되지 않은 경우 기본값을 사용합니다.
@@ -69,20 +63,13 @@ def _validate_user_profile(user) -> float:
         default_calories = 2000
         print(f"Using fallback calories value: {default_calories}")
         return float(default_calories)
-=======
-    """사용자 프로필 검증"""
-    profile = user.profile
-    if not profile.target_calories or profile.target_calories <= 0:
-        raise ValidationError("유효한 목표 칼로리가 설정되어야 합니다.")
-    return float(profile.target_calories)
->>>>>>> origin/back-feat-dl-api
 
-def _get_recent_ids(user, meal_type: str, days: int = None) -> List[int]:
+def _get_recent_ids(user, meal_type: str, days: Optional[int] = None) -> List[int]:
     """최근 추천된 음식 ID 조회"""
     if days is None:
         days = RECENT_DAYS 
     
-    cutoff = datetime.now() - timedelta(days=days)
+    cutoff = datetime.now() - timedelta(days=days if days is not None else RECENT_DAYS)
     return list(
         RecommendHistory.objects.filter(
             user=user,
@@ -292,7 +279,7 @@ def _solve_lp_optimization(category_candidates: Dict[str, List[Dict[str, Any]]],
     
     # 문제 해결
     try:
-        prob.solve(pulp.PULP_CBC_CMD(msg=0))
+        prob.solve(pulp.PULP_CBC_CMD(msg=False))
         status = pulp.LpStatus[prob.status]
         
         if status != "Optimal":

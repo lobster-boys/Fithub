@@ -58,6 +58,7 @@ mypy-extensions==1.0.0
 nest_asyncio @ file:///home/conda/feedstock_root/build_artifacts/nest-asyncio_1733325553580/work
 networkx==3.4.2
 numpy @ file:///C:/b/abs_dais_85b0_/croot/numpy_and_numpy_base_1715092429136/work
+pandas==2.2.3
 oauthlib==3.2.2
 opencv-contrib-python==4.11.0.86
 opencv-python==4.11.0

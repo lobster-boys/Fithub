@@ -3,7 +3,7 @@ from rest_framework import viewsets
 from rest_framework.response import Response
 from ecommerce.recommendation import Recommandation
 from ecommerce.models import ClickedItems, Product, BestItems, OrderItem, Review
-from api.serializers.product_serializers import ProductSerializer
+from api.serializers.ecommerce.product_serializers import ProductSerializer
 from api.serializers.recommendation_serializers import BestItemsSerializer
 
 import json

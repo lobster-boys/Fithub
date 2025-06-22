@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('ecommerce', '0003_product_unit_weight_g'),
+        ('ecommerce', '0011_product_unit_weight_g'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -128,7 +128,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='food',
-            constraint=models.CheckConstraint(condition=models.Q(('is_public_data', True), models.Q(('is_public_data', False), models.Q(('user__isnull', False), ('product__isnull', False), _connector='OR')), _connector='OR'), name='ck_food_user_or_product_not_null'),
+            constraint=models.CheckConstraint(check=models.Q(('is_public_data', True), models.Q(('is_public_data', False), models.Q(('user__isnull', False), ('product__isnull', False), _connector='OR')), _connector='OR'), name='ck_food_user_or_product_not_null'),
         ),
         migrations.AlterUniqueTogether(
             name='mealplanfood',
