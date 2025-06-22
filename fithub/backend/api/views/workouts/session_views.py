@@ -101,7 +101,20 @@ class WorkoutSessionViewSet(viewsets.ModelViewSet):
         serializer = SessionControlSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        action_type = serializer.validated_data['action']
+        # 안전한 데이터 접근
+        validated_data = getattr(serializer, 'validated_data', None)
+        if not validated_data:
+            return Response(
+                {'error': '유효하지 않은 데이터입니다.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        action_type = validated_data.get('action')
+        if not action_type:
+            return Response(
+                {'error': 'action 필드가 누락되었습니다.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # 이미 완료된 세션에 대한 액션 검증
         forbidden_actions = ['next_set', 'next_exercise']
@@ -141,7 +154,7 @@ class WorkoutSessionViewSet(viewsets.ModelViewSet):
                     message = "세션이 취소되었습니다."
                 
                 elif action_type == 'next_set':
-                    result = self._handle_next_set(session, serializer.validated_data)
+                    result = self._handle_next_set(session, validated_data)
                     message = result['message']
                 
                 elif action_type == 'next_exercise':
