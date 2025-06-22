@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import useCommunity from '../../hooks/useCommunity';
+import ChallengeCreateModal from '../../components/challenge/ChallengeCreateModal';
+import ChallengeCard from '../../components/challenge/ChallengeCard';
+import { useChallenge } from '../../hooks/useChallenge';
 
 const CommunityPage = () => {
   // 게시글 모달 상태
@@ -12,6 +15,12 @@ const CommunityPage = () => {
     image: null,
     tags: []
   });
+
+  // 챌린지 모달 상태
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  
+  // 현재 탭 상태
+  const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'challenges'
 
   // 태그/사용자 입력 관련 상태
   const [showSuggestionDropdown, setShowSuggestionDropdown] = useState(false);
@@ -57,6 +66,26 @@ const CommunityPage = () => {
     loading,
     error
   } = useCommunity();
+
+  // 챌린지 훅 사용
+  const {
+    challenges,
+    loading: challengeLoading,
+    error: challengeError,
+    fetchChallenges
+  } = useChallenge();
+
+  // 챌린지 목록 초기 로드
+  useEffect(() => {
+    if (activeTab === 'challenges') {
+      // 커뮤니티 페이지에서는 공개 챌린지 + 본인의 개인 챌린지 표시
+      fetchChallenges({
+        show_all: true,     // 공개 챌린지 + 본인의 개인 챌린지
+        is_active: true,    // 활성 챌린지만
+        ordering: '-created_at'
+      });
+    }
+  }, [activeTab, fetchChallenges]);
 
   // 필터링된 게시글 가져오기
   const filteredPosts = getFilteredAndSortedPosts();
@@ -205,6 +234,25 @@ const CommunityPage = () => {
     }
   };
 
+  // 챌린지 생성 성공 핸들러
+  const handleChallengeCreateSuccess = (newChallenge) => {
+    console.log('🎉 새 챌린지 생성됨:', newChallenge);
+    console.log('🔄 챌린지 목록 새로고침 시작...');
+    
+    // 커뮤니티 페이지에서는 공개 챌린지 + 본인의 개인 챌린지 표시
+    fetchChallenges({
+      show_all: true,     // 공개 챌린지 + 본인의 개인 챌린지
+      is_active: true,    // 활성 챌린지만
+      ordering: '-created_at'
+    }).then(() => {
+      console.log('✅ 챌린지 목록 새로고침 완료');
+    }).catch((error) => {
+      console.error('❌ 챌린지 목록 새로고침 실패:', error);
+    });
+    
+    alert('챌린지가 성공적으로 생성되었습니다!');
+  };
+
   // 이미지 파일 핸들러
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -232,12 +280,47 @@ const CommunityPage = () => {
           <h1 className="text-3xl font-bold mb-2">FitHub 커뮤니티</h1>
           <p className="text-gray-600">운동 관련 정보와 경험을 공유해보세요.</p>
         </div>
+        <div className="flex gap-2 mt-4 sm:mt-0">
+          <button
+            onClick={() => setShowPostModal(true)}
+            className="bg-primary text-white py-2 px-4 rounded-lg font-medium hover:bg-orange-600 flex items-center"
+          >
+            <i className="fas fa-edit mr-2"></i>
+            새 글 작성
+          </button>
+          <button
+            onClick={() => setShowChallengeModal(true)}
+            className="bg-yellow-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-yellow-600 flex items-center"
+          >
+            <i className="fas fa-trophy mr-2"></i>
+            챌린지 생성
+          </button>
+        </div>
+      </div>
+
+      {/* 탭 네비게이션 */}
+      <div className="flex border-b border-gray-200 mb-6">
         <button
-          onClick={() => setShowPostModal(true)}
-          className="bg-primary text-white py-2 px-4 rounded-lg font-medium hover:bg-orange-600 flex items-center mt-4 sm:mt-0"
+          onClick={() => setActiveTab('posts')}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'posts'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
         >
-          <i className="fas fa-edit mr-2"></i>
-          새 글 작성
+          <i className="fas fa-file-alt mr-2"></i>
+          게시글
+        </button>
+        <button
+          onClick={() => setActiveTab('challenges')}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'challenges'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <i className="fas fa-trophy mr-2"></i>
+          챌린지
         </button>
       </div>
 
@@ -259,14 +342,17 @@ const CommunityPage = () => {
         </div>
       )}
 
-      {/* 카테고리 탭 및 필터 */}
-      <div className="mb-6">
-        {/* 카테고리 탭 */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {categories.map((category) => {
-            const isActive = activeCategory === category.id;
-            const availableTags = getTagsByCategory(category.id);
-            const hasDropdown = availableTags.length > 0 && category.id !== 'all';
+      {/* 게시글 탭 내용 */}
+      {activeTab === 'posts' && (
+        <>
+          {/* 카테고리 탭 및 필터 */}
+          <div className="mb-6">
+            {/* 카테고리 탭 */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {categories.map((category) => {
+                const isActive = activeCategory === category.id;
+                const availableTags = getTagsByCategory(category.id);
+                const hasDropdown = availableTags.length > 0 && category.id !== 'all';
             
             return (
               <div key={category.id} className="relative" ref={showDropdown === category.id ? dropdownRef : null}>
@@ -459,6 +545,60 @@ const CommunityPage = () => {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {/* 챌린지 탭 내용 */}
+      {activeTab === 'challenges' && (
+        <div className="space-y-6">
+          {/* 로딩 상태 */}
+          {challengeLoading && (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-3 text-gray-600">챌린지를 불러오는 중...</span>
+            </div>
+          )}
+
+          {/* 에러 상태 */}
+          {challengeError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <i className="fas fa-exclamation-triangle text-red-500 mr-2"></i>
+                <span className="text-red-800">{challengeError}</span>
+              </div>
+            </div>
+          )}
+
+          {/* 챌린지 목록 */}
+          {!challengeLoading && !challengeError && (
+            <>
+              {challenges && challenges.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {challenges.map((challenge) => (
+                    <ChallengeCard 
+                      key={challenge.id} 
+                      challenge={challenge}
+                      onJoin={fetchChallenges}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <i className="fas fa-trophy text-gray-400 text-5xl mb-4"></i>
+                  <h3 className="text-xl font-semibold text-gray-600 mb-2">진행 중인 챌린지가 없습니다</h3>
+                  <p className="text-gray-500 mb-4">새로운 챌린지를 만들어 다른 사용자들과 경쟁해보세요!</p>
+                  <button
+                    onClick={() => setShowChallengeModal(true)}
+                    className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors"
+                  >
+                    챌린지 만들기
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* 새 게시글 작성 모달 */}
       {showPostModal && (
@@ -612,6 +752,15 @@ const CommunityPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 챌린지 생성 모달 */}
+      {showChallengeModal && (
+        <ChallengeCreateModal
+          isOpen={showChallengeModal}
+          onClose={() => setShowChallengeModal(false)}
+          onSuccess={handleChallengeCreateSuccess}
+        />
       )}
     </div>
   );

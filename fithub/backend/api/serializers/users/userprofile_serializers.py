@@ -95,10 +95,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'target_protein',
             'target_carbs',
             'target_fat',
+            'points',  # accounts 앱에서 이식된 포인트 필드
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['user', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'points', 'created_at', 'updated_at']  # points는 읽기 전용
 
 
 # 유저 프로필 생성 전용 Serializer
@@ -148,6 +149,7 @@ class UserProfileUpdateSerializer(BaseUserProfileSerializer):
             'target_protein',
             'target_carbs',
             'target_fat',
+            'points',  # accounts 앱에서 이식된 포인트 필드
             'updated_at',
         ]
-        read_only_fields = ['user', 'updated_at']
+        read_only_fields = ['user', 'points', 'updated_at']  # points는 읽기 전용

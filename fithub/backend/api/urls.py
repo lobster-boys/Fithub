@@ -6,11 +6,11 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from api.views.challenge_views import (
     ChallengeViewSet,
+    ChallengeParticipantViewSet,
     ChallengePointViewSet,
+    UserLogViewSet,
     SocialShareViewSet,
 )
-from api.views.point_transaction_views import PointTransactionViewSet
-from api.views.challenge_participant_views import ChallengeParticipantViewSet
 from api.views.routine_share_permission_viewset import RoutineSharePermissionViewSet
 from api.views.routine_viewset import RoutineViewSet
 from api.views.routine_share_link_viewset import RoutineShareLinkViewSet
@@ -41,11 +41,12 @@ app_name = "api"
 # Router 설정
 router = DefaultRouter()
 
-# ── 챌린지 관련 ───────────────────────────────────────
+# ── 챌린지 관련 (통합됨) ───────────────────────────────────────
 router.register(r"challenges", ChallengeViewSet, basename="challenge")
-router.register(r"points", ChallengePointViewSet, basename="challenge-point")
-router.register(r"shares", SocialShareViewSet, basename="social-share")
-router.register(r"transactions", PointTransactionViewSet, basename="point-transaction")
+router.register(r"challenge-participants", ChallengeParticipantViewSet, basename="challenge-participant")
+router.register(r"challenge-points", ChallengePointViewSet, basename="challenge-point")
+router.register(r"user-logs", UserLogViewSet, basename="user-log")
+router.register(r"social-shares", SocialShareViewSet, basename="social-share")
 
 # Workouts 앱 ViewSets
 router.register(r'workouts/exercises', ExerciseViewSet, basename='exercise')
@@ -76,11 +77,21 @@ router.register(r'onboarding', OnboardingViewSet, basename='onboarding')
 # Community 앱 ViewSets
 router.register(r'community/posts', PostViewSet, basename='post')
 
-# Challenge 및 권한 관련 ViewSets
+# Points 앱 ViewSets (새로 추가)
+from .views.points import (
+    UserPointViewSet, PointTransactionViewSet, PointPolicyViewSet, 
+    PointExpiryViewSet, UserPointBalanceView, UserPointSummaryView
+)
+router.register(r'points/user-points', UserPointViewSet, basename='user-point')
+router.register(r'points/transactions', PointTransactionViewSet, basename='points-transaction')
+router.register(r'points/policies', PointPolicyViewSet, basename='point-policy')
+router.register(r'points/expiries', PointExpiryViewSet, basename='point-expiry')
+
+# Challenge 네스트된 라우트 (특정 챌린지의 참가자 관리)
 router.register(
     r"challenges/(?P<challenge_pk>\d+)/participants",
     ChallengeParticipantViewSet,
-    basename="challenge-participant",
+    basename="challenge-nested-participant",
 )
 
 # ── 루틴 기본 CRUD ─────────────────────────────────────
@@ -161,6 +172,9 @@ urlpatterns = [
     # diet-recommend URL
     path('diet/recommend/', recommend_views.DietRecommendView.as_view(), name='diet-recommend'),
     
-    # =================== 챌린지 랭킹 ===================
-    # path('challenges/ranking/', ChallengeRankingAPIView.as_view(), name='challenge-ranking'),
+    # =================== 포인트 관련 (Points 앱) ===================
+    # 포인트 잔액 조회
+    path('points/balance/', UserPointBalanceView.as_view(), name='user-point-balance'),
+    # 포인트 요약 정보
+    path('points/summary/', UserPointSummaryView.as_view(), name='user-point-summary'),
 ]

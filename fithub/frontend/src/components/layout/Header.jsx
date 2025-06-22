@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
+import { usePoints } from '../../hooks/usePoints';
 
 const Header = () => {
   const [showSearchBar, setShowSearchBar] = useState(false);
@@ -12,6 +13,9 @@ const Header = () => {
   
   // 장바구니 상태 가져오기
   const { cartItemsCount, loading: cartLoading } = useCart();
+  
+  // 포인트 정보 가져오기
+  const { pointBalance, loading: pointsLoading } = usePoints();
   
   const handleSearch = (e) => {
     e.preventDefault();
@@ -40,6 +44,16 @@ const Header = () => {
               >
                 <i className="fas fa-search text-gray-600"></i>
               </button>
+              {/* 포인트 표시 - 인증된 사용자만 표시 */}
+              {isAuthenticated && (
+                <div className="flex items-center gap-1 px-3 py-1 bg-yellow-50 rounded-full">
+                  <i className="fas fa-coins text-yellow-600 text-sm"></i>
+                  <span className="text-sm font-medium text-gray-700">
+                    {pointsLoading ? '...' : pointBalance.toLocaleString()}P
+                  </span>
+                </div>
+              )}
+              
               <Link to="/shop/cart" className="p-2 rounded-full hover:bg-gray-100 relative">
                 <i className="fas fa-shopping-cart text-gray-600"></i>
                 {cartItemsCount > 0 && (
@@ -65,18 +79,6 @@ const Header = () => {
                       <i className="fas fa-user mr-2"></i>프로필
                     </Link>
                     <div className="border-t border-gray-100 my-1"></div>
-                    <Link 
-                      to="/routine-feed" 
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <i className="fas fa-share-alt mr-2"></i>루틴 피드
-                    </Link>
-                    <Link 
-                      to="/diet/recommendation" 
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <i className="fas fa-utensils mr-2"></i>식단 추천
-                    </Link>
                     <Link 
                       to="/community" 
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

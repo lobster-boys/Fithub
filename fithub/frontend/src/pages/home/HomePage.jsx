@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
 import DietRecommendationModal from '../../components/diet/DietRecommendationModal';
+import ChallengeCard from '../../components/challenge/ChallengeCard';
+import WeeklyGoalTracker from '../../components/workout/WeeklyGoalTracker';
 
 import useWorkoutData from '../../hooks/useWorkoutData';
 import { useDiet } from '../../hooks/useDiet';
 import useEcommerce from '../../hooks/useEcommerce';
 import useCommunity from '../../hooks/useCommunity';
 import { useAuth } from '../../hooks/useAuth';
+import { useChallenge } from '../../hooks/useChallenge';
 
 function HomePage() {
   // AuthContext에서 실제 인증 상태와 사용자 정보 가져오기
@@ -75,6 +78,11 @@ function HomePage() {
         if (isAuthenticated && fetchWorkoutLogs) {
           await fetchWorkoutLogs({ limit: 5 });
         }
+
+        // 인증된 사용자에게만 챌린지 데이터 가져오기
+        if (isAuthenticated && fetchChallenges) {
+          await fetchChallenges({ limit: 3, is_active: true });
+        }
       } catch (error) {
         console.log('데이터 로드 실패, 폴백 데이터 사용:', error);
         // 에러 발생 시에도 폴백 카드를 표시하도록 함
@@ -136,6 +144,13 @@ function HomePage() {
   
   // 커뮤니티 훅 사용
   const { posts, loading: communityLoading } = useCommunity();
+
+  // 챌린지 훅 사용 (인증된 사용자만)
+  const { 
+    challenges, 
+    loading: challengeLoading, 
+    fetchChallenges 
+  } = isAuthenticated ? useChallenge() : { challenges: [], loading: false, fetchChallenges: () => {} };
 
   // 목표 값들 (설정 가능)
   const weeklyWorkoutGoal = 5; // 주 5회 운동 목표
@@ -289,75 +304,16 @@ function HomePage() {
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-2xl p-6 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">주간 진행 현황</h2>
-            <Link to="/workouts" className="text-primary font-medium">
-              자세히 보기
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* 운동 일수 */}
-            <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-              <div className="relative w-16 h-16 mx-auto mb-2">
-                <svg className="w-full h-full" viewBox="0 0 36 36">
-                  <path
-                    d="M18 2.0845
-                    a 15.9155 15.9155 0 0 1 0 31.831
-                    a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#E5E7EB"
-                    strokeWidth="3"
-                  />
-                  <path
-                    className="progress-ring__circle"
-                    d="M18 2.0845
-                    a 15.9155 15.9155 0 0 1 0 31.831
-                    a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#FC4E00"
-                    strokeWidth="3"
-                    strokeDasharray="100, 100"
-                    strokeDashoffset={100 - workoutDaysProgress}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold">{weeklyStats.workoutDays}/{weeklyWorkoutGoal}</span>
-                </div>
-              </div>
-              <p className="text-lg font-bold">{weeklyStats.workoutDays} 일</p>
-              <p className="text-sm text-gray-600">운동 일수</p>
-            </div>
-            
-            {/* 소모 칼로리 */}
-            <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-              <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
-                <i className="fas fa-fire text-3xl text-primary"></i>
-              </div>
-              <p className="text-lg font-bold">{weeklyStats.totalCalories.toLocaleString()} kcal</p>
-              <p className="text-sm text-gray-600">소모 칼로리</p>
-            </div>
-            
-            {/* 활동 시간 */}
-            <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-              <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
-                <i className="fas fa-clock text-3xl text-primary"></i>
-              </div>
-              <p className="text-lg font-bold">{weeklyStats.totalDuration} min</p>
-              <p className="text-sm text-gray-600">활동 시간</p>
-            </div>
-            
-            {/* 연속 기록 */}
-            <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-              <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
-                <i className="fas fa-bolt text-3xl text-primary"></i>
-              </div>
-              <p className="text-lg font-bold">{streakDays} 일</p>
-              <p className="text-sm text-gray-600">연속 기록</p>
-            </div>
-          </div>
-        </div>
+        {/* 주간 운동 목표 & 통계 - 통합된 WeeklyGoalTracker 사용 */}
+        <WeeklyGoalTracker 
+          userId={user?.id} 
+          weeklyGoal={weeklyWorkoutGoal}
+          additionalStats={{
+            totalCalories: weeklyStats.totalCalories,
+            totalDuration: weeklyStats.totalDuration,
+            streakDays: streakDays
+          }}
+        />
       </section>
 
       {/* 운동 & 루틴 섹션 */}
@@ -640,6 +596,50 @@ function HomePage() {
           )}
         </div>
       </section>
+
+
+
+      {/* 챌린지 섹션 - 인증된 사용자만 */}
+      {isAuthenticated && (
+        <section className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">활성 챌린지</h2>
+            <Link to="/community" className="text-primary font-medium">
+              모든 챌린지 보기
+            </Link>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {challengeLoading ? (
+              // 로딩 스켈레톤
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-8 bg-gray-200 rounded"></div>
+                </div>
+              ))
+            ) : challenges.length > 0 ? (
+              challenges.slice(0, 3).map((challenge) => (
+                <ChallengeCard key={challenge.id} challenge={challenge} />
+              ))
+            ) : (
+              <div className="col-span-full bg-white rounded-xl shadow-sm p-8 text-center">
+                <i className="fas fa-trophy text-gray-300 text-3xl mb-3"></i>
+                <p className="text-gray-500 mb-3">현재 활성 챌린지가 없습니다.</p>
+                <Link 
+                  to="/community" 
+                  className="inline-flex items-center text-primary hover:text-primary-dark font-medium"
+                >
+                  <i className="fas fa-plus mr-1"></i>
+                  챌린지 둘러보기
+                </Link>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* 쇼핑 섹션 */}
       <section className="mb-8">

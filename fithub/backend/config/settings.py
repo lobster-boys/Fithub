@@ -47,9 +47,9 @@ INSTALLED_APPS = [
     "ecommerce",
     "workouts",
     "challenge",
-    "challenge_checker",
     "diet",
     "onboarding",
+    "points",  # 새로 추가된 포인트 앱
     "api",
     "audit",
     # DRF & Auth

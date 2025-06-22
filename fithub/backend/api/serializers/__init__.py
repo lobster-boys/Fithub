@@ -16,13 +16,9 @@ from .community import *
 # Audit serializers
 from .audit import *
 
-# Challenge serializers (standalone)
+# Challenge serializers (통합됨)
 from .challenge_serializers import *
-from .challenge_participant_serializer import *
 from .challenge_ranking_serializer import *
-
-# Point transaction serializers (standalone)
-from .point_transaction_serializer import *
 
 # Recommendation serializers (standalone)
 from .recommendation_serializers import *

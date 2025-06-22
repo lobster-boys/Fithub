@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
 from django.urls import reverse
+from decimal import Decimal
 from users.models import User
 
 # 카테고리 모델
@@ -29,8 +30,8 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, allow_unicode=True)
     description = models.TextField(null=True)
-    price = models.DecimalField(default=0, max_digits=10, decimal_places=2)
-    sale_price = models.DecimalField(default=0, max_digits=10, decimal_places=2, blank=True, null=True)
+    price = models.DecimalField(default=Decimal('0'), max_digits=10, decimal_places=2)
+    sale_price = models.DecimalField(default=Decimal('0'), max_digits=10, decimal_places=2, blank=True, null=True)
     stock_quantity = models.IntegerField(default=0)
     is_food = models.BooleanField(default=False)
     unit_weight_g = models.PositiveIntegerField(
@@ -39,7 +40,7 @@ class Product(models.Model):
     )
     is_active = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False)
-    recommendations_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="추천 점수")
+    recommendations_score = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), help_text="추천 점수")
 
     def __str__(self):
         return self.name
@@ -67,7 +68,7 @@ class Order(models.Model):
     shipping_address = models.CharField(max_length=1000)
     order_number = models.CharField(max_length=50)
     status = models.CharField(max_length=20)
-    total_amount = models.DecimalField(default=0, max_digits=10, decimal_places=2)
+    total_amount = models.DecimalField(default=Decimal('0'), max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=50)
     points_applied = models.IntegerField(default=0, help_text="적용된 포인트")
     coupon_applied = models.CharField(max_length=50, blank=True, null=True, help_text="적용된 쿠폰 코드")
@@ -174,6 +175,16 @@ class Coupon(models.Model):
     usage_count = models.IntegerField(default=0, help_text="사용된 횟수")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # 포인트 구매 기능 추가
+    point_cost = models.PositiveIntegerField(
+        default=0,
+        help_text="포인트로 구매 가능한 쿠폰인 경우의 포인트 비용"
+    )
+    is_point_purchasable = models.BooleanField(
+        default=False,
+        help_text="포인트로 구매 가능한 쿠폰 여부"
+    )
 
     def __str__(self):
         return f"쿠폰: {self.code}"
@@ -213,61 +224,8 @@ class UserCoupon(models.Model):
         unique_together = ('user', 'coupon')  # 같은 사용자가 같은 쿠폰을 중복으로 받을 수 없음
 
 
-# 사용자 포인트 모델
-class UserPoint(models.Model):
-    user = models.OneToOneField(
-        User, 
-        on_delete=models.CASCADE,
-        related_name='user_point'
-    )
-    balance = models.IntegerField(default=0, help_text="현재 포인트 잔액")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.user.username} 포인트: {self.balance}"
-
-    class Meta:
-        db_table = 'userpoint'
-        verbose_name_plural = '사용자 포인트'
-
-# 포인트 거래 내역 모델
-class PointTransaction(models.Model):
-    TRANSACTION_TYPE_CHOICES = [
-        ('EARN', '적립'),
-        ('USE', '사용'),
-        ('REFUND', '환불'),
-        ('EXPIRE', '만료'),
-        ('ADMIN', '관리자 조정'),
-    ]
-
-    REFERENCE_TYPE_CHOICES = [
-        ('ORDER', '주문'),
-        ('REVIEW', '리뷰'),
-        ('SIGNUP', '회원가입'),
-        ('EVENT', '이벤트'),
-        ('ADMIN', '관리자'),
-    ]
-
-    user = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE,
-        related_name='point_transactions'
-    )
-    amount = models.IntegerField(help_text="포인트 금액 (음수면 차감)")
-    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
-    reference_type = models.CharField(max_length=10, choices=REFERENCE_TYPE_CHOICES)
-    reference_id = models.CharField(max_length=50, null=True, blank=True, help_text="참조 ID (주문번호 등)")
-    description = models.TextField(help_text="거래 설명")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.user.username} - {self.transaction_type}: {self.amount}P"
-
-    class Meta:
-        db_table = 'pointtransaction'
-        verbose_name_plural = '포인트 거래 내역'
-        ordering = ['-created_at']
+# UserPoint와 PointTransaction 모델은 Points 앱으로 이전됨
+# points.models.UserPoint와 points.models.PointTransaction을 사용하세요
 
 # 리뷰 모델
 class Review(models.Model):

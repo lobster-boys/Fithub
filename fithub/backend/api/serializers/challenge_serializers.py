@@ -5,6 +5,7 @@ from challenge.models import (
     ChallengeParticipant,
     ChallengePoint,
     SocialShare,
+    UserLog,
 )
 
 
@@ -22,6 +23,13 @@ class ChallengeSerializer(serializers.ModelSerializer):
             "end_date",
             "reward_points",
             "is_active",
+            "creator",
+            "is_personal",
+            "target_value",
+            "status",
+            "entry_cost",
+            "min_participants",
+            "reward_multiplier",
             "created_at",
             "updated_at",
         ]
@@ -37,6 +45,8 @@ class ChallengeSerializer(serializers.ModelSerializer):
 
 class ChallengeParticipantSerializer(serializers.ModelSerializer):
     challenge_detail = ChallengeSerializer(source="challenge", read_only=True)
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
 
     class Meta:
         model = ChallengeParticipant
@@ -45,6 +55,8 @@ class ChallengeParticipantSerializer(serializers.ModelSerializer):
             "challenge",
             "challenge_detail",
             "user",
+            "user_id",
+            "username",
             "join_datetime",
             "current_progress",
             "is_completed",
@@ -59,6 +71,8 @@ class ChallengeParticipantSerializer(serializers.ModelSerializer):
             "completion_datetime",
             "reward_claimed",
             "user",
+            "user_id",
+            "username",
         ]
 
     def validate(self, data):
@@ -104,6 +118,32 @@ class ChallengePointSerializer(serializers.ModelSerializer):
 
     def get_challenge(self, obj):
         return obj.user_challenge.challenge.name
+
+
+# PointTransactionSerializer는 Points 앱으로 이전됨
+# from api.serializers.points.point_serializers import PointTransactionSerializer 사용
+
+
+class UserLogSerializer(serializers.ModelSerializer):
+    """
+    사용자 활동 로그 시리얼라이저
+    challenge_checker에서 이전됨
+    """
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = UserLog
+        fields = [
+            "id",
+            "user",
+            "username", 
+            "date",
+            "value",
+            "log_type",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = ["id", "username", "created_at"]
 
 
 class SocialShareSerializer(serializers.ModelSerializer):

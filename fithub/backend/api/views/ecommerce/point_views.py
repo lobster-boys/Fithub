@@ -1,10 +1,13 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-from ecommerce.models import UserPoint, PointTransaction
-from api.serializers.ecommerce.point_serializers import (
+
+# 기존 ecommerce 포인트 모델은 Points 앱으로 이전됨
+from points.models import UserPoint, PointTransaction
+from api.serializers.points.point_serializers import (
     UserPointSerializer, PointTransactionSerializer, PointTransactionCreateSerializer
 )
+from points.services import PointService
 from users.models import User
 
 class UserPointViewSet(viewsets.ReadOnlyModelViewSet):
@@ -45,17 +48,14 @@ class PointTransactionViewSet(viewsets.ModelViewSet):
         return PointTransactionSerializer
     
     def perform_create(self, serializer):
-        """포인트 거래 생성 시 현재 사용자를 자동으로 설정하고 잔액 업데이트"""
+        """포인트 거래 생성 시 현재 사용자를 자동으로 설정 - 이제 PointService를 통해 처리해야 함"""
+        # PointService.earn_points() 또는 PointService.use_points()를 사용하세요
         transaction = serializer.save(user=self.request.user)
-        
-        # 사용자 포인트 잔액 업데이트
-        user_point, created = UserPoint.objects.get_or_create(user=self.request.user)
-        user_point.balance += transaction.amount
-        user_point.save()
+        # 잔액 업데이트는 PointService에서 자동으로 처리됨
     
     @action(detail=False, methods=['post'])
     def earn_points(self, request):
-        """포인트 적립"""
+        """포인트 적립 - PointService 사용"""
         amount = int(request.data.get("amount", 0))
         description = request.data.get("description", "포인트 적립")
         reference_type = request.data.get("reference_type", "ADMIN")
@@ -67,29 +67,30 @@ class PointTransactionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # 포인트 거래 생성
-        transaction = PointTransaction.objects.create(
-            user=request.user,
-            amount=amount,
-            transaction_type="EARN",
-            reference_type=reference_type,
-            reference_id=reference_id,
-            description=description
-        )
-        
-        # 사용자 포인트 잔액 업데이트
-        user_point, created = UserPoint.objects.get_or_create(user=request.user)
-        user_point.balance += amount
-        user_point.save()
-        
-        return Response({
-            "message": f"{amount}P가 적립되었습니다.",
-            "current_balance": user_point.balance
-        })
+        try:
+            # PointService를 사용하여 포인트 적립
+            PointService.earn_points(
+                user=request.user,
+                amount=amount,
+                reference_type=reference_type,
+                description=description,
+                reference_id=reference_id
+            )
+            
+            current_balance = PointService.get_user_balance(request.user)
+            return Response({
+                "message": f"{amount}P가 적립되었습니다.",
+                "current_balance": current_balance
+            })
+        except ValueError as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     @action(detail=False, methods=['post'])
     def use_points(self, request):
-        """포인트 사용"""
+        """포인트 사용 - PointService 사용"""
         amount = int(request.data.get("amount", 0))
         description = request.data.get("description", "포인트 사용")
         reference_type = request.data.get("reference_type", "ORDER")
@@ -101,33 +102,26 @@ class PointTransactionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # 사용자 포인트 조회
-        user_point, created = UserPoint.objects.get_or_create(user=request.user)
-        
-        if user_point.balance < amount:
+        try:
+            # PointService를 사용하여 포인트 사용
+            PointService.use_points(
+                user=request.user,
+                amount=amount,
+                reference_type=reference_type,
+                description=description,
+                reference_id=reference_id
+            )
+            
+            current_balance = PointService.get_user_balance(request.user)
+            return Response({
+                "message": f"{amount}P가 사용되었습니다.",
+                "current_balance": current_balance
+            })
+        except ValueError as e:
             return Response(
-                {"error": "보유 포인트가 부족합니다."}, 
+                {"error": str(e)}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # 포인트 거래 생성 (음수로 저장)
-        transaction = PointTransaction.objects.create(
-            user=request.user,
-            amount=-amount,
-            transaction_type="USE",
-            reference_type=reference_type,
-            reference_id=reference_id,
-            description=description
-        )
-        
-        # 사용자 포인트 잔액 업데이트
-        user_point.balance -= amount
-        user_point.save()
-        
-        return Response({
-            "message": f"{amount}P가 사용되었습니다.",
-            "current_balance": user_point.balance
-        })
 
 # 하위 호환성을 위한 레거시 뷰들
 class UserPointAPI:
