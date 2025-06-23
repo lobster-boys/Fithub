@@ -76,6 +76,28 @@ class OnboardingData(models.Model):
         verbose_name='나이'
     )
     
+    # 성별 정보 추가
+    GENDER_CHOICES = [
+        ('m', '남성'),
+        ('f', '여성'),
+        ('o', '기타'),
+    ]
+    
+    gender = models.CharField(
+        max_length=1,
+        choices=GENDER_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='성별'
+    )
+    
+    # 목표 칼로리 추가
+    target_calories = models.PositiveIntegerField(
+        validators=[MinValueValidator(1200), MaxValueValidator(4000)],
+        default=2000,
+        verbose_name='목표 칼로리 (kcal/day)'
+    )
+    
     # 목표 및 선호도 (JSON 필드로 배열 저장)
     goals = models.JSONField(
         default=list,

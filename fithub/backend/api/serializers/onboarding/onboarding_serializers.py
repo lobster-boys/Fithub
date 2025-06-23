@@ -74,6 +74,29 @@ class OnboardingDataSerializer(serializers.Serializer):
         help_text="나이"
     )
     
+    # 성별 정보 추가
+    GENDER_CHOICES = [
+        ('m', '남성'),
+        ('f', '여성'),
+        ('o', '기타'),
+    ]
+    
+    gender = serializers.ChoiceField(
+        choices=GENDER_CHOICES,
+        required=False,
+        allow_blank=True,
+        help_text="성별"
+    )
+    
+    # 목표 칼로리 추가
+    target_calories = serializers.IntegerField(
+        min_value=1200,
+        max_value=4000,
+        required=False,
+        default=2000,
+        help_text="목표 칼로리 (kcal/day)"
+    )
+    
     # 선택 사항들 (다중 선택 가능)
     goals = serializers.ListField(
         child=serializers.ChoiceField(choices=GOAL_CHOICES),

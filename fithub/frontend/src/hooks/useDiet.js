@@ -1,6 +1,54 @@
 import { useState, useEffect, useCallback } from 'react';
 import dietService from '../services/dietService';
 
+// 기본 추천 식단 생성 (API 실패 시 fallback)
+const getDefaultMealPlans = () => {
+  return [
+    {
+      id: 'default-1',
+      title: '고단백 다이어트 식단',
+      type: '체중 감량',
+      calories: 1500,
+      meals: [
+        { name: '아침', foods: ['계란 흰자', '오트밀', '베리'], calories: 300 },
+        { name: '점심', foods: ['닭가슴살', '현미', '브로콜리'], calories: 450 },
+        { name: '저녁', foods: ['연어', '아스파라거스', '고구마'], calories: 400 },
+        { name: '간식', foods: ['그릭 요거트', '견과류'], calories: 250 }
+      ],
+      nutrients: { protein: 120, carbs: 150, fat: 45 },
+      image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80'
+    },
+    {
+      id: 'default-2',
+      title: '근육 증가 식단',
+      type: '근육 증가',
+      calories: 2200,
+      meals: [
+        { name: '아침', foods: ['오트밀', '바나나', '프로틴'], calories: 450 },
+        { name: '점심', foods: ['소고기', '현미', '야채'], calories: 650 },
+        { name: '저녁', foods: ['닭가슴살', '고구마', '아보카도'], calories: 550 },
+        { name: '간식', foods: ['견과류', '우유', '과일'], calories: 350 }
+      ],
+      nutrients: { protein: 150, carbs: 220, fat: 70 },
+      image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80'
+    },
+    {
+      id: 'default-3',
+      title: '균형 잡힌 건강 식단',
+      type: '건강 유지',
+      calories: 1800,
+      meals: [
+        { name: '아침', foods: ['통곡물 빵', '아보카도', '계란'], calories: 380 },
+        { name: '점심', foods: ['퀴노아', '연어', '샐러드'], calories: 480 },
+        { name: '저녁', foods: ['두부', '현미', '야채'], calories: 420 },
+        { name: '간식', foods: ['과일', '요거트'], calories: 200 }
+      ],
+      nutrients: { protein: 90, carbs: 180, fat: 60 },
+      image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80'
+    }
+  ];
+};
+
 // 식단 데이터 관리 커스텀 훅
 export const useDiet = () => {
   const [foods, setFoods] = useState([]);
@@ -94,8 +142,16 @@ export const useDiet = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await dietService.getMealPlans(params);
-      const mealPlansData = response.results || response;
+      // 새로운 ViewSet API 우선 시도, 실패 시 기존 API 사용
+      let response;
+      try {
+        response = await dietService.getMealPlansV2(params);
+      } catch (viewsetError) {
+        console.warn('ViewSet API 실패, 기존 API 사용:', viewsetError);
+        response = await dietService.getMealPlans(params);
+      }
+      
+      const mealPlansData = response.data || response.results || response;
       setMealPlans(mealPlansData);
       return mealPlansData;
     } catch (err) {
@@ -163,7 +219,16 @@ export const useDiet = () => {
     setLoading(true);
     setError(null);
     try {
-      const newMealPlan = await dietService.createMealPlan(mealPlanData);
+      // 새로운 ViewSet API 우선 시도, 실패 시 기존 API 사용
+      let newMealPlan;
+      try {
+        const response = await dietService.createMealPlanV2(mealPlanData);
+        newMealPlan = response.data || response;
+      } catch (viewsetError) {
+        console.warn('ViewSet API 실패, 기존 API 사용:', viewsetError);
+        newMealPlan = await dietService.createMealPlan(mealPlanData);
+      }
+      
       // 로컬 상태 업데이트
       await fetchMealPlans();
       return newMealPlan;
@@ -181,7 +246,16 @@ export const useDiet = () => {
     setLoading(true);
     setError(null);
     try {
-      const updatedMealPlan = await dietService.updateMealPlan(mealPlanId, mealPlanData);
+      // 새로운 ViewSet API 우선 시도, 실패 시 기존 API 사용
+      let updatedMealPlan;
+      try {
+        const response = await dietService.updateMealPlanV2(mealPlanId, mealPlanData);
+        updatedMealPlan = response.data || response;
+      } catch (viewsetError) {
+        console.warn('ViewSet API 실패, 기존 API 사용:', viewsetError);
+        updatedMealPlan = await dietService.updateMealPlan(mealPlanId, mealPlanData);
+      }
+      
       // 로컬 상태 업데이트
       await fetchMealPlans();
       if (todayMealPlan?.id === mealPlanId) {
@@ -202,7 +276,14 @@ export const useDiet = () => {
     setLoading(true);
     setError(null);
     try {
-      await dietService.deleteMealPlan(mealPlanId);
+      // 새로운 ViewSet API 우선 시도, 실패 시 기존 API 사용
+      try {
+        await dietService.deleteMealPlanV2(mealPlanId);
+      } catch (viewsetError) {
+        console.warn('ViewSet API 실패, 기존 API 사용:', viewsetError);
+        await dietService.deleteMealPlan(mealPlanId);
+      }
+      
       // 로컬 상태 업데이트
       await fetchMealPlans();
       if (todayMealPlan?.id === mealPlanId) {
@@ -218,55 +299,121 @@ export const useDiet = () => {
     }
   }, [fetchMealPlans, fetchTodayMealPlan, todayMealPlan]);
 
+  // ========== 새로운 MealPlan 관련 함수들 ==========
+
+  // 공개 식단 목록 조회
+  const fetchPublicMealPlans = useCallback(async (params = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await dietService.getPublicMealPlans(params);
+      const publicMealPlans = response.data || response;
+      return publicMealPlans;
+    } catch (err) {
+      console.error('Failed to fetch public meal plans:', err);
+      setError('공개 식단 목록을 불러오는데 실패했습니다.');
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 추천 식단 목록 조회
+  const fetchRecommendedMealPlans = useCallback(async (userGoal = null) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = userGoal ? { user_goal: userGoal } : {};
+      const response = await dietService.getRecommendedMealPlans(params);
+      const recommendedMealPlans = response.data || response;
+      return recommendedMealPlans;
+    } catch (err) {
+      console.error('Failed to fetch recommended meal plans:', err);
+      setError('추천 식단을 불러오는데 실패했습니다.');
+      // API 실패 시 기본 추천 식단 반환
+      return getDefaultMealPlans();
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 식단 좋아요/좋아요 취소
+  const toggleMealPlanLike = useCallback(async (mealPlanId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await dietService.toggleMealPlanLike(mealPlanId);
+      return response;
+    } catch (err) {
+      console.error('Failed to toggle meal plan like:', err);
+      if (err.response?.status === 400) {
+        setError(err.response.data.detail || '좋아요 처리에 실패했습니다.');
+      } else {
+        setError('좋아요 처리에 실패했습니다.');
+      }
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 공개 식단 상세 조회
+  const fetchPublicMealPlanDetail = useCallback(async (mealPlanId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await dietService.getPublicMealPlanDetail(mealPlanId);
+      const mealPlanDetail = response.data || response;
+      return mealPlanDetail;
+    } catch (err) {
+      console.error('Failed to fetch public meal plan detail:', err);
+      setError('식단 상세 정보를 불러오는데 실패했습니다.');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 식단 계획 복사하기 (공개 식단을 개인 식단으로)
+  const copyPublicMealPlan = useCallback(async (publicMealPlanId, customizations = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // 공개 식단 상세 정보 가져오기
+      const publicMealPlan = await fetchPublicMealPlanDetail(publicMealPlanId);
+      if (!publicMealPlan) {
+        throw new Error('공개 식단을 찾을 수 없습니다.');
+      }
+
+      // 새로운 식단 데이터 구성
+      const newMealPlanData = {
+        name: customizations.name || `${publicMealPlan.name} (복사본)`,
+        description: customizations.description || publicMealPlan.description,
+        start_date: customizations.start_date || new Date().toISOString().split('T')[0],
+        end_date: customizations.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        is_active: customizations.is_active ?? false,
+        is_public: false, // 복사본은 기본적으로 비공개
+        target_goal: customizations.target_goal || publicMealPlan.target_goal,
+        target_calories_min: customizations.target_calories_min || publicMealPlan.target_calories_min,
+        target_calories_max: customizations.target_calories_max || publicMealPlan.target_calories_max,
+        difficulty: customizations.difficulty || publicMealPlan.difficulty,
+        items: publicMealPlan.items || []
+      };
+
+      const newMealPlan = await createMealPlan(newMealPlanData);
+      return newMealPlan;
+    } catch (err) {
+      console.error('Failed to copy public meal plan:', err);
+      setError('식단 복사에 실패했습니다.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchPublicMealPlanDetail, createMealPlan]);
+
   // ========== 로컬 계산 및 유틸리티 함수들 ==========
 
-  // 기본 추천 식단 생성 (API 실패 시 fallback)
-  const getDefaultMealPlans = useCallback(() => {
-    return [
-      {
-        id: 'default-1',
-        title: '고단백 다이어트 식단',
-        type: '체중 감량',
-        calories: 1500,
-        meals: [
-          { name: '아침', foods: ['계란 흰자', '오트밀', '베리'], calories: 300 },
-          { name: '점심', foods: ['닭가슴살', '현미', '브로콜리'], calories: 450 },
-          { name: '저녁', foods: ['연어', '아스파라거스', '고구마'], calories: 400 },
-          { name: '간식', foods: ['그릭 요거트', '견과류'], calories: 250 }
-        ],
-        nutrients: { protein: 120, carbs: 150, fat: 45 },
-        image: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80'
-      },
-      {
-        id: 'default-2',
-        title: '근육 증가 식단',
-        type: '근육 증가',
-        calories: 2200,
-        meals: [
-          { name: '아침', foods: ['오트밀', '바나나', '프로틴'], calories: 450 },
-          { name: '점심', foods: ['소고기', '현미', '야채'], calories: 650 },
-          { name: '저녁', foods: ['닭가슴살', '고구마', '아보카도'], calories: 550 },
-          { name: '간식', foods: ['견과류', '우유', '과일'], calories: 350 }
-        ],
-        nutrients: { protein: 150, carbs: 220, fat: 70 },
-        image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80'
-      },
-      {
-        id: 'default-3',
-        title: '균형 잡힌 건강 식단',
-        type: '건강 유지',
-        calories: 1800,
-        meals: [
-          { name: '아침', foods: ['통곡물 빵', '아보카도', '계란'], calories: 380 },
-          { name: '점심', foods: ['퀴노아', '연어', '샐러드'], calories: 480 },
-          { name: '저녁', foods: ['두부', '현미', '야채'], calories: 420 },
-          { name: '간식', foods: ['과일', '요거트'], calories: 200 }
-        ],
-        nutrients: { protein: 90, carbs: 180, fat: 60 },
-        image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80'
-      }
-    ];
-  }, []);
+
 
   // 기본 오늘 식단 생성
   const createDefaultTodayPlan = useCallback(() => {
@@ -346,6 +493,103 @@ export const useDiet = () => {
     initializeData();
   }, [fetchFoods, fetchMealPlans, fetchTodayMealPlan]);
 
+  // ========== 추천 관련 함수들 ==========
+
+  // 기본 식단 추천 조회
+  const getBasicRecommendation = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('useDiet: Starting basic recommendation fetch');
+      const response = await dietService.getBasicRecommendation();
+      console.log('useDiet: Basic recommendation fetch successful:', response);
+      
+      if (response.status === 'success' && response.data) {
+        return response.data;
+      } else {
+        throw new Error(response.detail || '추천 데이터를 불러올 수 없습니다.');
+      }
+    } catch (err) {
+      console.error('useDiet: Basic recommendation fetch error:', err);
+      
+      // 401 에러 시 인증 문제로 간주
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        return null;
+      }
+      
+      // 400 에러 시 목표 칼로리 미설정 문제
+      if (err.response?.status === 400) {
+        setError('목표 칼로리가 설정되지 않았습니다. 프로필에서 목표 칼로리를 설정해주세요.');
+        return null;
+      }
+      
+      // 기타 에러의 경우 샘플 데이터 제공
+      console.log('useDiet: Providing sample recommendation data');
+      const sampleData = getSampleRecommendationData();
+      return sampleData;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 특정 식사 타입 추천 조회
+  const getRecommendationByMealType = useCallback(async (mealType) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('useDiet: Starting meal type recommendation fetch for:', mealType);
+      const response = await dietService.getRecommendationByMealType(mealType);
+      console.log('useDiet: Meal type recommendation fetch successful:', response);
+      
+      if (response.status === 'success' && response.data) {
+        return response.data;
+      } else {
+        throw new Error(response.detail || '추천 데이터를 불러올 수 없습니다.');
+      }
+    } catch (err) {
+      console.error('useDiet: Meal type recommendation fetch error:', err);
+      
+      // 401 에러 시 인증 문제로 간주
+      if (err.response?.status === 401) {
+        setError('로그인이 필요한 서비스입니다.');
+        return null;
+      }
+      
+      // 400 에러 시 목표 칼로리 미설정 문제
+      if (err.response?.status === 400) {
+        setError('목표 칼로리가 설정되지 않았습니다. 프로필에서 목표 칼로리를 설정해주세요.');
+        return null;
+      }
+      
+      setError(`${mealType} 식사 추천을 불러오는데 실패했습니다.`);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 샘플 추천 데이터 생성
+  const getSampleRecommendationData = useCallback(() => {
+    return {
+      breakfast: [
+        { id: 1, name: '오트밀', calories: 150, protein: 5, carbs: 27, fat: 3, serving_size: '1컵' },
+        { id: 2, name: '바나나', calories: 90, protein: 1, carbs: 23, fat: 0, serving_size: '1개' },
+        { id: 3, name: '아몬드', calories: 160, protein: 6, carbs: 6, fat: 14, serving_size: '28g' }
+      ],
+      lunch: [
+        { id: 4, name: '현미밥', calories: 220, protein: 5, carbs: 45, fat: 2, serving_size: '1공기' },
+        { id: 5, name: '닭가슴살', calories: 165, protein: 31, carbs: 0, fat: 4, serving_size: '100g' },
+        { id: 6, name: '브로콜리', calories: 25, protein: 3, carbs: 5, fat: 0, serving_size: '100g' }
+      ],
+      dinner: [
+        { id: 7, name: '연어구이', calories: 250, protein: 35, carbs: 0, fat: 12, serving_size: '150g' },
+        { id: 8, name: '고구마', calories: 100, protein: 2, carbs: 23, fat: 0, serving_size: '1개' },
+        { id: 9, name: '시금치샐러드', calories: 50, protein: 3, carbs: 10, fat: 0, serving_size: '100g' }
+      ]
+    };
+  }, []);
+
   return {
     // 상태
     foods,
@@ -366,11 +610,22 @@ export const useDiet = () => {
     updateMealPlan,
     deleteMealPlan,
 
+    // 새로운 MealPlan 관련 함수들
+    fetchPublicMealPlans,
+    fetchRecommendedMealPlans,
+    toggleMealPlanLike,
+    fetchPublicMealPlanDetail,
+    copyPublicMealPlan,
+
+    // 추천 관련 함수들
+    getBasicRecommendation,
+    getRecommendationByMealType,
+    getSampleRecommendationData,
+
     // 유틸리티 함수들
     calculateMealCalories,
     calculateNutrients,
     updateWaterIntake,
-    getDefaultMealPlans,
 
     // 새로고침 함수
     refetch: async () => {

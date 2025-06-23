@@ -197,6 +197,109 @@ export const dietService = {
       ...options,
       mealType
     });
+  },
+
+  // ========== 새로운 MealPlan 관련 API ==========
+
+  // 공개 식단 목록 조회
+  getPublicMealPlans: async (params = {}) => {
+    try {
+      const response = await api.get('/diet/mealplans/public/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('공개 식단 목록 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 추천 식단 목록 조회
+  getRecommendedMealPlans: async (params = {}) => {
+    try {
+      const response = await api.get('/diet/mealplans/recommended/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('추천 식단 목록 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 공개 식단 상세 조회
+  getPublicMealPlanDetail: async (mealPlanId) => {
+    try {
+      const response = await api.get(`/diet/mealplans/${mealPlanId}/public-detail/`);
+      return response.data;
+    } catch (error) {
+      console.error('공개 식단 상세 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 식단 좋아요/좋아요 취소
+  toggleMealPlanLike: async (mealPlanId) => {
+    try {
+      const response = await api.post(`/diet/mealplans/${mealPlanId}/like/`);
+      return response.data;
+    } catch (error) {
+      console.error('식단 좋아요 처리 실패:', error);
+      throw error;
+    }
+  },
+
+  // ========== 개선된 ViewSet 기반 MealPlan API ==========
+
+  // ViewSet 기반 식단 계획 목록 조회
+  getMealPlansV2: async (params = {}) => {
+    try {
+      const response = await api.get('/diet/mealplans/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('식단 계획 목록 조회 실패 (v2):', error);
+      throw error;
+    }
+  },
+
+  // ViewSet 기반 식단 계획 상세 조회
+  getMealPlanV2: async (mealPlanId) => {
+    try {
+      const response = await api.get(`/diet/mealplans/${mealPlanId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('식단 계획 상세 조회 실패 (v2):', error);
+      throw error;
+    }
+  },
+
+  // ViewSet 기반 식단 계획 생성
+  createMealPlanV2: async (mealPlanData) => {
+    try {
+      const response = await api.post('/diet/mealplans/', mealPlanData);
+      return response.data;
+    } catch (error) {
+      console.error('식단 계획 생성 실패 (v2):', error);
+      throw error;
+    }
+  },
+
+  // ViewSet 기반 식단 계획 수정
+  updateMealPlanV2: async (mealPlanId, mealPlanData) => {
+    try {
+      const response = await api.patch(`/diet/mealplans/${mealPlanId}/`, mealPlanData);
+      return response.data;
+    } catch (error) {
+      console.error('식단 계획 수정 실패 (v2):', error);
+      throw error;
+    }
+  },
+
+  // ViewSet 기반 식단 계획 삭제
+  deleteMealPlanV2: async (mealPlanId) => {
+    try {
+      const response = await api.delete(`/diet/mealplans/${mealPlanId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('식단 계획 삭제 실패 (v2):', error);
+      throw error;
+    }
   }
 };
 

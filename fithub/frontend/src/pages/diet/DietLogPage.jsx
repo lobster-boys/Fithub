@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import PageTransition from '../../components/layout/PageTransition';
 import { useDiet, useDietStats } from '../../hooks/useDiet';
 import { useAuth } from '../../hooks/useAuth';
+import DietRecommendationModal from '../../components/diet/DietRecommendationModal';
+import MealPlanModal from '../../components/diet/MealPlanModal';
 
 const DietLogPage = () => {
   const navigate = useNavigate();
@@ -20,6 +22,9 @@ const DietLogPage = () => {
     createMealPlan,
     updateWaterIntake,
     calculateMealCalories,
+    getBasicRecommendation,
+    getRecommendationByMealType,
+    getSampleRecommendationData,
     refetch
   } = isAuthenticated ? useDiet() : {
     foods: [],
@@ -32,6 +37,9 @@ const DietLogPage = () => {
     createMealPlan: () => {},
     updateWaterIntake: () => {},
     calculateMealCalories: () => 0,
+    getBasicRecommendation: () => null,
+    getRecommendationByMealType: () => null,
+    getSampleRecommendationData: () => null,
     refetch: () => {}
   };
 
@@ -58,6 +66,12 @@ const DietLogPage = () => {
   const [showAddMealModal, setShowAddMealModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
+  
+  // 추천 관련 상태
+  const [showRecommendationModal, setShowRecommendationModal] = useState(false);
+  const [recommendations, setRecommendations] = useState(null);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [recommendationError, setRecommendationError] = useState(null);
 
   // 새 식사 추가 상태
   const [newMeal, setNewMeal] = useState({
@@ -309,6 +323,111 @@ const DietLogPage = () => {
     setShowDetailModal(true);
   };
 
+  // ========== 추천 관련 함수들 ==========
+
+  // 기본 식단 추천 요청
+  const handleGetRecommendation = async () => {
+    if (!isAuthenticated) {
+      alert('로그인이 필요한 서비스입니다.');
+      return;
+    }
+
+    setRecommendationLoading(true);
+    setRecommendationError(null);
+    
+    try {
+      const result = await getBasicRecommendation();
+      
+      if (result) {
+        setRecommendations(result);
+        setShowRecommendationModal(true);
+      } else {
+        // 샘플 데이터 사용
+        const sampleData = getSampleRecommendationData();
+        setRecommendations(sampleData);
+        setShowRecommendationModal(true);
+      }
+    } catch (err) {
+      console.error('추천 요청 실패:', err);
+      setRecommendationError('식단 추천을 불러오는데 실패했습니다.');
+      
+      // 에러 시에도 샘플 데이터 제공
+      const sampleData = getSampleRecommendationData();
+      setRecommendations(sampleData);
+      setShowRecommendationModal(true);
+    } finally {
+      setRecommendationLoading(false);
+    }
+  };
+
+  // 특정 식사 타입 추천 요청
+  const handleGetMealTypeRecommendation = async (mealType) => {
+    if (!isAuthenticated) {
+      alert('로그인이 필요한 서비스입니다.');
+      return;
+    }
+
+    setRecommendationLoading(true);
+    setRecommendationError(null);
+    
+    try {
+      const result = await getRecommendationByMealType(mealType);
+      
+      if (result) {
+        setRecommendations({ [mealType]: result });
+        setShowRecommendationModal(true);
+      } else {
+        // 샘플 데이터 사용
+        const sampleData = getSampleRecommendationData();
+        setRecommendations({ [mealType]: sampleData[mealType] || [] });
+        setShowRecommendationModal(true);
+      }
+    } catch (err) {
+      console.error('식사 타입 추천 요청 실패:', err);
+      setRecommendationError(`${mealType} 추천을 불러오는데 실패했습니다.`);
+      
+      // 에러 시에도 샘플 데이터 제공
+      const sampleData = getSampleRecommendationData();
+      setRecommendations({ [mealType]: sampleData[mealType] || [] });
+      setShowRecommendationModal(true);
+    } finally {
+      setRecommendationLoading(false);
+    }
+  };
+
+  // 추천 모달 닫기
+  const handleCloseRecommendationModal = () => {
+    setShowRecommendationModal(false);
+    setRecommendations(null);
+    setRecommendationError(null);
+  };
+
+  // ========== 식단 계획 관련 함수들 ==========
+
+  // 식단 계획 생성/수정 처리
+  const handleMealPlanSubmit = async (mealPlanData) => {
+    if (!isAuthenticated) {
+      alert('로그인이 필요한 서비스입니다.');
+      return;
+    }
+
+    try {
+      await createMealPlan(mealPlanData);
+      console.log('식단 계획이 성공적으로 생성되었습니다.');
+      
+      // 데이터 새로고침
+      await refetch();
+    } catch (error) {
+      console.error('식단 계획 생성 실패:', error);
+      alert('식단 계획 생성에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
+  // 식단 계획 모달 닫기
+  const handleCloseMealPlanModal = () => {
+    setShowMealPlanModal(false);
+  };
+
   // 통계 값들
   const todayStats = getTodayStats();
   const weeklyStats = getWeeklyStats();
@@ -399,14 +518,29 @@ const DietLogPage = () => {
         <div className="px-4 md:px-6 mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">추천 식단</h2>
-            <button
-              onClick={() => setShowMealPlanModal(true)}
-              className="bg-primary text-white py-2 px-4 rounded-lg font-medium hover:bg-orange-600 flex items-center shadow-sm"
-              aria-label="식단 계획 만들기"
-            >
-              <i className="fas fa-plus mr-2"></i>
-              <span>식단 계획</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleGetRecommendation}
+                disabled={recommendationLoading}
+                className="bg-green-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-600 flex items-center shadow-sm"
+                aria-label="식단 추천 받기"
+              >
+                {recommendationLoading ? (
+                  <i className="fas fa-spinner fa-spin mr-2"></i>
+                ) : (
+                  <i className="fas fa-lightbulb mr-2"></i>
+                )}
+                <span>식단 추천</span>
+              </button>
+              <button
+                onClick={() => setShowMealPlanModal(true)}
+                className="bg-primary text-white py-2 px-4 rounded-lg font-medium hover:bg-orange-600 flex items-center shadow-sm"
+                aria-label="식단 계획 만들기"
+              >
+                <i className="fas fa-plus mr-2"></i>
+                <span>식단 계획</span>
+              </button>
+            </div>
           </div>
           
           {/* 식단 캐러셀 */}
@@ -999,6 +1133,43 @@ const DietLogPage = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* 식단 추천 모달 */}
+        {showRecommendationModal && (
+          <DietRecommendationModal
+            isOpen={showRecommendationModal}
+            onClose={handleCloseRecommendationModal}
+            recommendations={recommendations}
+            loading={recommendationLoading}
+            error={recommendationError}
+            onSelectFood={(food) => {
+              // 추천된 음식을 식단에 추가하는 로직
+              console.log('선택된 음식:', food);
+              
+              // 새 식사 추가 모달 열기
+              setNewMeal(prev => ({
+                ...prev,
+                foods: [...prev.foods, `${food.name} (${food.serving_size})`],
+                calories: prev.calories + (food.calories || 0)
+              }));
+              
+              // 추천 모달 닫기
+              handleCloseRecommendationModal();
+              
+              // 식사 추가 모달 열기
+              setShowAddMealModal(true);
+            }}
+          />
+        )}
+
+        {/* 식단 계획 모달 */}
+        {showMealPlanModal && (
+          <MealPlanModal
+            isOpen={showMealPlanModal}
+            onClose={handleCloseMealPlanModal}
+            onSubmit={handleMealPlanSubmit}
+          />
         )}
       </div>
     </PageTransition>

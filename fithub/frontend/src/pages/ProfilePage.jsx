@@ -170,10 +170,51 @@ const ProfilePage = () => {
     }
   };
 
+  // BMR 계산 함수 (Harris-Benedict 공식)
+  const calculateBMR = (weight, height, age, gender = 'm') => {
+    if (!weight || !height || !age) return 0;
+    
+    const w = parseFloat(weight);
+    const h = parseInt(height);
+    const a = parseInt(age);
+    
+    if (gender === 'f') {
+      return 447.593 + (9.247 * w) + (3.098 * h) - (4.330 * a);
+    } else {
+      return 88.362 + (13.397 * w) + (4.799 * h) - (5.677 * a);
+    }
+  };
+
+  // 활동 수준에 따른 목표 칼로리 계산
+  const calculateTargetCalories = () => {
+    if (!form.weight || !form.height || !form.birth_date) return 0;
+    
+    const birthDate = new Date(form.birth_date);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    
+    const bmr = calculateBMR(form.weight, form.height, age, form.gender);
+    
+    // 활동 수준에 따른 계수
+    const activityMultipliers = {
+      'sedentary': 1.2,
+      'light': 1.375,
+      'moderate': 1.55,
+      'active': 1.725,
+      'very_active': 1.9
+    };
+    
+    const multiplier = activityMultipliers[form.activity_level] || 1.5;
+    return Math.round(bmr * multiplier);
+  };
+
   // 목표 달성률 계산
   const progress = form.target_calories
     ? Math.min(100, Math.round((user?.totalCalories || 0) / form.target_calories * 100))
     : 0;
+  
+  // 권장 칼로리 계산
+  const recommendedCalories = calculateTargetCalories();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -295,14 +336,35 @@ const ProfilePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">목표 칼로리 (kcal/일)</label>
-                <input
-                  type="number"
-                  name="target_calories"
-                  value={form.target_calories}
-                  onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
-                  placeholder="2000"
-                />
+                <div className="space-y-2">
+                  <input
+                    type="number"
+                    name="target_calories"
+                    value={form.target_calories}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                    placeholder="2000"
+                    min="1200"
+                    max="4000"
+                  />
+                  {recommendedCalories > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-green-600">권장: {recommendedCalories}kcal</span>
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, target_calories: recommendedCalories }))}
+                        className="text-blue-500 hover:text-blue-700 underline"
+                      >
+                        권장값 적용
+                      </button>
+                    </div>
+                  )}
+                  {!recommendedCalories && (
+                    <p className="text-xs text-gray-500">
+                      신체정보, 성별, 활동수준을 입력하면 권장 칼로리가 계산됩니다.
+                    </p>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">목표 단백질 (g/일)</label>

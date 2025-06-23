@@ -89,6 +89,8 @@ class OnboardingViewSet(BaseViewSet):
                     'height': onboarding_data.height,
                     'weight': str(onboarding_data.weight),
                     'age': onboarding_data.age,
+                    'gender': onboarding_data.gender,
+                    'target_calories': onboarding_data.target_calories,
                     'goals': onboarding_data.goals,
                     'methods': onboarding_data.methods,
                     'equipment': onboarding_data.equipment,
@@ -165,6 +167,8 @@ class OnboardingViewSet(BaseViewSet):
                         'height': validated_data.get('height', 0),
                         'weight': validated_data.get('weight', 0),
                         'age': validated_data.get('age', 0),
+                        'gender': validated_data.get('gender', ''),
+                        'target_calories': validated_data.get('target_calories', 2000),
                         'goals': validated_data.get('goals', []),
                         'methods': validated_data.get('methods', []),
                         'equipment': validated_data.get('equipment', []),
@@ -198,6 +202,8 @@ class OnboardingViewSet(BaseViewSet):
                     onboarding_data.height = validated_data.get('height', onboarding_data.height)
                     onboarding_data.weight = validated_data.get('weight', onboarding_data.weight)
                     onboarding_data.age = validated_data.get('age', onboarding_data.age)
+                    onboarding_data.gender = validated_data.get('gender', onboarding_data.gender)
+                    onboarding_data.target_calories = validated_data.get('target_calories', onboarding_data.target_calories)
                     onboarding_data.goals = validated_data.get('goals', onboarding_data.goals)
                     onboarding_data.methods = validated_data.get('methods', onboarding_data.methods)
                     onboarding_data.equipment = validated_data.get('equipment', [])
@@ -211,11 +217,17 @@ class OnboardingViewSet(BaseViewSet):
                 profile.weight = validated_data.get('weight', profile.weight or 0)
                 profile.onboarding_completed = True
                 profile.onboarding_completed_at = timezone.now()
+                # 새로 추가된 필드들도 UserProfile에 반영
+                profile.gender = validated_data.get('gender', profile.gender)
+                profile.target_calories = validated_data.get('target_calories', profile.target_calories or 2000)
+                
                 profile.onboarding_data = {
                     'fitness_level': validated_data.get('fitness_level', ''),
                     'height': validated_data.get('height', 0),
                     'weight': str(validated_data.get('weight', 0)),
                     'age': validated_data.get('age', 0),
+                    'gender': validated_data.get('gender', ''),
+                    'target_calories': validated_data.get('target_calories', 2000),
                     'goals': validated_data.get('goals', []),
                     'methods': validated_data.get('methods', []),
                     'equipment': validated_data.get('equipment', []),

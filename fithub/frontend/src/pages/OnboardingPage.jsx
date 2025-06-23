@@ -25,6 +25,8 @@ export default function OnboardingPage() {
     height: '',
     weight: '',
     age: '',
+    gender: '',
+    target_calories: '',
     goals: [],
     methods: [],
     equipment: [],
@@ -57,6 +59,8 @@ export default function OnboardingPage() {
               height: data.height?.toString() || '',
               weight: data.weight?.toString() || '',
               age: data.age?.toString() || '',
+              gender: data.gender || '',
+              target_calories: data.target_calories?.toString() || '',
               goals: data.goals || [],
               methods: data.methods || [],
               equipment: data.equipment || [],
@@ -84,6 +88,7 @@ export default function OnboardingPage() {
           formData.height !== '' && 
           formData.weight !== '' && 
           formData.age !== '' &&
+          formData.gender !== '' &&
           parseInt(formData.height) > 0 &&
           parseFloat(formData.weight) > 0 &&
           parseInt(formData.age) > 0
@@ -139,6 +144,8 @@ export default function OnboardingPage() {
         height: parseInt(formData.height),
         weight: parseFloat(formData.weight),
         age: parseInt(formData.age),
+        gender: formData.gender,
+        target_calories: parseInt(formData.target_calories) || 2000,
         goals: formData.goals,
         methods: formData.methods,
         equipment: formData.equipment || [],

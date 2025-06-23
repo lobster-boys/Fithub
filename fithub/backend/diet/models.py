@@ -230,6 +230,20 @@ class Food(models.Model):
 
 
 class MealPlan(models.Model):
+    GOAL_TYPE_CHOICES = [
+        ('weight_loss', '체중 감량'),
+        ('muscle_gain', '근육 증가'),
+        ('maintenance', '체중 유지'),
+        ('endurance', '지구력 향상'),
+        ('strength', '근력 향상'),
+        ('health', '건강 관리'),
+    ]
+    
+    DIFFICULTY_CHOICES = [
+        ('easy', '쉬움'),
+        ('medium', '보통'),
+        ('hard', '어려움'),
+    ]
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -242,6 +256,31 @@ class MealPlan(models.Model):
     end_date = models.DateField(help_text='식단 종료일')
     is_active = models.BooleanField(default=False, help_text='현재 활성화된 식단 여부')
     total_calories = models.IntegerField(help_text='일일 총 목표 칼로리', null=True, blank=True)
+    
+    # 공개/비공개 및 추천 관련 필드 추가
+    is_public = models.BooleanField(default=False, help_text='다른 사용자에게 공개 여부')
+    is_recommended = models.BooleanField(default=False, help_text='추천 식단으로 사용 가능 여부')
+    target_goal = models.CharField(
+        max_length=20, 
+        choices=GOAL_TYPE_CHOICES, 
+        blank=True, 
+        null=True,
+        help_text='목표 운동 목적'
+    )
+    target_calories_min = models.IntegerField(blank=True, null=True, help_text='권장 최소 칼로리')
+    target_calories_max = models.IntegerField(blank=True, null=True, help_text='권장 최대 칼로리')
+    difficulty = models.CharField(
+        max_length=10, 
+        choices=DIFFICULTY_CHOICES, 
+        default='medium',
+        help_text='식단 난이도'
+    )
+    
+    # 메타데이터
+    views_count = models.PositiveIntegerField(default=0, help_text='조회수')
+    likes_count = models.PositiveIntegerField(default=0, help_text='좋아요 수')
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         ordering = ['-start_date']
@@ -250,6 +289,30 @@ class MealPlan(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.user.username})'
+    
+    def increment_views(self):
+        """조회수 증가"""
+        self.views_count += 1
+        self.save(update_fields=['views_count'])
+    
+    def is_suitable_for_user(self, user_profile):
+        """사용자 프로필에 적합한 식단인지 확인"""
+        if not user_profile:
+            return True
+            
+        # 목표 일치 확인
+        if self.target_goal and user_profile.fitness_goal:
+            if self.target_goal != user_profile.fitness_goal:
+                return False
+        
+        # 칼로리 범위 확인
+        if user_profile.target_calories:
+            if self.target_calories_min and user_profile.target_calories < self.target_calories_min:
+                return False
+            if self.target_calories_max and user_profile.target_calories > self.target_calories_max:
+                return False
+        
+        return True
     
     def _grams_from_quantity(self, item):
         """
@@ -372,3 +435,27 @@ class MealPlanFood(models.Model):
 
     def __str__(self):
         return f'{self.meal_plan.name} - {self.get_meal_time_display()} : {self.food.name}'
+
+
+class MealPlanLike(models.Model):
+    """식단 계획 좋아요"""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='meal_plan_likes'
+    )
+    meal_plan = models.ForeignKey(
+        MealPlan,
+        on_delete=models.CASCADE,
+        related_name='likes'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'diet_meal_plan_like'
+        unique_together = ('user', 'meal_plan')
+        verbose_name = 'Meal Plan Like'
+        verbose_name_plural = 'Meal Plan Likes'
+
+    def __str__(self):
+        return f'{self.user.username} likes {self.meal_plan.name}'

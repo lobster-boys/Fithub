@@ -68,6 +68,10 @@ router.register(r'ecommerce/shipping-addresses', ShippingAddressViewSet, basenam
 
 # Diet 앱 ViewSets
 router.register(r'diet/foods', FoodViewSet, basename='food')
+from .views.diet.mealplan_views import MealPlanViewSet
+router.register(r'diet/mealplans', MealPlanViewSet, basename='mealplan')
+from .views.diet.diet_log_views import DietLogViewSet
+router.register(r'diet/logs', DietLogViewSet, basename='diet-log')
 
 # Users 앱 ViewSets
 router.register(r'users/profiles', UserProfileViewSet, basename='user-profile')
