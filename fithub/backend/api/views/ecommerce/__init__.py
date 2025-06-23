@@ -6,6 +6,7 @@ from .order_views import OrderViewSet
 from .coupon_views import CouponViewSet, UserCouponViewSet
 from .point_views import UserPointViewSet, PointTransactionViewSet
 from .review_views import ReviewViewSet
+from .shipping_address_views import ShippingAddressViewSet
 
 # 하위 호환성을 위한 레거시 뷰들
 from .category_views import categories, category
@@ -27,6 +28,7 @@ __all__ = [
     'UserPointViewSet',
     'PointTransactionViewSet',
     'ReviewViewSet',
+    'ShippingAddressViewSet',
     
     # 하위 호환성을 위한 레거시 뷰들
     'categories',

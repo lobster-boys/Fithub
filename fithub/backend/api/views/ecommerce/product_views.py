@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from ecommerce.models import Product
-from api.serializers.ecommerce.product_serializers import ProductSerializer
+from api.serializers.ecommerce.product_serializers import ProductSerializer, ProductAdminSerializer
 from api.permissions import PublicReadOnly
 from django.db.models import Q
 
@@ -36,12 +36,24 @@ class ProductViewSet(viewsets.ModelViewSet):
     - 카테고리별 필터링
     - 검색 기능
     """
-    serializer_class = ProductSerializer
     permission_classes = [PublicReadOnly]  # 공통 데이터 - 읽기는 모든 사람, 쓰기는 관리자만
+    
+    def get_serializer_class(self):
+        """관리자 권한에 따라 적절한 시리얼라이저 선택"""
+        if (self.action in ['create', 'update', 'partial_update'] and 
+            self.request.user.is_authenticated and 
+            self.request.user.is_superuser):
+            return ProductAdminSerializer
+        return ProductSerializer
     
     def get_queryset(self):
         """상품 목록 조회 (필터링 지원)"""
-        queryset = Product.objects.filter(is_active=True)
+        # 관리자는 모든 상품 조회 가능, 일반 사용자는 활성 상품만
+        if (self.request.user.is_authenticated and 
+            self.request.user.is_superuser):
+            queryset = Product.objects.all()
+        else:
+            queryset = Product.objects.filter(is_active=True)
         
         # 카테고리 필터링 (프론트엔드에서 사용)
         category_id = self.request.query_params.get('category')

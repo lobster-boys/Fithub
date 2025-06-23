@@ -1,8 +1,11 @@
 from django.db import models
+from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from django.urls import reverse
 from decimal import Decimal
-from users.models import User
+from django.conf import settings
+
+User = get_user_model()
 
 # 카테고리 모델
 class Category(models.Model):
@@ -30,8 +33,8 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, allow_unicode=True)
     description = models.TextField(null=True)
-    price = models.DecimalField(default=Decimal('0'), max_digits=10, decimal_places=2)
-    sale_price = models.DecimalField(default=Decimal('0'), max_digits=10, decimal_places=2, blank=True, null=True)
+    price = models.PositiveIntegerField(default=0, help_text="상품 가격 (원 단위)")
+    sale_price = models.PositiveIntegerField(blank=True, null=True, help_text="할인가 (원 단위)")
     stock_quantity = models.IntegerField(default=0)
     is_food = models.BooleanField(default=False)
     unit_weight_g = models.PositiveIntegerField(
@@ -53,7 +56,7 @@ class Product(models.Model):
 # 카트 모델
 class Cart(models.Model):
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -64,12 +67,12 @@ class Cart(models.Model):
 # 주문 모델
 class Order(models.Model):
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE
     )
     shipping_address = models.CharField(max_length=1000)
     order_number = models.CharField(max_length=50)
     status = models.CharField(max_length=20)
-    total_amount = models.DecimalField(default=Decimal('0'), max_digits=10, decimal_places=2)
+    total_amount = models.PositiveIntegerField(default=0, help_text="총 주문 금액 (원 단위)")
     payment_method = models.CharField(max_length=50)
     points_applied = models.IntegerField(default=0, help_text="적용된 포인트")
     coupon_applied = models.CharField(max_length=50, blank=True, null=True, help_text="적용된 쿠폰 코드")
@@ -79,7 +82,7 @@ class Order(models.Model):
 # 배송 주소 모델
 class ShippingAddress(models.Model):
     user = models.ForeignKey(
-        User, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE,
         related_name='shipping_addresses'
     )
@@ -113,7 +116,7 @@ class OrderItem(models.Model):
     )
     product_name = models.CharField(max_length=200, help_text="주문 시점의 상품명")
     quantity = models.IntegerField(default=1)
-    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="주문 시점의 상품 가격")
+    price = models.PositiveIntegerField(help_text="주문 시점의 상품 가격 (원 단위)")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -139,7 +142,7 @@ class CartItem(models.Model):
         on_delete=models.CASCADE
     )
     product_name = models.CharField(max_length=200, help_text="장바구니 담은 시점의 상품명")
-    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="장바구니 담은 시점의 상품 가격")
+    price = models.PositiveIntegerField(help_text="장바구니 담은 시점의 상품 가격 (원 단위)")
     quantity = models.IntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -204,7 +207,7 @@ class Coupon(models.Model):
 # 사용자 쿠폰 모델
 class UserCoupon(models.Model):
     user = models.ForeignKey(
-        User, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE,
         related_name='user_coupons'
     )
@@ -231,7 +234,7 @@ class UserCoupon(models.Model):
 # 리뷰 모델
 class Review(models.Model):
     user = models.ForeignKey(
-        User, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE,
         related_name='product_reviews'
     )
@@ -282,7 +285,7 @@ class ClickedItems(models.Model):
     clicked_list = TextField(default="[]")
     """
     user = models.ForeignKey(
-        User, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE,
         related_name='clicked_items'
     )

@@ -19,7 +19,7 @@ from api.views.routine_feed_viewset import RoutineFeedViewSet
 # ViewSets (단순화된 버전)
 from .views.workouts import ExerciseViewSet, WorkoutRoutineViewSet, WorkoutLogViewSet, WorkoutLogExerciseViewSet, WorkoutTypeViewSet, WorkoutStatsViewSet
 from .views.workouts.session_views import WorkoutSessionViewSet
-from .views.ecommerce import CategoryViewSet, ProductViewSet
+from .views.ecommerce import CategoryViewSet, ProductViewSet, ShippingAddressViewSet
 from .views.ecommerce.cart_views import CartViewSet, CartItemViewSet
 from .views.ecommerce.order_views import OrderViewSet
 from .views.ecommerce.review_views import ReviewViewSet
@@ -64,6 +64,7 @@ router.register(r'ecommerce/carts', CartViewSet, basename='cart')
 router.register(r'ecommerce/cart-items', CartItemViewSet, basename='cart-item')
 router.register(r'ecommerce/orders', OrderViewSet, basename='order')
 router.register(r'ecommerce/reviews', ReviewViewSet, basename='review')
+router.register(r'ecommerce/shipping-addresses', ShippingAddressViewSet, basename='shipping-address')
 
 # Diet 앱 ViewSets
 router.register(r'diet/foods', FoodViewSet, basename='food')

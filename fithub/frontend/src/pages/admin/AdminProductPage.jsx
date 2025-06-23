@@ -227,14 +227,17 @@ const AdminProductPage = () => {
       // 카테고리 ID를 카테고리 객체로 변환
       const selectedCategory = categories.find(cat => cat.id === formData.category);
       
+      // 가격 처리: 정수로 처리하여 정밀도 문제 해결
+      const price = Math.round(parseFloat(formData.price) || 0);
+      
       // 할인가 처리: 값이 있고 0보다 클 때만 설정, 아니면 null
       const salePrice = formData.sale_price && parseFloat(formData.sale_price) > 0 ? 
-                       parseFloat(formData.sale_price).toString() : null;
+                       Math.round(parseFloat(formData.sale_price)) : null;
 
       const productData = {
         name: formData.name,
         description: formData.description,
-        price: parseFloat(formData.price).toString(), // 문자열로 변환하여 정확한 전송
+        price: price, // 정수로 전송
         stock_quantity: parseInt(formData.stock_quantity),
         unit_weight_g: formData.unit_weight_g ? parseInt(formData.unit_weight_g) : 0,
         is_active: true, // 관리자가 등록하는 상품은 기본적으로 활성화
@@ -253,8 +256,10 @@ const AdminProductPage = () => {
         debug_info: {
           input_price: formData.price,
           input_sale_price: formData.sale_price,
+          calculated_price: price,
           calculated_sale_price: salePrice,
-          sale_price_check: formData.sale_price && parseFloat(formData.sale_price) > 0
+          price_type: typeof price,
+          sale_price_type: typeof salePrice
         }
       });
 
