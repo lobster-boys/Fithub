@@ -18,6 +18,10 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProductDetailPage from './pages/ecommerce/ProductDetailPage';
 import ShoppingCartPage from './pages/ecommerce/ShoppingCartPage';
+import BillingPage from './pages/ecommerce/BillingPage';
+import CouponsPage from './pages/ecommerce/CouponsPage';
+import ShippingAddressPage from './pages/ecommerce/ShippingAddressPage';
+import AdminProductPage from './pages/admin/AdminProductPage';
 import WorkoutDetailPage from './pages/workout/WorkoutDetailPage';
 import IngredientDetailPage from './pages/diet/IngredientDetailPage';
 import DietLogPage from './pages/diet/DietLogPage';
@@ -38,9 +42,29 @@ const PlaceholderPage = ({ title }) => (
 );
 
 // 아직 구현되지 않은 페이지들은 플레이스홀더로 대체
-const CheckoutPage = () => <PlaceholderPage title="결제" />;
 const OrderHistoryPage = () => <PlaceholderPage title="주문 내역" />;
 const SettingsPage = () => <PlaceholderPage title="설정" />;
+
+// 관리자 권한이 필요한 페이지들을 보호하는 컴포넌트
+const AdminProtectedPage = ({ children }) => {
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  // 로딩 중
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">로딩 중...</div>
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 경우 또는 관리자가 아닌 경우
+  if (!isAuthenticated || !user?.is_superuser) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
 
 // 인증이 필요한 페이지들을 보호하는 컴포넌트
 const ProtectedPage = ({ children }) => {
@@ -137,8 +161,6 @@ const AnimatedRoutes = () => {
           </ProtectedPage>
         } />
 
-
-        
         {/* 커뮤니티 관련 페이지 (인증 필요) */}
         <Route path="/community" element={
           <ProtectedPage>
@@ -157,25 +179,42 @@ const AnimatedRoutes = () => {
             <EcommercePage />
           </ProtectedPage>
         } />
-        <Route path="/shop/:productId" element={
+        <Route path="/products/:productId" element={
           <ProtectedPage>
             <ProductDetailPage />
           </ProtectedPage>
         } />
-        <Route path="/shop/cart" element={
+        <Route path="/cart" element={
           <ProtectedPage>
             <ShoppingCartPage />
           </ProtectedPage>
         } />
-        <Route path="/shop/checkout" element={
+        <Route path="/billing" element={
           <ProtectedPage>
-            <CheckoutPage />
+            <BillingPage />
           </ProtectedPage>
         } />
-        <Route path="/shop/orders" element={
+        <Route path="/coupons" element={
+          <ProtectedPage>
+            <CouponsPage />
+          </ProtectedPage>
+        } />
+        <Route path="/shipping-address" element={
+          <ProtectedPage>
+            <ShippingAddressPage />
+          </ProtectedPage>
+        } />
+        <Route path="/orders" element={
           <ProtectedPage>
             <OrderHistoryPage />
           </ProtectedPage>
+        } />
+
+        {/* 관리자 페이지 (슈퍼유저만 접근 가능) */}
+        <Route path="/admin/products" element={
+          <AdminProtectedPage>
+            <AdminProductPage />
+          </AdminProtectedPage>
         } />
         
         {/* 사용자 프로필 및 설정 관련 페이지 (인증 필요) */}

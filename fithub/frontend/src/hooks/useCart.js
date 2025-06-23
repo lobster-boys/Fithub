@@ -41,10 +41,14 @@ export const useCart = () => {
     setError(null);
     
     try {
+      console.log('[useCart] 장바구니 추가 요청:', { productId, quantity });
+      
       const response = await axiosInstance.post('/ecommerce/carts/add_item/', {
         product_id: productId,
         quantity: quantity
       });
+      
+      console.log('[useCart] 장바구니 추가 성공:', response.data);
       
       // 장바구니 다시 조회하여 최신 상태 반영
       await fetchCart();
@@ -54,10 +58,17 @@ export const useCart = () => {
       
       return response.data;
     } catch (err) {
-      console.error('Failed to add to cart:', err);
+      console.error('[useCart] 장바구니 추가 실패:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        requestData: { productId, quantity }
+      });
+      
       const errorMessage = err.response?.data?.detail || 
                           err.response?.data?.error ||
-                          '장바구니에 상품을 추가하는 중 오류가 발생했습니다.';
+                          err.response?.data?.message ||
+                          `장바구니에 상품을 추가하는 중 오류가 발생했습니다. (${err.response?.status || 'Unknown'})`;
       setError(errorMessage);
       throw err;
     } finally {

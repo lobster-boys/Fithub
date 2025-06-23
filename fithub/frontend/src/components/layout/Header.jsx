@@ -54,7 +54,7 @@ const Header = () => {
                 </div>
               )}
               
-              <Link to="/shop/cart" className="p-2 rounded-full hover:bg-gray-100 relative">
+              <Link to="/cart" className="p-2 rounded-full hover:bg-gray-100 relative">
                 <i className="fas fa-shopping-cart text-gray-600"></i>
                 {cartItemsCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-primary text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
@@ -85,6 +85,18 @@ const Header = () => {
                     >
                       <i className="fas fa-users mr-2"></i>커뮤니티
                     </Link>
+                    {/* 슈퍼유저만 보이는 관리자 메뉴 */}
+                    {user?.is_superuser && (
+                      <>
+                        <div className="border-t border-gray-100 my-1"></div>
+                        <Link 
+                          to="/admin/products" 
+                          className="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium"
+                        >
+                          <i className="fas fa-cog mr-2"></i>관리자 페이지
+                        </Link>
+                      </>
+                    )}
                     <div className="border-t border-gray-100 my-1"></div>
                     <Link 
                       to="/settings" 

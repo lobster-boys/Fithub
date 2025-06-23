@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
 import useEcommerce from '../../hooks/useEcommerce';
+import { useAuth } from '../../hooks/useAuth';
 
 const EcommercePage = () => {
+  // 인증 상태 확인
+  const { user, isAuthenticated } = useAuth();
+  
   // 이커머스 훅 사용
   const { 
     products,
@@ -80,15 +84,31 @@ const EcommercePage = () => {
     setFilteredProducts(products);
   }, [products]);
 
+  // 실제 판매가격 계산 함수
+  const getActualPrice = (product) => {
+    const numericPrice = parseFloat(product.price) || 0;
+    
+    // sale_price가 있고 0보다 큰 유효한 값인지 확인
+    const numericSalePrice = product.sale_price && 
+                            product.sale_price !== null && 
+                            product.sale_price !== '0' && 
+                            parseFloat(product.sale_price) > 0 ? 
+                            parseFloat(product.sale_price) : null;
+    
+    console.log(`[EcommercePage] 상품: ${product.name} | 원가: ${numericPrice} | 할인가: ${numericSalePrice} | sale_price 원본: ${product.sale_price}`);
+    
+    return numericSalePrice || numericPrice;
+  };
+
   // 정렬 처리
   const applySorting = (productList, sortType) => {
     const sortedProducts = [...productList];
     
     switch (sortType) {
       case 'price_low':
-        return sortedProducts.sort((a, b) => (a.price || 0) - (b.price || 0));
+        return sortedProducts.sort((a, b) => getActualPrice(a) - getActualPrice(b));
       case 'price_high':
-        return sortedProducts.sort((a, b) => (b.price || 0) - (a.price || 0));
+        return sortedProducts.sort((a, b) => getActualPrice(b) - getActualPrice(a));
       case 'rating':
         return sortedProducts.sort((a, b) => (b.rating || 0) - (a.rating || 0));
       case 'popularity':
@@ -171,8 +191,22 @@ const EcommercePage = () => {
     <div className="container mx-auto px-4 py-8">
       {/* 헤더 */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">FitHub 스토어</h1>
-        <p className="text-gray-600">건강한 생활을 위한 최고의 피트니스 제품을 만나보세요.</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">FitHub 스토어</h1>
+            <p className="text-gray-600">건강한 생활을 위한 최고의 피트니스 제품을 만나보세요.</p>
+          </div>
+          {/* 슈퍼유저만 보이는 관리자 버튼 */}
+          {user?.is_superuser && (
+            <Link 
+              to="/admin/products"
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors shadow-lg"
+            >
+              <i className="fas fa-cogs"></i>
+              <span className="font-medium">관리자 페이지</span>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* 프로모션 배너 */}

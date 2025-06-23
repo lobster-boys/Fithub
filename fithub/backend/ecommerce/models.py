@@ -41,6 +41,7 @@ class Product(models.Model):
     is_active = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False)
     recommendations_score = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), help_text="추천 점수")
+    image_url = models.URLField(blank=True, null=True, help_text="상품 이미지 URL")
 
     def __str__(self):
         return self.name

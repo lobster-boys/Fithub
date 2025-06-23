@@ -20,6 +20,7 @@ class CustomLoginSerializer(serializers.ModelSerializer):
             "last_login",
             "is_active",
             "is_staff",
+            "is_superuser",
         )
 
 # 회원가입 필드 커스텀 - 임시로 간소화

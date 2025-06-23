@@ -4,6 +4,8 @@ import Card from '../../components/common/Card';
 import ProductCardList from '../../components/ecommerce/ProductCardList';
 import useEcommerce from '../../hooks/useEcommerce';
 import { useCart } from '../../hooks/useCart';
+import { useAuth } from '../../hooks/useAuth';
+import axiosInstance from '../../api/axiosConfig';
 
 const ProductDetailPage = () => {
   const { productId } = useParams();
@@ -22,6 +24,7 @@ const ProductDetailPage = () => {
   } = useEcommerce();
   
   const { addToCart, isInCart, loading: cartLoading } = useCart();
+  const { user } = useAuth();
 
   // 상태 관리
   const [product, setProduct] = useState(null);
@@ -34,6 +37,11 @@ const ProductDetailPage = () => {
   const [cartMessage, setCartMessage] = useState('');
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
   const [showReviewForm, setShowReviewForm] = useState(false);
+  
+  // 관리자용 할인율 조정 상태
+  const [showDiscountControl, setShowDiscountControl] = useState(false);
+  const [tempDiscountRate, setTempDiscountRate] = useState(0);
+  const [isUpdatingDiscount, setIsUpdatingDiscount] = useState(false);
 
   // 상품 데이터 로드
   useEffect(() => {
@@ -66,7 +74,7 @@ const ProductDetailPage = () => {
   // 수량 변경
   const handleQuantityChange = (amount) => {
     const newQuantity = quantity + amount;
-    const maxQuantity = product?.stock || 10;
+    const maxQuantity = product?.stock_quantity || product?.stock || 10;
     if (newQuantity >= 1 && newQuantity <= maxQuantity) {
       setQuantity(newQuantity);
     }
@@ -89,8 +97,28 @@ const ProductDetailPage = () => {
 
   // 바로 구매
   const handleBuyNow = async () => {
-    await handleAddToCart();
-    navigate('/shop/cart');
+    if (!product) return;
+
+    try {
+      // 바로 구매할 상품 정보 생성
+      const purchaseItem = {
+        id: `temp_${Date.now()}`, // 임시 ID
+        product: product,
+        quantity: quantity
+      };
+
+      // 결제 페이지로 바로 이동 (장바구니를 거치지 않음)
+      navigate('/billing', { 
+        state: { 
+          selectedItems: [purchaseItem],
+          fromCart: false,
+          directPurchase: true
+        } 
+      });
+    } catch (err) {
+      console.error('바로 구매 실패:', err);
+      alert('구매 처리 중 오류가 발생했습니다.');
+    }
   };
 
   // 리뷰 작성
@@ -116,11 +144,181 @@ const ProductDetailPage = () => {
     }
   };
 
+  // 관리자 할인율 조정 함수
+  const handleDiscountUpdate = async () => {
+    if ((!user?.is_superuser && !user?.is_staff) || !product) return;
+
+    setIsUpdatingDiscount(true);
+    try {
+      // 할인율을 백분율로 변환하여 sale_price 계산
+      const discountRate = tempDiscountRate / 100;
+      const originalPrice = parseFloat(product.price);
+      const newSalePrice = discountRate > 0 ? originalPrice * (1 - discountRate) : null;
+
+      // 백엔드에서 요구하는 전체 데이터 형식으로 구성
+      const updateData = {
+        name: product.name,
+        description: product.description || '',
+        price: originalPrice.toString(),
+        sale_price: newSalePrice ? newSalePrice.toString() : null,
+        stock_quantity: product.stock_quantity || product.stock || 0,
+        is_food: product.is_food || false,
+        is_active: product.is_active !== false,
+        is_featured: product.is_featured || false,
+        category: product.category?.id || product.category_id || 1
+      };
+
+      console.log('할인율 업데이트 데이터:', {
+        originalPrice,
+        discountRate: tempDiscountRate,
+        newSalePrice,
+        updateData
+      });
+
+      const response = await axiosInstance.put(`/ecommerce/products/${product.id}/`, updateData);
+      
+      if (response.data) {
+        // 상품 정보 업데이트
+        setProduct(prev => ({
+          ...prev,
+          sale_price: newSalePrice
+        }));
+        
+        setCartMessage('할인율이 성공적으로 적용되었습니다!');
+        setTimeout(() => setCartMessage(''), 3000);
+        setShowDiscountControl(false);
+      }
+    } catch (err) {
+      console.error('할인율 업데이트 실패:', err);
+      
+      // 오류 세부 정보 표시
+      if (err.response?.data) {
+        console.error('서버 응답:', err.response.data);
+        const errorMessages = Object.values(err.response.data).flat();
+        setCartMessage(`할인율 적용 실패: ${errorMessages.join(', ')}`);
+      } else {
+        setCartMessage('할인율 적용에 실패했습니다. 관리자 권한을 확인해주세요.');
+      }
+      setTimeout(() => setCartMessage(''), 5000);
+    } finally {
+      setIsUpdatingDiscount(false);
+    }
+  };
+
+  // 할인율 초기화 함수
+  const handleDiscountReset = async () => {
+    if ((!user?.is_superuser && !user?.is_staff) || !product) return;
+
+    setIsUpdatingDiscount(true);
+    try {
+      // 백엔드에서 요구하는 전체 데이터 형식으로 구성
+      const updateData = {
+        name: product.name,
+        description: product.description || '',
+        price: parseFloat(product.price).toString(),
+        sale_price: null,
+        stock_quantity: product.stock_quantity || product.stock || 0,
+        is_food: product.is_food || false,
+        is_active: product.is_active !== false,
+        is_featured: product.is_featured || false,
+        category: product.category?.id || product.category_id || 1
+      };
+
+      const response = await axiosInstance.put(`/ecommerce/products/${product.id}/`, updateData);
+      
+      if (response.data) {
+        setProduct(prev => ({
+          ...prev,
+          sale_price: null
+        }));
+        
+        setTempDiscountRate(0);
+        setCartMessage('할인율이 초기화되었습니다.');
+        setTimeout(() => setCartMessage(''), 3000);
+      }
+    } catch (err) {
+      console.error('할인율 초기화 실패:', err);
+      
+      // 오류 세부 정보 표시
+      if (err.response?.data) {
+        console.error('서버 응답:', err.response.data);
+        const errorMessages = Object.values(err.response.data).flat();
+        setCartMessage(`할인율 초기화 실패: ${errorMessages.join(', ')}`);
+      } else {
+        setCartMessage('할인율 초기화에 실패했습니다. 관리자 권한을 확인해주세요.');
+      }
+      setTimeout(() => setCartMessage(''), 5000);
+    } finally {
+      setIsUpdatingDiscount(false);
+    }
+  };
+
+  // 기본 이미지 설정 (SVG 데이터 URL)
+  const defaultImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNzUgMTUwQzE3NSAxNDQuNDc3IDE3OS40NzcgMTQwIDE4NSAxNDBIMjE1QzIyMC41MjMgMTQwIDIyNSAxNDQuNDc3IDIyNSAxNTBWMTgwQzIyNSAxODUuNTIzIDIyMC41MjMgMTkwIDIxNSAxOTBIMTg1QzE3OS40NzcgMTkwIDE3NSAxODUuNTIzIDE3NSAxODBWMTUwWiIgZmlsbD0iI0Q1RDNEQ0EiIHN0cm9rZT0iIzk5OSIgc3Ryb2tlLXdpZHRoPSIxIi8+Cjx0ZXh0IHg9IjIwMCIgeT0iMjUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiPuydtOuvuOydhCDsl4bsnYw8L3RleHQ+Cjwvc3ZnPgo=';
+
+  // 썸네일용 기본 이미지 (작은 크기)
+  const defaultThumbnail = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNSAzMEMzNSAyOC45IDM1LjkgMjggMzcgMjhINDNDNDQuMSAyOCA0NSAyOC45IDQ1IDMwVjM2QzQ1IDM3LjEgNDQuMSAzOCA0MyAzOEgzN0MzNS45IDM4IDM1IDM3LjEgMzUgMzZWMzBaIiBmaWxsPSIjRDVEM0RDQSIgc3Ryb2tlPSIjOTk5IiBzdHJva2Utd2lkdGg9IjEiLz4KPHR4dCB4PSI0MCIgeT0iNTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM2NjYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI4Ij7snbTrr7ztlIwg7JeG7J2MPC90ZXh0Pgo8L3N2Zz4K';
+
+  // 이미지 오류 처리 함수
+  const handleImageError = (e, isThumbnail = false) => {
+    // 이미 기본 이미지인 경우 더 이상 변경하지 않음 (무한 루프 방지)
+    if (e.target.src.startsWith('data:image/svg+xml')) {
+      return;
+    }
+    
+    // 오류 발생한 이미지를 기본 이미지로 교체
+    e.target.src = isThumbnail ? defaultThumbnail : defaultImage;
+  };
+
+  // PATCH를 사용한 부분 업데이트 함수 (대안)
+  const handleDiscountUpdatePatch = async () => {
+    if ((!user?.is_superuser && !user?.is_staff) || !product) return;
+
+    setIsUpdatingDiscount(true);
+    try {
+      // 할인율을 백분율로 변환하여 sale_price 계산
+      const discountRate = tempDiscountRate / 100;
+      const originalPrice = parseFloat(product.price);
+      const newSalePrice = discountRate > 0 ? originalPrice * (1 - discountRate) : null;
+
+      // PATCH로 부분 업데이트
+      const updateData = {
+        sale_price: newSalePrice ? newSalePrice.toString() : null
+      };
+
+      console.log('PATCH 할인율 업데이트 데이터:', updateData);
+
+      const response = await axiosInstance.patch(`/ecommerce/products/${product.id}/`, updateData);
+      
+      if (response.data) {
+        setProduct(prev => ({
+          ...prev,
+          sale_price: newSalePrice
+        }));
+        
+        setCartMessage('할인율이 성공적으로 적용되었습니다!');
+        setTimeout(() => setCartMessage(''), 3000);
+        setShowDiscountControl(false);
+      }
+    } catch (err) {
+      console.error('PATCH 할인율 업데이트 실패:', err);
+      
+      // PUT 방식으로 재시도
+      console.log('PUT 방식으로 재시도합니다...');
+      return handleDiscountUpdate();
+    } finally {
+      setIsUpdatingDiscount(false);
+    }
+  };
+
   // 이미지 갤러리 처리
   const productImages = product ? [
-    product.image,
+    product.image || defaultImage,
     ...(product.additional_images || [])
   ].filter(Boolean) : [];
+
+  // 기본 이미지가 없는 경우 플레이스홀더 사용
+  const mainImage = productImages[selectedImageIndex] || defaultImage;
 
   // 로딩 상태
   if (loading) {
@@ -174,9 +372,11 @@ const ProductDetailPage = () => {
     );
   }
 
-  const discountedPrice = product.discount 
-    ? calculateDiscountedPrice(product.price, product.discount)
-    : product.price;
+  // 실제 판매가격 계산
+  const originalPrice = parseFloat(product.price) || 0;
+  const salePrice = product.sale_price && parseFloat(product.sale_price) > 0 ? parseFloat(product.sale_price) : null;
+  const actualPrice = salePrice || originalPrice;
+  const discountRate = salePrice ? Math.round((1 - salePrice / originalPrice) * 100) : 0;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -212,13 +412,11 @@ const ProductDetailPage = () => {
           {/* 메인 이미지 */}
           <div className="bg-white rounded-xl overflow-hidden shadow-sm mb-4 relative">
             <img 
-              src={productImages[selectedImageIndex] || product.image} 
+              src={mainImage} 
               alt={product.name} 
               className="w-full h-96 object-cover cursor-zoom-in"
               onClick={() => setIsImageModalOpen(true)}
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/400x400?text=No+Image';
-              }}
+              onError={(e) => handleImageError(e, false)}
             />
             {product.discount > 0 && (
               <span className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-lg">
@@ -247,9 +445,7 @@ const ProductDetailPage = () => {
                     src={img} 
                     alt={`${product.name} ${index + 1}`} 
                     className="w-full h-20 object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/80x80?text=No+Image';
-                    }}
+                    onError={(e) => handleImageError(e, true)}
                   />
                 </div>
               ))}
@@ -263,14 +459,14 @@ const ProductDetailPage = () => {
             {/* 카테고리 및 태그 */}
             <div className="flex flex-wrap gap-2 mb-3">
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                {product.category_name || product.category}
+                {product.category_name || product.category?.name || '카테고리 없음'}
               </span>
               {product.is_bestseller && (
                 <span className="bg-yellow-100 text-yellow-800 text-sm px-2 py-1 rounded">
                   🏆 베스트셀러
                 </span>
               )}
-              {product.stock <= 10 && product.stock > 0 && (
+              {(product.stock_quantity || product.stock) <= 10 && (product.stock_quantity || product.stock) > 0 && (
                 <span className="bg-orange-100 text-orange-800 text-sm px-2 py-1 rounded">
                   ⚠️ 품절 임박
                 </span>
@@ -297,43 +493,117 @@ const ProductDetailPage = () => {
             
             {/* 가격 */}
             <div className="mb-6">
-              {product.discount > 0 ? (
+              {salePrice ? (
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-3xl font-bold text-primary">
-                      {formatPrice(discountedPrice)}원
+                      {actualPrice.toLocaleString()}원
                     </span>
                     <span className="text-red-500 font-medium bg-red-100 px-2 py-1 rounded text-sm">
-                      {product.discount}% 할인
+                      {discountRate}% 할인
                     </span>
                   </div>
                   <span className="text-lg text-gray-500 line-through">
-                    {formatPrice(product.price)}원
+                    {originalPrice.toLocaleString()}원
                   </span>
                 </div>
               ) : (
                 <span className="text-3xl font-bold text-primary">
-                  {formatPrice(product.price)}원
+                  {originalPrice.toLocaleString()}원
                 </span>
               )}
             </div>
+
+            {/* 관리자용 할인율 조정 */}
+            {(user?.is_superuser || user?.is_staff) && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-blue-800">
+                    <i className="fas fa-user-shield mr-2"></i>
+                    관리자 할인율 조정
+                  </h4>
+                  <button
+                    onClick={() => setShowDiscountControl(!showDiscountControl)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    {showDiscountControl ? '숨기기' : '표시'}
+                  </button>
+                </div>
+                
+                {showDiscountControl && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 mb-2">
+                        할인율: {tempDiscountRate}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="80"
+                        step="5"
+                        value={tempDiscountRate}
+                        onChange={(e) => setTempDiscountRate(parseInt(e.target.value))}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider"
+                      />
+                      <div className="flex justify-between text-xs text-blue-600 mt-1">
+                        <span>0%</span>
+                        <span>20%</span>
+                        <span>40%</span>
+                        <span>60%</span>
+                        <span>80%</span>
+                      </div>
+                    </div>
+                    
+                    {tempDiscountRate > 0 && (
+                      <div className="text-sm text-blue-700 bg-blue-100 p-2 rounded">
+                        할인 적용 시 가격: {(originalPrice * (1 - tempDiscountRate / 100)).toLocaleString()}원
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDiscountUpdatePatch}
+                        disabled={isUpdatingDiscount}
+                        className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+                      >
+                        {isUpdatingDiscount ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin mr-1"></i>
+                            적용 중...
+                          </>
+                        ) : (
+                          '할인율 적용'
+                        )}
+                      </button>
+                      <button
+                        onClick={handleDiscountReset}
+                        disabled={isUpdatingDiscount}
+                        className="flex-1 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 text-sm"
+                      >
+                        초기화
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 재고 정보 */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-700">재고</span>
                 <span className={`font-medium ${
-                  product.stock > 10 ? 'text-green-600' : 
-                  product.stock > 0 ? 'text-orange-600' : 'text-red-600'
+                  (product.stock_quantity || product.stock || 0) > 10 ? 'text-green-600' : 
+                  (product.stock_quantity || product.stock || 0) > 0 ? 'text-orange-600' : 'text-red-600'
                 }`}>
-                  {product.stock > 0 ? `${product.stock}개 남음` : '품절'}
+                  {(product.stock_quantity || product.stock || 0) > 0 ? `${product.stock_quantity || product.stock}개 남음` : '품절'}
                 </span>
               </div>
-              {product.stock <= 10 && product.stock > 0 && (
+              {(product.stock_quantity || product.stock || 0) <= 10 && (product.stock_quantity || product.stock || 0) > 0 && (
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-orange-500 h-2 rounded-full" 
-                    style={{ width: `${(product.stock / 20) * 100}%` }}
+                    style={{ width: `${((product.stock_quantity || product.stock) / 20) * 100}%` }}
                   ></div>
                 </div>
               )}
@@ -356,7 +626,7 @@ const ProductDetailPage = () => {
                 <button 
                   onClick={() => handleQuantityChange(1)}
                   className="w-10 h-10 border border-gray-300 rounded-r-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
-                  disabled={quantity >= (product.stock || 10)}
+                  disabled={quantity >= (product.stock_quantity || product.stock || 10)}
                 >
                   <i className="fas fa-plus"></i>
                 </button>
@@ -367,7 +637,7 @@ const ProductDetailPage = () => {
             <div className="space-y-3 mb-6">
               <button 
                 onClick={handleAddToCart}
-                disabled={cartLoading || product.stock <= 0}
+                disabled={cartLoading || (product.stock_quantity || product.stock || 0) <= 0}
                 className="w-full py-3 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {cartLoading ? (
@@ -375,7 +645,7 @@ const ProductDetailPage = () => {
                     <i className="fas fa-spinner fa-spin mr-2"></i>
                     처리 중...
                   </>
-                ) : product.stock <= 0 ? (
+                ) : (product.stock_quantity || product.stock || 0) <= 0 ? (
                   '품절'
                 ) : isInCart(product.id) ? (
                   <>
@@ -392,10 +662,10 @@ const ProductDetailPage = () => {
               
               <button 
                 onClick={handleBuyNow}
-                disabled={cartLoading || product.stock <= 0}
+                disabled={cartLoading || (product.stock_quantity || product.stock || 0) <= 0}
                 className="w-full py-3 bg-primary text-white rounded-lg font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {product.stock <= 0 ? '품절' : '바로 구매'}
+                {(product.stock_quantity || product.stock || 0) <= 0 ? '품절' : '바로 구매'}
               </button>
             </div>
             
@@ -576,7 +846,8 @@ const ProductDetailPage = () => {
                           <img 
                             src={review.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(review.user_name || '사용자')}&background=random`}
                             alt={review.user_name} 
-                            className="w-full h-full object-cover" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => handleImageError(e, true)}
                           />
                         </div>
                         <div>
@@ -628,6 +899,7 @@ const ProductDetailPage = () => {
               src={productImages[selectedImageIndex] || product.image} 
               alt={product.name} 
               className="max-w-full max-h-full object-contain"
+              onError={(e) => handleImageError(e, false)}
             />
             <button
               onClick={() => setIsImageModalOpen(false)}
