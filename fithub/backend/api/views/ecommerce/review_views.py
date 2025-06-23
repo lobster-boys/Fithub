@@ -45,8 +45,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """리뷰 생성 시 현재 사용자를 자동으로 설정"""
-        # 구매 확인 로직
+        # 구매 확인 로직 (order_item이 있는 경우에만)
         order_item = serializer.validated_data.get('order_item')
+        is_verified = False
+        
         if order_item and hasattr(order_item, 'order'):
             if order_item.order.user != self.request.user:
                 raise serializers.ValidationError("본인이 구매한 상품만 리뷰를 작성할 수 있습니다.")
@@ -54,8 +56,15 @@ class ReviewViewSet(viewsets.ModelViewSet):
             # 이미 리뷰를 작성했는지 확인
             if Review.objects.filter(user=self.request.user, order_item=order_item).exists():
                 raise serializers.ValidationError("이미 이 상품에 대한 리뷰를 작성하셨습니다.")
+            
+            is_verified = True
+        else:
+            # order_item이 없는 경우, 같은 상품에 대한 리뷰가 이미 있는지 확인
+            product = serializer.validated_data.get('product')
+            if Review.objects.filter(user=self.request.user, product=product, order_item__isnull=True).exists():
+                raise serializers.ValidationError("이미 이 상품에 대한 리뷰를 작성하셨습니다.")
         
-        serializer.save(user=self.request.user, is_verified_purchase=True)
+        serializer.save(user=self.request.user, is_verified_purchase=is_verified)
 
     @action(detail=False, methods=['get'])
     def my_reviews(self, request):

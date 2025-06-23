@@ -247,7 +247,9 @@ class Review(models.Model):
         OrderItem, 
         on_delete=models.CASCADE,
         related_name='item_reviews',
-        help_text="리뷰가 작성된 주문 항목"
+        null=True,
+        blank=True,
+        help_text="리뷰가 작성된 주문 항목 (선택사항)"
     )
     title = models.CharField(max_length=200, help_text="리뷰 제목")
     content = models.TextField(help_text="리뷰 내용")

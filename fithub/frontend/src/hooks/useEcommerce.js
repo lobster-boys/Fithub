@@ -31,8 +31,10 @@ const useEcommerce = () => {
     try {
       const response = await axiosInstance.get('/ecommerce/products/', { params });
       const productsData = response.data.results || response.data;
-      setProducts(productsData);
-      return productsData;
+      // 각 상품의 카테고리 데이터 정리
+      const cleanedProducts = productsData.map(product => cleanCategoryData(product));
+      setProducts(cleanedProducts);
+      return cleanedProducts;
     } catch (err) {
       console.error('Failed to fetch products:', err);
       setError('상품을 불러오는데 실패했습니다.');
@@ -86,8 +88,10 @@ const useEcommerce = () => {
         params: { category: categoryId }
       });
       const productsData = response.data.results || response.data;
-      setProducts(productsData);
-      return productsData;
+      // 각 상품의 카테고리 데이터 정리
+      const cleanedProducts = productsData.map(product => cleanCategoryData(product));
+      setProducts(cleanedProducts);
+      return cleanedProducts;
     } catch (err) {
       console.error('Failed to fetch products by category:', err);
       setError('카테고리별 상품을 불러오는데 실패했습니다.');
@@ -98,13 +102,56 @@ const useEcommerce = () => {
     }
   }, [getAllProducts]);
 
+  // 카테고리 데이터 정리 함수
+  const cleanCategoryData = (product) => {
+    if (!product) return product;
+    
+    // 카테고리 이름 정리
+    if (product.category) {
+      if (typeof product.category === 'object' && product.category.name) {
+        const categoryName = product.category.name;
+        if (typeof categoryName === 'string' && categoryName.includes('{') && categoryName.includes('}')) {
+          try {
+            const parsed = JSON.parse(categoryName);
+            product.category.name = parsed.name || categoryName;
+          } catch (e) {
+            // JSON 파싱 실패 시 정규식으로 추출
+            const match = categoryName.match(/'name':\s*'([^']+)'/);
+            if (match) {
+              product.category.name = match[1];
+            }
+          }
+        }
+      }
+    }
+    
+    // category_name 정리
+    if (product.category_name && typeof product.category_name === 'string') {
+      if (product.category_name.includes('{') && product.category_name.includes('}')) {
+        try {
+          const parsed = JSON.parse(product.category_name);
+          product.category_name = parsed.name || product.category_name;
+        } catch (e) {
+          // JSON 파싱 실패 시 정규식으로 추출
+          const match = product.category_name.match(/'name':\s*'([^']+)'/);
+          if (match) {
+            product.category_name = match[1];
+          }
+        }
+      }
+    }
+    
+    return product;
+  };
+
   // 상품 ID로 특정 상품 가져오기
   const getProductById = useCallback(async (productId) => {
     setLoading(true);
     setError(null);
     try {
       const response = await axiosInstance.get(`/ecommerce/products/${productId}/`);
-      return response.data;
+      const product = cleanCategoryData(response.data);
+      return product;
     } catch (err) {
       console.error('Failed to fetch product by ID:', err);
       setError('상품 정보를 불러오는데 실패했습니다.');
@@ -127,8 +174,10 @@ const useEcommerce = () => {
         params: { search: query }
       });
       const productsData = response.data.results || response.data;
-      setProducts(productsData);
-      return productsData;
+      // 각 상품의 카테고리 데이터 정리
+      const cleanedProducts = productsData.map(product => cleanCategoryData(product));
+      setProducts(cleanedProducts);
+      return cleanedProducts;
     } catch (err) {
       console.error('Failed to search products:', err);
       setError('상품 검색에 실패했습니다.');
@@ -264,16 +313,13 @@ const useEcommerce = () => {
 
   // 상품 리뷰 가져오기
   const getProductReviews = useCallback(async (productId) => {
-    // 임시로 빈 배열 반환 (리뷰 API가 구현되지 않았음)
-    console.log(`리뷰 API가 구현되지 않아 빈 배열을 반환합니다. productId: ${productId}`);
-    return [];
-    
-    /* 실제 API 구현 시 사용할 코드:
     setLoading(true);
     setError(null);
     try {
-      const response = await axiosInstance.get(`/ecommerce/products/${productId}/reviews/`);
-      return response.data.results || response.data;
+      const response = await axiosInstance.get(`/ecommerce/reviews/`, {
+        params: { product: productId }
+      });
+      return response.data.results || response.data || [];
     } catch (err) {
       console.error('Failed to fetch reviews:', err);
       setError('리뷰를 불러오는데 실패했습니다.');
@@ -281,44 +327,56 @@ const useEcommerce = () => {
     } finally {
       setLoading(false);
     }
-    */
   }, []);
 
   // 리뷰 작성
   const createReview = useCallback(async (reviewData) => {
-    // 임시로 가짜 리뷰 데이터 반환 (리뷰 API가 구현되지 않았음)
-    console.log('리뷰 API가 구현되지 않아 가짜 데이터를 반환합니다:', reviewData);
-    
-    // 가짜 리뷰 데이터 생성
-    const fakeReview = {
-      id: Date.now(),
-      product: reviewData.product,
-      rating: reviewData.rating,
-      comment: reviewData.comment,
-      user: {
-        username: '사용자',
-        avatar: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNGM0Y0RjYiLz4KPHBhdGggZD0iTTIwIDEyQzE3Ljc5IDEyIDE2IDEzLjc5IDE2IDE2QzE2IDE4LjIxIDE3Ljc5IDIwIDIwIDIwQzIyLjIxIDIwIDI0IDE4LjIxIDI0IDE2QzI0IDEzLjc5IDIyLjIxIDEyIDIwIDEyWk0yMCAyOEMxNiAyOCAxMi44IDI5LjM0IDEwIDMxVjMzSDMwVjMxQzI3LjIgMjkuMzQgMjQgMjggMjAgMjhaIiBmaWxsPSIjOTk5Ii8+Cjwvc3ZnPgo='
-      },
-      created_at: new Date().toISOString(),
-      is_verified_purchase: true
-    };
-    
-    return fakeReview;
-
-    /* 실제 API 구현 시 사용할 코드:
     setLoading(true);
     setError(null);
+    
+    console.log('📝 [createReview] 전송할 데이터:', reviewData);
+    
     try {
-      const response = await axiosInstance.post('/ecommerce/reviews/', reviewData);
+      const response = await axiosInstance.post('/ecommerce/reviews/', {
+        product: reviewData.product,
+        rating: reviewData.rating,
+        title: reviewData.title || '리뷰',
+        content: reviewData.content || reviewData.comment,
+        // order_item은 실제 구매한 상품에서만 사용 (현재는 선택사항)
+      });
+      
+      console.log('✅ [createReview] 성공:', response.data);
       return response.data;
     } catch (err) {
-      console.error('Failed to create review:', err);
+      console.error('❌ [createReview] 실패:', err);
+      console.error('❌ [createReview] 에러 응답:', err.response?.data);
+      console.error('❌ [createReview] 에러 상태:', err.response?.status);
+      console.error('❌ [createReview] 에러 헤더:', err.response?.headers);
+      
       setError('리뷰 작성에 실패했습니다.');
-      return null;
+      throw err; // 에러를 throw해서 상위 컴포넌트에서 처리할 수 있도록
     } finally {
       setLoading(false);
     }
-    */
+  }, []);
+
+  // 리뷰 통계 가져오기 (새로 추가)
+  const getProductReviewStats = useCallback(async (productId) => {
+    try {
+      const response = await axiosInstance.get(`/ecommerce/reviews/product/${productId}/stats/`);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch review stats:', err);
+      return {
+        average_rating: 0,
+        total_reviews: 0,
+        rating_1: 0,
+        rating_2: 0,
+        rating_3: 0,
+        rating_4: 0,
+        rating_5: 0,
+      };
+    }
   }, []);
 
   // ========== 로컬 유틸리티 함수들 ==========
@@ -546,16 +604,6 @@ const useEcommerce = () => {
       return response.data;
     } catch (err) {
       console.error('Failed to delete review:', err);
-      throw err;
-    }
-  }, []);
-
-  const getProductReviewStats = useCallback(async (productId) => {
-    try {
-      const response = await axiosInstance.get(`/ecommerce/reviews/product/${productId}/stats/`);
-      return response.data;
-    } catch (err) {
-      console.error('Failed to fetch product review stats:', err);
       throw err;
     }
   }, []);

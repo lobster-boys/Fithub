@@ -16,6 +16,7 @@ const ProductDetailPage = () => {
     getProductById,
     getRelatedProducts,
     getProductReviews,
+    getProductReviewStats,
     createReview,
     loading,
     error,
@@ -29,19 +30,77 @@ const ProductDetailPage = () => {
   // 상태 관리
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [selectedTab, setSelectedTab] = useState('description');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [cartMessage, setCartMessage] = useState('');
-  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
   
   // 관리자용 할인율 조정 상태
   const [showDiscountControl, setShowDiscountControl] = useState(false);
   const [tempDiscountRate, setTempDiscountRate] = useState(0);
   const [isUpdatingDiscount, setIsUpdatingDiscount] = useState(false);
+
+  // 카테고리 이름 안전하게 추출하는 함수
+  const getCategoryName = (product) => {
+    if (!product) return '카테고리 없음';
+    
+    // category_name이 있으면 사용
+    if (product.category_name && typeof product.category_name === 'string') {
+      // 중첩된 JSON 문자열 처리
+      if (product.category_name.includes('{') && product.category_name.includes('}')) {
+        try {
+          const parsed = JSON.parse(product.category_name);
+          return parsed.name || '카테고리 없음';
+        } catch (e) {
+          // JSON 파싱 실패 시 문자열에서 이름 추출 시도
+          const match = product.category_name.match(/'name':\s*'([^']+)'/);
+          if (match) return match[1];
+        }
+      }
+      return product.category_name;
+    }
+    
+    // category 객체에서 이름 추출
+    if (product.category) {
+      if (typeof product.category === 'string') {
+        // 문자열로 된 카테고리인 경우 JSON 파싱 시도
+        if (product.category.includes('{') && product.category.includes('}')) {
+          try {
+            const parsed = JSON.parse(product.category);
+            return parsed.name || '카테고리 없음';
+          } catch (e) {
+            // JSON 파싱 실패 시 문자열에서 이름 추출 시도
+            const match = product.category.match(/'name':\s*'([^']+)'/);
+            if (match) return match[1];
+          }
+        }
+        return product.category;
+      } else if (typeof product.category === 'object' && product.category.name) {
+        // 객체인 경우 name 필드 사용
+        if (typeof product.category.name === 'string' && 
+            product.category.name.includes('{') && 
+            product.category.name.includes('}')) {
+          try {
+            const parsed = JSON.parse(product.category.name);
+            return parsed.name || '카테고리 없음';
+          } catch (e) {
+            // JSON 파싱 실패 시 문자열에서 이름 추출 시도
+            const match = product.category.name.match(/'name':\s*'([^']+)'/);
+            if (match) return match[1];
+          }
+        }
+        return product.category.name;
+      }
+    }
+    
+    return '카테고리 없음';
+  };
 
   // 상품 데이터 로드
   useEffect(() => {
@@ -54,14 +113,25 @@ const ProductDetailPage = () => {
         if (productData) {
           setProduct(productData);
           
-          // 병렬로 리뷰와 관련 상품 로드
-          const [reviewsData, relatedData] = await Promise.all([
+          // 병렬로 리뷰, 리뷰 통계, 관련 상품 로드
+          const [reviewsData, reviewStatsData, relatedData] = await Promise.all([
             getProductReviews(productId),
+            getProductReviewStats(productId),
             getRelatedProducts(productId, 4)
           ]);
           
           setReviews(reviewsData || []);
+          setReviewStats(reviewStatsData || null);
           setRelatedProducts(relatedData || []);
+
+          // 리뷰 통계 데이터로 상품 정보 동기화
+          if (reviewStatsData) {
+            setProduct(prev => ({
+              ...prev,
+              rating: reviewStatsData.average_rating || 0,
+              review_count: reviewStatsData.total_reviews || 0
+            }));
+          }
         }
       } catch (err) {
         console.error('상품 데이터 로드 실패:', err);
@@ -69,7 +139,7 @@ const ProductDetailPage = () => {
     };
 
     loadProductData();
-  }, [productId, getProductById, getProductReviews, getRelatedProducts]);
+  }, [productId, getProductById, getProductReviews, getProductReviewStats, getRelatedProducts]);
 
   // 수량 변경
   const handleQuantityChange = (amount) => {
@@ -125,22 +195,61 @@ const ProductDetailPage = () => {
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     
+    // 유효성 검사
+    if (!reviewForm.title.trim()) {
+      alert('리뷰 제목을 입력해주세요.');
+      return;
+    }
+    
+    if (!reviewForm.comment.trim()) {
+      alert('리뷰 내용을 입력해주세요.');
+      return;
+    }
+    
+    setReviewLoading(true);
+    
     try {
       const reviewData = {
         product: product.id,
         rating: reviewForm.rating,
-        comment: reviewForm.comment
+        title: reviewForm.title.trim(),
+        content: reviewForm.comment.trim()
       };
       
       const newReview = await createReview(reviewData);
       if (newReview) {
-        setReviews(prev => [newReview, ...prev]);
-        setReviewForm({ rating: 5, comment: '' });
+        // 리뷰 목록 다시 불러오기 (확실한 동기화를 위해)
+        const [updatedReviews, updatedStats] = await Promise.all([
+          getProductReviews(productId),
+          getProductReviewStats(productId)
+        ]);
+        
+        setReviews(updatedReviews || []);
+        setReviewStats(updatedStats);
+
+        // 상품 정보도 업데이트된 통계로 동기화
+        if (updatedStats) {
+          setProduct(prev => ({
+            ...prev,
+            rating: updatedStats.average_rating || 0,
+            review_count: updatedStats.total_reviews || 0
+          }));
+        }
+        
+        // 폼 초기화
+        setReviewForm({ rating: 5, title: '', comment: '' });
         setShowReviewForm(false);
+        
+        alert('리뷰가 성공적으로 작성되었습니다!');
       }
     } catch (err) {
       console.error('리뷰 작성 실패:', err);
-      alert('리뷰 작성에 실패했습니다.');
+      const errorMessage = err.response?.data?.detail || 
+                          err.response?.data?.message || 
+                          '리뷰 작성에 실패했습니다.';
+      alert(errorMessage);
+    } finally {
+      setReviewLoading(false);
     }
   };
 
@@ -435,7 +544,7 @@ const ProductDetailPage = () => {
             <div className="grid grid-cols-4 gap-2">
               {productImages.map((img, index) => (
                 <div 
-                  key={index} 
+                  key={`product-image-${product.id}-${index}`} 
                   className={`bg-white rounded-lg overflow-hidden shadow-sm cursor-pointer border-2 transition-colors ${
                     selectedImageIndex === index ? 'border-primary' : 'border-transparent'
                   }`}
@@ -459,7 +568,7 @@ const ProductDetailPage = () => {
             {/* 카테고리 및 태그 */}
             <div className="flex flex-wrap gap-2 mb-3">
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                {product.category_name || product.category?.name || '카테고리 없음'}
+                {getCategoryName(product)}
               </span>
               {product.is_bestseller && (
                 <span className="bg-yellow-100 text-yellow-800 text-sm px-2 py-1 rounded">
@@ -481,7 +590,7 @@ const ProductDetailPage = () => {
               <div className="flex text-yellow-400">
                 {[...Array(5)].map((_, i) => (
                   <i 
-                    key={i} 
+                    key={`product-rating-star-${i}`} 
                     className={`${i < Math.floor(product.rating || 0) ? 'fas' : i < (product.rating || 0) ? 'fas fa-star-half-alt' : 'far'} fa-star`}
                   ></i>
                 ))}
@@ -727,7 +836,7 @@ const ProductDetailPage = () => {
             }`}
             onClick={() => setSelectedTab('reviews')}
           >
-            리뷰 ({reviews.length})
+            리뷰 ({reviewStats?.total_reviews || reviews.length})
           </button>
         </div>
         
@@ -749,7 +858,7 @@ const ProductDetailPage = () => {
               {product.specifications && product.specifications.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {product.specifications.map((spec, index) => (
-                    <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                    <div key={`spec-${spec.name}-${index}`} className="bg-gray-50 p-3 rounded-lg">
                       <div className="font-medium text-gray-800">{spec.name}</div>
                       <div className="text-gray-600">{spec.value}</div>
                     </div>
@@ -767,41 +876,114 @@ const ProductDetailPage = () => {
           {/* 리뷰 섹션 */}
           {selectedTab === 'reviews' && (
             <div>
+              {/* 리뷰 통계 */}
+              {reviewStats && (
+                <div className="bg-gray-50 p-6 rounded-lg mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* 평균 평점 */}
+                    <div className="text-center md:text-left">
+                      <div className="text-3xl font-bold text-gray-800 mb-2">
+                        {reviewStats.average_rating ? reviewStats.average_rating.toFixed(1) : '0.0'}
+                        <span className="text-lg text-gray-500 ml-1">/ 5.0</span>
+                      </div>
+                      <div className="flex items-center justify-center md:justify-start mb-2">
+                        {[...Array(5)].map((_, i) => (
+                          <i 
+                            key={i} 
+                            className={`fas fa-star text-lg ${
+                              i < Math.round(reviewStats.average_rating || 0) 
+                                ? 'text-yellow-400' 
+                                : 'text-gray-300'
+                            }`}
+                          ></i>
+                        ))}
+                      </div>
+                      <p className="text-gray-600">
+                        총 {reviewStats.total_reviews}개의 리뷰
+                      </p>
+                    </div>
+                    
+                    {/* 평점 분포 */}
+                    <div className="space-y-2">
+                      {[5, 4, 3, 2, 1].map((rating) => {
+                        const count = reviewStats[`rating_${rating}`] || 0;
+                        const percentage = reviewStats.total_reviews > 0 
+                          ? (count / reviewStats.total_reviews) * 100 
+                          : 0;
+                        
+                        return (
+                          <div key={`rating-${rating}`} className="flex items-center gap-2">
+                            <span className="text-sm w-6">{rating}점</span>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm w-8 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* 리뷰 작성 버튼 */}
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold">고객 리뷰</h3>
-                <button
-                  onClick={() => setShowReviewForm(!showReviewForm)}
-                  className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  <i className="fas fa-star mr-2"></i>
-                  리뷰 작성
-                </button>
+                {user ? (
+                  <button
+                    onClick={() => setShowReviewForm(!showReviewForm)}
+                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                    disabled={reviewLoading}
+                  >
+                    <i className="fas fa-star mr-2"></i>
+                    {reviewLoading ? '작성 중...' : '리뷰 작성'}
+                  </button>
+                ) : (
+                  <p className="text-gray-500">리뷰를 작성하려면 로그인이 필요합니다.</p>
+                )}
               </div>
 
               {/* 리뷰 작성 폼 */}
-              {showReviewForm && (
+              {showReviewForm && user && (
                 <div className="bg-gray-50 p-6 rounded-lg mb-6">
+                  <h4 className="text-lg font-semibold mb-4">리뷰 작성</h4>
                   <form onSubmit={handleReviewSubmit}>
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">평점</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">평점 *</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
                             key={star}
                             type="button"
                             onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
-                            className={`text-2xl ${
+                            className={`text-2xl transition-colors hover:scale-110 ${
                               star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-300'
                             }`}
                           >
                             <i className="fas fa-star"></i>
                           </button>
                         ))}
+                        <span className="ml-2 text-sm text-gray-600 self-center">
+                          ({reviewForm.rating}점)
+                        </span>
                       </div>
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">리뷰 내용</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">리뷰 제목 *</label>
+                      <input
+                        value={reviewForm.title}
+                        onChange={(e) => setReviewForm(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="리뷰 제목을 입력해주세요..."
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                        disabled={reviewLoading}
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">리뷰 내용 *</label>
                       <textarea
                         value={reviewForm.comment}
                         onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
@@ -809,19 +991,29 @@ const ProductDetailPage = () => {
                         rows={4}
                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
+                        disabled={reviewLoading}
                       />
                     </div>
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                        className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={reviewLoading}
                       >
-                        리뷰 등록
+                        {reviewLoading ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin mr-2"></i>
+                            등록 중...
+                          </>
+                        ) : (
+                          '리뷰 등록'
+                        )}
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowReviewForm(false)}
                         className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                        disabled={reviewLoading}
                       >
                         취소
                       </button>
@@ -831,7 +1023,12 @@ const ProductDetailPage = () => {
               )}
               
               {/* 리뷰 목록 */}
-              {reviews.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-8">
+                  <i className="fas fa-spinner fa-spin text-2xl text-gray-400 mb-4"></i>
+                  <p className="text-gray-500">리뷰를 불러오는 중...</p>
+                </div>
+              ) : reviews.length === 0 ? (
                 <div className="text-center py-12">
                   <i className="fas fa-star text-gray-300 text-4xl mb-4"></i>
                   <h3 className="text-lg font-medium text-gray-600 mb-2">아직 리뷰가 없습니다</h3>
@@ -840,31 +1037,70 @@ const ProductDetailPage = () => {
               ) : (
                 <div className="space-y-6">
                   {reviews.map((review) => (
-                    <div key={review.id} className="border-b border-gray-200 pb-6 last:border-b-0">
-                      <div className="flex items-center mb-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
-                          <img 
-                            src={review.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(review.user_name || '사용자')}&background=random`}
-                            alt={review.user_name} 
-                            className="w-full h-full object-cover"
-                            onError={(e) => handleImageError(e, true)}
-                          />
-                        </div>
-                        <div>
-                          <div className="font-medium">{review.user_name || '익명 사용자'}</div>
-                          <div className="flex items-center text-sm">
-                            <div className="flex text-yellow-400 mr-2">
-                              {[...Array(5)].map((_, i) => (
-                                <i key={i} className={`fas fa-star ${i < review.rating ? '' : 'text-gray-300'}`}></i>
-                              ))}
+                    <div key={review.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-shadow">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center">
+                          <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden mr-4">
+                            <img 
+                              src={review.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(review.user?.username || review.user || '사용자')}&background=random`}
+                              alt={review.user?.username || review.user} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => handleImageError(e, true)}
+                            />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-800">
+                              {review.user?.username || review.user || '익명 사용자'}
                             </div>
-                            <span className="text-gray-500">
-                              {new Date(review.created_at).toLocaleDateString()}
-                            </span>
+                            <div className="flex items-center text-sm text-gray-500">
+                              <span>{new Date(review.created_at).toLocaleDateString()}</span>
+                              {review.is_verified_purchase && (
+                                <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                  구매 확인
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
+                        <div className="flex items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <i 
+                              key={i} 
+                              className={`fas fa-star text-sm ${
+                                i < review.rating ? 'text-yellow-400' : 'text-gray-300'
+                              }`}
+                            ></i>
+                          ))}
+                          <span className="ml-2 text-sm text-gray-600">
+                            {review.rating}.0
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+                      
+                      {/* 리뷰 제목 */}
+                      {review.title && (
+                        <h4 className="font-medium text-gray-800 mb-2">{review.title}</h4>
+                      )}
+                      
+                      {/* 리뷰 내용 */}
+                      <p className="text-gray-700 leading-relaxed mb-4">
+                        {review.content || review.comment}
+                      </p>
+                      
+                      {/* 리뷰 이미지 (있는 경우) */}
+                      {review.images && review.images.length > 0 && (
+                        <div className="flex gap-2 flex-wrap">
+                          {review.images.map((image, index) => (
+                            <img
+                              key={`review-${review.id}-image-${index}`}
+                              src={image}
+                              alt={`리뷰 이미지 ${index + 1}`}
+                              className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                              onError={(e) => handleImageError(e)}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -912,6 +1148,6 @@ const ProductDetailPage = () => {
       )}
     </div>
   );
-};
-
-export default ProductDetailPage; 
+  };
+  
+  export default ProductDetailPage; 
