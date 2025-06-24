@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import models 
 from diet.models import Food, RecommendHistory
 from django.conf import settings
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ def _get_recent_ids(user, meal_type: str, days: Optional[int] = None) -> List[in
     if days is None:
         days = RECENT_DAYS 
     
-    cutoff = datetime.now() - timedelta(days=days if days is not None else RECENT_DAYS)
+    cutoff = timezone.now() - timedelta(days=days if days is not None else RECENT_DAYS)
     return list(
         RecommendHistory.objects.filter(
             user=user,
@@ -99,24 +100,35 @@ def _weighted_random_choice(
 
 def _get_candidate_foods_optimized(user, meal_type: str) -> Dict[str, List[Dict[str, Any]]]:
     """단일 쿼리로 모든 카테고리 데이터 조회"""
+    logger.info(f"[{meal_type}] 후보 음식 최적화 조회 시작")
+
     if meal_type not in MEAL_CATEGORY_MAPPING:
         raise ValidationError(f"지원되지 않는 meal_type: {meal_type}")
 
     # 필요한 카테고리 목록
     required_categories = list(MEAL_CATEGORY_MAPPING[meal_type].keys())
+    logger.info(f"[{meal_type}] 필요한 카테고리: {required_categories}")
     
     # 최근 추천된 음식 ID 조회
     recent_ids = _get_recent_ids(user, meal_type)
+    logger.info(f"[{meal_type}] 최근 추천 제외 ID ({len(recent_ids)}개): {recent_ids}")
     
     # 자주 추천된 음식 ID 조회
     frequent_ids = RecommendHistory.get_frequently_recommended_foods(
         user, meal_type, threshold=FREQUENT_THRESHOLD
     )
+    logger.info(f"[{meal_type}] 자주 추천된 음식 ID ({len(frequent_ids)}개): {frequent_ids}")
     
+    # 쿼리 필터링
     foods_qs = Food.objects.filter(
-        category__name__in=required_categories,
-        is_public_data=True
-    ).exclude(id__in=recent_ids).select_related('category').annotate(
+        category__name__in=required_categories
+    )
+    logger.info(f"[{meal_type}] 초기 필터링된 음식 수: {foods_qs.count()}개 (카테고리 기준)")
+
+    foods_qs = foods_qs.exclude(id__in=recent_ids)
+    logger.info(f"[{meal_type}] 최근 추천 제외 후 음식 수: {foods_qs.count()}개")
+
+    foods_qs = foods_qs.select_related('category').annotate(
         is_frequent=models.Case(
             models.When(id__in=frequent_ids, then=models.Value(0.3)),
             default=models.Value(1.0),
@@ -127,9 +139,7 @@ def _get_candidate_foods_optimized(user, meal_type: str) -> Dict[str, List[Dict[
     ).order_by('random_order')
     
     # 카테고리별로 그룹화
-    category_candidates = {}
-    for category_name in required_categories:
-        category_candidates[category_name] = []
+    category_candidates = {category_name: [] for category_name in required_categories}
     
     # 카테고리별 카운터
     category_counts = {cat: 0 for cat in required_categories}
@@ -156,7 +166,7 @@ def _get_candidate_foods_optimized(user, meal_type: str) -> Dict[str, List[Dict[
                 continue
     
     for category_name, candidates in category_candidates.items():
-        logger.debug(f"[{meal_type}/{category_name}] 후보 {len(candidates)}개 준비")
+        logger.info(f"[{meal_type}/{category_name}] 최종 후보 {len(candidates)}개 준비됨")
     
     return category_candidates
 

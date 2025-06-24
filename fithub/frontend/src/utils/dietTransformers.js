@@ -132,42 +132,88 @@ export const formatApiPlan = (plan) => {
 
 /**
  * 추천 응답 데이터를 UI용 형태로 변환
+ * 백엔드 응답 형식: { data: { breakfast: [...], lunch: [...], dinner: [...] }, nutrition_summary: {...} }
  */
 export const formatRecommendationData = (recommendations) => {
   if (!recommendations) return null;
 
+  // 백엔드에서 반환하는 형식 처리
+  if (recommendations.data && typeof recommendations.data === 'object') {
+    const meals = [];
+    
+    // 각 시간대별 추천 데이터 처리
+    Object.entries(recommendations.data).forEach(([mealType, foods]) => {
+      if (Array.isArray(foods) && foods.length > 0) {
+        const formattedFoods = foods.map(food => ({
+          id: food.id,
+          name: food.name,
+          calories: parseFloat(food.calories || 0),
+          protein: parseFloat(food.protein || 0),
+          carbs: parseFloat(food.carbs || 0),
+          fat: parseFloat(food.fat || 0),
+          servings: parseFloat(food.servings || 1),
+          serving_size: food.serving_size || '100g',
+          category: food.category || '기타'
+        }));
+
+        meals.push({
+          meal_type: mealType,
+          foods: formattedFoods,
+          total_calories: formattedFoods.reduce((sum, food) => sum + food.calories, 0),
+          nutrients: {
+            protein: formattedFoods.reduce((sum, food) => sum + food.protein, 0),
+            carbs: formattedFoods.reduce((sum, food) => sum + food.carbs, 0),
+            fat: formattedFoods.reduce((sum, food) => sum + food.fat, 0)
+          }
+        });
+      }
+    });
+
+    return {
+      meals: meals,
+      nutrition_summary: recommendations.nutrition_summary || {}
+    };
+  }
+
+  // 기존 형식 호환성 유지
   // 추천 데이터가 배열인 경우 (여러 식사)
   if (Array.isArray(recommendations)) {
-    return recommendations.map(rec => ({
-      meal_type: rec.meal_type,
-      foods: rec.foods?.map(food => ({
-        id: food.id,
-        name: food.name,
-        calories: parseFloat(food.calories || 0),
-        protein: parseFloat(food.protein || 0),
-        carbs: parseFloat(food.carbs || 0),
-        fat: parseFloat(food.fat || 0),
-        serving_size: food.serving_size || '100g',
-        category: food.category?.name || '기타'
-      })) || []
-    }));
+    return {
+      meals: recommendations.map(rec => ({
+        meal_type: rec.meal_type,
+        foods: rec.foods?.map(food => ({
+          id: food.id,
+          name: food.name,
+          calories: parseFloat(food.calories || 0),
+          protein: parseFloat(food.protein || 0),
+          carbs: parseFloat(food.carbs || 0),
+          fat: parseFloat(food.fat || 0),
+          servings: parseFloat(food.servings || 1),
+          serving_size: food.serving_size || '100g',
+          category: food.category?.name || '기타'
+        })) || []
+      }))
+    };
   }
 
   // 단일 식사 추천인 경우
   if (recommendations.meal_type) {
-    return [{
-      meal_type: recommendations.meal_type,
-      foods: recommendations.foods?.map(food => ({
-        id: food.id,
-        name: food.name,
-        calories: parseFloat(food.calories || 0),
-        protein: parseFloat(food.protein || 0),
-        carbs: parseFloat(food.carbs || 0),
-        fat: parseFloat(food.fat || 0),
-        serving_size: food.serving_size || '100g',
-        category: food.category?.name || '기타'
-      })) || []
-    }];
+    return {
+      meals: [{
+        meal_type: recommendations.meal_type,
+        foods: recommendations.foods?.map(food => ({
+          id: food.id,
+          name: food.name,
+          calories: parseFloat(food.calories || 0),
+          protein: parseFloat(food.protein || 0),
+          carbs: parseFloat(food.carbs || 0),
+          fat: parseFloat(food.fat || 0),
+          servings: parseFloat(food.servings || 1),
+          serving_size: food.serving_size || '100g',
+          category: food.category?.name || '기타'
+        })) || []
+      }]
+    };
   }
 
   return null;

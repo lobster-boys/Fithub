@@ -20,19 +20,26 @@ class DietRecommendView(APIView):
         쿼리 파라미터 없이 3끼 모두 추천
         """
         try:
+            logger.info(f"전체 식단 추천 요청 - 사용자: {request.user.id}")
+            
             # 사용자 목표 칼로리 확인
             profile = request.user.profile
+            logger.info(f"사용자 프로필 확인 - target_calories: {profile.target_calories}")
+            
             if not profile.target_calories or profile.target_calories <= 0:
+                logger.warning(f"사용자 {request.user.id}의 목표 칼로리가 설정되지 않음: {profile.target_calories}")
                 return Response({
                     "status": "error",
                     "detail": "목표 칼로리가 설정되지 않았습니다. 프로필에서 목표 칼로리를 설정해 주세요."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # 전체 식단 추천 (meal_type=None으로 전달)
+            logger.info("추천 함수 호출 시작")
             recommendations = recommend_meal_plan_lp(
                 request.user,
                 meal_type=None  # 전체 추천
             )
+            logger.info(f"추천 함수 완료 - 결과: {recommendations}")
 
             return Response({
                 "status": "success",
@@ -49,6 +56,10 @@ class DietRecommendView(APIView):
 
         except Exception as e:
             logger.error(f"Unexpected error in diet recommendation for user {request.user.id}: {str(e)}")
+            logger.error(f"Error type: {type(e)}")
+            logger.error(f"Error args: {e.args}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return Response({
                 "status": "error",
                 "detail": "추천 시스템에 일시적인 오류가 발생했습니다."
@@ -64,16 +75,20 @@ class DietRecommendView(APIView):
         }
         """
         try:
+            # JSON 바디에서 meal_type 추출
+            meal_type = request.data.get("meal_type")
+            logger.info(f"특정 시간대 추천 요청 - 사용자: {request.user.id}, meal_type: {meal_type}")
+            
             # 사용자 목표 칼로리 확인
             profile = request.user.profile
+            logger.info(f"사용자 프로필 확인 - target_calories: {profile.target_calories}")
+            
             if not profile.target_calories or profile.target_calories <= 0:
+                logger.warning(f"사용자 {request.user.id}의 목표 칼로리가 설정되지 않음: {profile.target_calories}")
                 return Response({
                     "status": "error",
                     "detail": "목표 칼로리가 설정되지 않았습니다. 프로필에서 목표 칼로리를 설정해 주세요."
                 }, status=status.HTTP_400_BAD_REQUEST)
-
-            # JSON 바디에서 meal_type 추출
-            meal_type = request.data.get("meal_type")
 
             # meal_type 필수 검증
             if not meal_type:
@@ -90,10 +105,12 @@ class DietRecommendView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # 특정 식사 추천
+            logger.info(f"추천 함수 호출 시작 - meal_type: {meal_type}")
             recommendations = recommend_meal_plan_lp(
                 request.user,
                 meal_type=meal_type
             )
+            logger.info(f"추천 함수 완료 - 결과: {recommendations}")
 
             return Response({
                 "status": "success",
@@ -110,6 +127,10 @@ class DietRecommendView(APIView):
 
         except Exception as e:
             logger.error(f"Unexpected error in diet recommendation for user {request.user.id}: {str(e)}")
+            logger.error(f"Error type: {type(e)}")
+            logger.error(f"Error args: {e.args}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return Response({
                 "status": "error",
                 "detail": "추천 시스템에 일시적인 오류가 발생했습니다."

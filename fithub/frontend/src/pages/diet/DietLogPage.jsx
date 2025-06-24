@@ -20,7 +20,6 @@ import {
   BaseModal,
   FoodSearchModal,
   MealLogModal,
-  RecommendationModal,
   MealEditModal
 } from '../../components/diet/modals';
 
@@ -73,10 +72,11 @@ const DietLogPage = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showFoodSearch, setShowFoodSearch] = useState(false);
   const [showMealLog, setShowMealLog] = useState(false);
-  const [showRecommendation, setShowRecommendation] = useState(false);
+
   const [showMealEdit, setShowMealEdit] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState('breakfast');
   const [selectedMeal, setSelectedMeal] = useState(null);
+  const [isRecommending, setIsRecommending] = useState(false);
 
   // 초기 데이터 로딩
   useEffect(() => {
@@ -133,9 +133,146 @@ const DietLogPage = () => {
   };
 
   // 추천 받기 버튼 클릭
-  const handleGetRecommendation = (mealType = null) => {
-    setSelectedMealType(mealType);
-    setShowRecommendation(true);
+  const handleGetRecommendation = async (mealType = null) => {
+    setIsRecommending(true);
+    
+    try {
+      console.log('AI 추천 요청:', mealType);
+      
+      let recommendationData;
+      if (mealType) {
+        // 특정 시간대 추천
+        console.log('특정 시간대 추천 요청:', mealType);
+        recommendationData = await getRecommendationByMealType(mealType);
+      } else {
+        // 전체 식단 추천
+        console.log('전체 식단 추천 요청');
+        recommendationData = await getBasicRecommendation();
+      }
+      
+      console.log('추천 API 응답 데이터:', recommendationData);
+      console.log('추천 데이터 키들:', Object.keys(recommendationData || {}));
+      console.log('추천 데이터 meals 필드:', recommendationData?.meals);
+      
+      if (recommendationData && recommendationData.meals && recommendationData.meals.length > 0) {
+        // 추천 결과 요약 생성
+        const summary = generateRecommendationSummary(recommendationData, mealType);
+        
+        // 사용자에게 확인 요청
+        const confirmMessage = `AI 추천 식단을 생성했습니다!\n\n${summary}\n\n이 추천 식단을 식단 기록에 추가하시겠습니까?`;
+        
+        if (window.confirm(confirmMessage)) {
+          await handleApplyRecommendations(recommendationData, mealType);
+          
+          // 성공 메시지 표시
+          alert(`${mealType ? getMealTypeLabel(mealType) : '전체'} 식단 추천이 완료되었습니다!`);
+          
+          // 데이터 새로고침
+          fetchLogs();
+        }
+        
+      } else {
+        console.error('추천 데이터가 비어있음:', recommendationData);
+        alert('추천 데이터를 생성할 수 없습니다. 프로필에서 목표 칼로리가 설정되어 있는지 확인하거나, 이전에 추천받은 음식이 너무 많지 않은지 확인해주세요.');
+      }
+    } catch (error) {
+      console.error('AI 추천 오류:', error);
+      console.error('오류 스택:', error.stack);
+      alert('AI 추천 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
+    } finally {
+      setIsRecommending(false);
+    }
+  };
+
+  // 추천 결과 요약 생성
+  const generateRecommendationSummary = (recommendationData, mealType) => {
+    const allMeals = recommendationData.meals || [];
+    let summary = '';
+    let totalCalories = 0;
+    
+    const targetMeals = mealType 
+      ? allMeals.filter(m => m.meal_type === mealType)
+      : allMeals;
+    
+    targetMeals.forEach(meal => {
+      const foods = meal.foods;
+      if (foods && Array.isArray(foods)) {
+        const mealCalories = meal.total_calories || foods.reduce((sum, food) => sum + (food.calories || 0), 0);
+        totalCalories += mealCalories;
+        
+        summary += `🍽️ ${getMealTypeLabel(meal.meal_type)}: ${Math.round(mealCalories)}kcal\n`;
+        foods.forEach(food => {
+          summary += `   • ${food.name} (${Math.round(food.calories)}kcal)\n`;
+        });
+        summary += '\n';
+      }
+    });
+    
+    summary += `📊 총 칼로리: ${Math.round(totalCalories)}kcal`;
+    
+    // 영양소 요약 추가 (백엔드에서 제공하는 경우)
+    if (recommendationData.nutrition_summary) {
+      const { calories_achievement } = recommendationData.nutrition_summary;
+      if (calories_achievement) {
+        summary += `\n🎯 목표 대비: ${Math.round(calories_achievement || 0)}%`;
+      }
+    }
+    
+    return summary;
+  };
+
+  // 추천 데이터를 식단 기록으로 변환 및 저장
+  const handleApplyRecommendations = async (recommendationData, mealType = null) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const mealsToApply = recommendationData.meals || [];
+      
+      const processMeal = async (meal) => {
+        if (meal && Array.isArray(meal.foods) && meal.foods.length > 0) {
+          await saveMealRecommendation(meal.foods, meal.meal_type, today);
+        }
+      };
+
+      if (mealType) {
+        // 특정 시간대만 처리
+        const meal = mealsToApply.find(m => m.meal_type === mealType);
+        await processMeal(meal);
+      } else {
+        // 전체 시간대 처리
+        for (const meal of mealsToApply) {
+          await processMeal(meal);
+        }
+      }
+    } catch (error) {
+      console.error('추천 데이터 저장 오류:', error);
+      throw error;
+    }
+  };
+
+  // 개별 식사 추천을 저장
+  const saveMealRecommendation = async (foods, mealType, date) => {
+    try {
+      // 백엔드 추천 형식을 프론트엔드 저장 형식으로 변환
+      const mealLogData = {
+        meal_name: `AI 추천 ${getMealTypeLabel(mealType)}`,
+        meal_time: mealType,
+        date: date,
+        foods: foods.map(food => ({
+          id: food.id,
+          quantity: (food.servings || 1) * 100  // servings를 g 단위로 변환
+        })),
+        notes: `AI가 추천한 ${getMealTypeLabel(mealType)} 식단 (총 ${Math.round(foods.reduce((sum, f) => sum + f.calories, 0))}kcal)`
+      };
+
+      console.log('저장할 식사 데이터:', mealLogData);
+      
+      await createMealLog(mealLogData);
+      console.log(`${mealType} 추천 식단 저장 완료`);
+    } catch (error) {
+      console.error(`${mealType} 추천 저장 실패:`, error);
+      throw error;
+    }
   };
 
   // 식사 편집
@@ -159,10 +296,24 @@ const DietLogPage = () => {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">식단 관리</h1>
               <button
                 onClick={() => handleGetRecommendation()}
-                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+                disabled={isRecommending}
+                className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  isRecommending 
+                    ? 'bg-gray-400 text-white cursor-not-allowed' 
+                    : 'bg-primary text-white hover:bg-orange-600'
+                }`}
               >
-                <i className="fas fa-magic mr-2"></i>
-                AI 추천
+                {isRecommending ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    AI 추천 중...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-magic mr-2"></i>
+                    AI 추천
+                  </>
+                )}
               </button>
             </div>
             
@@ -242,10 +393,24 @@ const DietLogPage = () => {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleGetRecommendation()}
-                      className="text-primary hover:text-orange-600 text-sm"
+                      disabled={isRecommending}
+                      className={`text-sm ${
+                        isRecommending 
+                          ? 'text-gray-400 cursor-not-allowed' 
+                          : 'text-primary hover:text-orange-600'
+                      }`}
                     >
-                      <i className="fas fa-magic mr-1"></i>
-                      AI 추천
+                      {isRecommending ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin mr-1"></i>
+                          추천 중...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-magic mr-1"></i>
+                          AI 추천
+                        </>
+                      )}
                     </button>
                     <div className="relative group">
                       <button className="text-primary hover:text-orange-600 text-sm flex items-center">
@@ -292,10 +457,24 @@ const DietLogPage = () => {
                               <div className="flex space-x-2">
                                 <button
                                   onClick={() => handleGetRecommendation(mealType)}
-                                  className="text-xs text-primary hover:text-orange-600"
+                                  disabled={isRecommending}
+                                  className={`text-xs ${
+                                    isRecommending 
+                                      ? 'text-gray-400 cursor-not-allowed' 
+                                      : 'text-primary hover:text-orange-600'
+                                  }`}
                                 >
-                                  <i className="fas fa-magic mr-1"></i>
-                                  추천
+                                  {isRecommending ? (
+                                    <>
+                                      <i className="fas fa-spinner fa-spin mr-1"></i>
+                                      추천 중
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="fas fa-magic mr-1"></i>
+                                      추천
+                                    </>
+                                  )}
                                 </button>
                                 <button
                                   onClick={() => handleAddMeal(mealType)}
@@ -355,10 +534,24 @@ const DietLogPage = () => {
                 </button>
                 <button
                   onClick={() => handleGetRecommendation()}
-                  className="bg-green-500 text-white py-3 px-4 rounded-xl hover:bg-green-600 transition-colors"
+                  disabled={isRecommending}
+                  className={`py-3 px-4 rounded-xl transition-colors ${
+                    isRecommending 
+                      ? 'bg-gray-400 text-white cursor-not-allowed' 
+                      : 'bg-green-500 text-white hover:bg-green-600'
+                  }`}
                 >
-                  <i className="fas fa-lightbulb mr-2"></i>
-                  맞춤 추천
+                  {isRecommending ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      추천 중...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-lightbulb mr-2"></i>
+                      맞춤 추천
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -479,12 +672,6 @@ const DietLogPage = () => {
           }}
         />
 
-        <RecommendationModal
-          isOpen={showRecommendation}
-          onClose={() => setShowRecommendation(false)}
-          mealType={selectedMealType}
-        />
-
         {selectedMeal && (
           <MealEditModal
             isOpen={showMealEdit}
@@ -505,4 +692,4 @@ const DietLogPage = () => {
   );
 };
 
-export default DietLogPage; 
+export default DietLogPage;
