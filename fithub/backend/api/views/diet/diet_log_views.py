@@ -6,7 +6,7 @@ from datetime import datetime, date
 from diet.models import DietLog
 from ...serializers.diet.diet_log_serializers import (
     DietLogSerializer, DietLogCreateSerializer, DietLogUpdateSerializer,
-    DietLogFromRecommendationSerializer
+    DietLogFromRecommendationSerializer, MealLogCreateSerializer
 )
 
 class DietLogViewSet(viewsets.ModelViewSet):
@@ -84,7 +84,6 @@ class DietLogViewSet(viewsets.ModelViewSet):
         meal_type = request.query_params.get('meal_type')
         if meal_type and meal_type not in ['breakfast', 'lunch', 'dinner', 'snack']:
             return Response({
-                "status": "error",
                 "detail": "meal_type은 breakfast, lunch, dinner, snack 중 하나여야 합니다."
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -94,16 +93,17 @@ class DietLogViewSet(viewsets.ModelViewSet):
                 datetime.strptime(date_param, '%Y-%m-%d').date()
             except ValueError:
                 return Response({
-                    "status": "error",
                     "detail": "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요."
                 }, status=status.HTTP_400_BAD_REQUEST)
         
+        # 페이지네이션 처리
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
         serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            "status": "success",
-            "count": queryset.count(),
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     def create(self, request, *args, **kwargs):
         """수동 DietLog 생성"""
@@ -111,25 +111,15 @@ class DietLogViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             diet_log = serializer.save()
             output_serializer = DietLogSerializer(diet_log)
-            return Response({
-                "status": "success",
-                "data": output_serializer.data,
-                "message": "식단 기록이 생성되었습니다."
-            }, status=status.HTTP_201_CREATED)
+            return Response(output_serializer.data, status=status.HTTP_201_CREATED)
         
-        return Response({
-            "status": "error",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def retrieve(self, request, *args, **kwargs):
         """특정 DietLog 조회"""
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        return Response({
-            "status": "success",
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     def partial_update(self, request, *args, **kwargs):
         """DietLog 부분 수정"""
@@ -138,25 +128,15 @@ class DietLogViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             updated_diet_log = serializer.save()
             output_serializer = DietLogSerializer(updated_diet_log)
-            return Response({
-                "status": "success",
-                "data": output_serializer.data,
-                "message": "식단 기록이 수정되었습니다."
-            }, status=status.HTTP_200_OK)
+            return Response(output_serializer.data, status=status.HTTP_200_OK)
         
-        return Response({
-            "status": "error",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def destroy(self, request, *args, **kwargs):
         """DietLog 삭제"""
         instance = self.get_object()
         instance.delete()
-        return Response({
-            "status": "success",
-            "message": "식단 기록이 삭제되었습니다."
-        }, status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
     @action(detail=False, methods=['post'], url_path='from-recommendation')
     def from_recommendation(self, request):
@@ -172,17 +152,9 @@ class DietLogViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             created_logs = serializer.save()
             output_serializer = DietLogSerializer(created_logs, many=True)
-            return Response({
-                "status": "success",
-                "count": len(created_logs),
-                "data": output_serializer.data,
-                "message": f"{len(created_logs)}개의 추천 기반 식단 기록이 생성되었습니다."
-            }, status=status.HTTP_201_CREATED)
+            return Response(output_serializer.data, status=status.HTTP_201_CREATED)
         
-        return Response({
-            "status": "error",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -196,7 +168,6 @@ class DietLogViewSet(viewsets.ModelViewSet):
             target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
         except ValueError:
             return Response({
-                "status": "error",
                 "detail": "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요."
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -271,7 +242,22 @@ class DietLogViewSet(viewsets.ModelViewSet):
                     stats['meal_breakdown'][meal_type][nutrient], 2
                 )
         
-        return Response({
-            "status": "success",
-            "data": stats
-        }, status=status.HTTP_200_OK)
+        return Response(stats, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='create-meal')
+    def create_meal(self, request):
+        """
+        복수 음식이 포함된 식사 기록 생성
+        POST /api/diet/logs/create-meal/
+        """
+        serializer = MealLogCreateSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        
+        if serializer.is_valid():
+            created_logs = serializer.save()
+            output_serializer = DietLogSerializer(created_logs, many=True)
+            return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

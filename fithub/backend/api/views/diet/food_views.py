@@ -2,8 +2,8 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from diet.models import Food
-from ...serializers.diet.food_serializers import FoodSerializer, FoodCreateSerializer, FoodUpdateSerializer
+from diet.models import Food, FoodCategory
+from ...serializers.diet.food_serializers import FoodSerializer, FoodCreateSerializer, FoodUpdateSerializer, FoodCategorySerializer
 from ...permissions import PublicReadOnly
 
 
@@ -27,17 +27,17 @@ class FoodViewSet(viewsets.ModelViewSet):
         return FoodSerializer
 
     def get_queryset(self):
-        queryset = Food.objects.all()
+        queryset = Food.objects.select_related('category').all()
         
         # 검색어 필터
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(name__icontains=search)
         
-        # 카테고리 필터 (추후 구현)
+        # 카테고리 필터 (카테고리 이름으로 필터링)
         category = self.request.query_params.get('category')
         if category:
-            queryset = queryset.filter(category=category)
+            queryset = queryset.filter(category__name=category)
         
         # 사용자별 필터
         user_only = self.request.query_params.get('user_only')
@@ -65,6 +65,42 @@ class FoodViewSet(viewsets.ModelViewSet):
             {'detail': '음식이 삭제되었습니다.'},
             status=status.HTTP_204_NO_CONTENT
         )
+
+    @action(detail=False, methods=['get'])
+    def categories(self, request):
+        """음식 카테고리 목록 조회"""
+        categories = FoodCategory.objects.filter(is_active=True).order_by('name')
+        serializer = FoodCategorySerializer(categories, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def by_category(self, request):
+        """카테고리별 음식 목록 조회"""
+        category_name = request.query_params.get('category')
+        if not category_name:
+            return Response(
+                {'error': '카테고리 이름이 필요합니다.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            category = FoodCategory.objects.get(name=category_name, is_active=True)
+        except FoodCategory.DoesNotExist:
+            return Response(
+                {'error': f'카테고리 "{category_name}"를 찾을 수 없습니다.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        foods = Food.objects.filter(category=category).order_by('name')
+        
+        # 페이지네이션 적용
+        page = self.paginate_queryset(foods)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(foods, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def my_foods(self, request):
@@ -95,11 +131,12 @@ class FoodViewSet(viewsets.ModelViewSet):
         nutrition_data = serializer.data
         nutrition_data['detailed_nutrition'] = {
             'macronutrients': {
-                'carbohydrates_g': nutrition_data.get('carbohydrates', 0),
+                'carbohydrates_g': nutrition_data.get('carbs', 0),
                 'protein_g': nutrition_data.get('protein', 0),
                 'fat_g': nutrition_data.get('fat', 0),
             },
-            'calories_per_100g': nutrition_data.get('calories_per_100g', 0)
+            'calories_per_serving': nutrition_data.get('calories', 0),
+            'serving_info': nutrition_data.get('serving_size', ''),
         }
         
         return Response(nutrition_data)

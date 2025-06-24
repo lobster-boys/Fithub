@@ -64,8 +64,7 @@ class MealPlanViewSet(viewsets.ModelViewSet):
                 )
             except ValueError:
                 return Response({
-                    "status": "error",
-                    "detail": "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요."
+                    "error": "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요."
                 }, status=status.HTTP_400_BAD_REQUEST)
         
         # 활성 상태 필터링
@@ -79,12 +78,14 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         # 정렬
         queryset = queryset.order_by('-created_at')
         
+        # 페이지네이션 처리
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
         serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            "status": "success",
-            "count": queryset.count(),
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, *args, **kwargs):
         """개인 식단 계획 상세 조회"""
@@ -93,27 +94,22 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         instance.increment_views()
         
         serializer = self.get_serializer(instance)
-        return Response({
-            "status": "success",
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         """식단 계획 생성"""
+        print(f"MealPlanViewSet.create - 받은 데이터: {request.data}")
+        print(f"MealPlanViewSet.create - 사용자: {request.user}")
+        print(f"MealPlanViewSet.create - 인증 여부: {request.user.is_authenticated}")
+        
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             meal_plan = serializer.save()
             output_serializer = MealPlanDetailSerializer(meal_plan, context=self.get_serializer_context())
-            return Response({
-                "status": "success",
-                "data": output_serializer.data,
-                "message": "식단 계획이 생성되었습니다."
-            }, status=status.HTTP_201_CREATED)
+            return Response(output_serializer.data, status=status.HTTP_201_CREATED)
         
-        return Response({
-            "status": "error",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+        print(f"MealPlanViewSet.create - 검증 실패: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         """식단 계획 전체 수정"""
@@ -122,16 +118,9 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             meal_plan = serializer.save()
             output_serializer = MealPlanDetailSerializer(meal_plan, context=self.get_serializer_context())
-            return Response({
-                "status": "success",
-                "data": output_serializer.data,
-                "message": "식단 계획이 수정되었습니다."
-            }, status=status.HTTP_200_OK)
+            return Response(output_serializer.data, status=status.HTTP_200_OK)
         
-        return Response({
-            "status": "error",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, *args, **kwargs):
         """식단 계획 부분 수정"""
@@ -140,25 +129,15 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             meal_plan = serializer.save()
             output_serializer = MealPlanDetailSerializer(meal_plan, context=self.get_serializer_context())
-            return Response({
-                "status": "success",
-                "data": output_serializer.data,
-                "message": "식단 계획이 수정되었습니다."
-            }, status=status.HTTP_200_OK)
+            return Response(output_serializer.data, status=status.HTTP_200_OK)
         
-        return Response({
-            "status": "error",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
         """식단 계획 삭제"""
         instance = self.get_object()
         instance.delete()
-        return Response({
-            "status": "success",
-            "message": "식단 계획이 삭제되었습니다."
-        }, status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post'], url_path='like')
     def like(self, request, pk=None):
@@ -168,14 +147,12 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         # 공개된 식단만 좋아요 가능
         if not meal_plan.is_public:
             return Response({
-                "status": "error",
                 "detail": "공개된 식단만 좋아요를 누를 수 있습니다."
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # 자신의 식단에는 좋아요 불가
         if meal_plan.user == request.user:
             return Response({
-                "status": "error",
                 "detail": "자신의 식단에는 좋아요를 누를 수 없습니다."
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -190,8 +167,6 @@ class MealPlanViewSet(viewsets.ModelViewSet):
             meal_plan.likes_count = max(0, meal_plan.likes_count - 1)
             meal_plan.save(update_fields=['likes_count'])
             return Response({
-                "status": "success",
-                "message": "좋아요가 취소되었습니다.",
                 "is_liked": False,
                 "likes_count": meal_plan.likes_count
             }, status=status.HTTP_200_OK)
@@ -201,178 +176,88 @@ class MealPlanViewSet(viewsets.ModelViewSet):
             meal_plan.likes_count += 1
             meal_plan.save(update_fields=['likes_count'])
             return Response({
-                "status": "success",
-                "message": "좋아요가 추가되었습니다.",
                 "is_liked": True,
                 "likes_count": meal_plan.likes_count
-            }, status=status.HTTP_200_OK)
+            }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], permission_classes=[PublicReadOnly], url_path='public')
     def public_list(self, request):
-        """공개 식단 목록 조회"""
+        """공개 식단 계획 목록 조회 (비로그인 사용자도 접근 가능)"""
         queryset = self.get_queryset()
         
-        # 목표 필터링
+        # 검색 필터
+        search = request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | 
+                Q(description__icontains=search) |
+                Q(user__username__icontains=search)
+            )
+        
+        # 목표별 필터
         target_goal = request.query_params.get('target_goal')
         if target_goal:
             queryset = queryset.filter(target_goal=target_goal)
         
-        # 난이도 필터링
+        # 난이도별 필터
         difficulty = request.query_params.get('difficulty')
         if difficulty:
             queryset = queryset.filter(difficulty=difficulty)
         
-        # 칼로리 범위 필터링
-        calories_min = request.query_params.get('calories_min')
-        calories_max = request.query_params.get('calories_max')
-        if calories_min:
+        # 칼로리 범위 필터
+        min_calories = request.query_params.get('min_calories')
+        max_calories = request.query_params.get('max_calories')
+        if min_calories:
             try:
-                queryset = queryset.filter(target_calories_min__gte=int(calories_min))
+                queryset = queryset.filter(target_calories_min__gte=int(min_calories))
             except ValueError:
                 pass
-        if calories_max:
+        if max_calories:
             try:
-                queryset = queryset.filter(target_calories_max__lte=int(calories_max))
+                queryset = queryset.filter(target_calories_max__lte=int(max_calories))
             except ValueError:
                 pass
         
-        # 검색
-        search = request.query_params.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) | Q(description__icontains=search)
-            )
-        
-        # 정렬
-        ordering = request.query_params.get('ordering', '-likes_count')
-        if ordering in ['-likes_count', '-views_count', '-created_at', 'created_at']:
-            queryset = queryset.order_by(ordering)
+        # 정렬 (인기순, 최신순, 좋아요순)
+        order_by = request.query_params.get('order_by', '-created_at')
+        if order_by == 'popular':
+            queryset = queryset.order_by('-views_count', '-likes_count')
+        elif order_by == 'likes':
+            queryset = queryset.order_by('-likes_count', '-created_at')
         else:
-            queryset = queryset.order_by('-likes_count')
+            queryset = queryset.order_by('-created_at')
+        
+        # 페이지네이션 처리
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         
         serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            "status": "success",
-            "count": queryset.count(),
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['get'], permission_classes=[PublicReadOnly], url_path='public-detail')
     def public_detail(self, request, pk=None):
-        """공개 식단 상세 조회"""
-        try:
-            meal_plan = MealPlan.objects.get(pk=pk, is_public=True)
-        except MealPlan.DoesNotExist:
-            return Response({
-                "status": "error",
-                "detail": "공개된 식단을 찾을 수 없습니다."
-            }, status=status.HTTP_404_NOT_FOUND)
+        """공개 식단 계획 상세 조회 (비로그인 사용자도 접근 가능)"""
+        meal_plan = get_object_or_404(MealPlan, pk=pk, is_public=True)
         
         # 조회수 증가
         meal_plan.increment_views()
         
         serializer = MealPlanDetailSerializer(meal_plan, context=self.get_serializer_context())
-        return Response({
-            "status": "success",
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='recommended')
     def recommended(self, request):
         """추천 식단 목록 조회"""
-        queryset = MealPlan.objects.filter(
-            is_public=True, 
-            is_recommended=True
-        ).select_related('user').prefetch_related('items__food')
+        queryset = self.get_queryset().filter(is_recommended=True, is_public=True)
         
-        # 사용자 목표에 따른 필터링 (옵션)
-        user_goal = request.query_params.get('user_goal')
-        if user_goal:
-            queryset = queryset.filter(target_goal=user_goal)
+        # 사용자별 맞춤 추천 (추후 확장 가능)
+        # user_profile = getattr(request.user, 'profile', None)
+        # if user_profile:
+        #     queryset = queryset.filter(target_goal=user_profile.fitness_goal)
         
-        # 정렬: 좋아요 수와 조회수 기준
-        queryset = queryset.order_by('-likes_count', '-views_count')[:10]  # 상위 10개
+        queryset = queryset.order_by('-likes_count', '-views_count')[:10]
         
         serializer = PublicMealPlanSerializer(queryset, many=True, context=self.get_serializer_context())
-        return Response({
-            "status": "success",
-            "count": queryset.count(),
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
-
-
-# 기존 API 호환성을 위한 레거시 Views
-class MealPlanListView(APIView):
-    """레거시 API 호환성 유지용 View"""
-    permission_classes = [PublicReadOnly]
-
-    def get(self, request):
-        if request.user and request.user.is_authenticated:
-            meal_plans = MealPlan.objects.filter(user=request.user)
-        else:
-            meal_plans = MealPlan.objects.none()
-        
-        serializer = MealPlanDetailSerializer(meal_plans, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        if not request.user or not request.user.is_authenticated:
-            return Response(
-                {"detail": "Authentication credentials were not provided."}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-            
-        serializer = MealPlanWriteSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            meal_plan = serializer.save()
-            output_serializer = MealPlanDetailSerializer(meal_plan, context={'request': request})
-            return Response(output_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class MealPlanDetailView(APIView):
-    """레거시 API 호환성 유지용 View"""
-    permission_classes = [PublicReadOnly]
-
-    def get_object(self, pk):
-        if self.request.user and self.request.user.is_authenticated:
-            return get_object_or_404(MealPlan, pk=pk, user=self.request.user)
-        else:
-            from django.http import Http404
-            raise Http404("MealPlan matching query does not exist.")
-
-    def get(self, request, pk):
-        meal_plan = self.get_object(pk)
-        serializer = MealPlanDetailSerializer(meal_plan, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def patch(self, request, pk):
-        if not request.user or not request.user.is_authenticated:
-            return Response(
-                {"detail": "Authentication credentials were not provided."}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-            
-        meal_plan = self.get_object(pk)
-        serializer = MealPlanWriteSerializer(
-            meal_plan, data=request.data, partial=True, context={'request': request}
-        )
-        if serializer.is_valid():
-            updated_meal_plan = serializer.save()
-            output_serializer = MealPlanDetailSerializer(updated_meal_plan, context={'request': request})
-            return Response(output_serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        if not request.user or not request.user.is_authenticated:
-            return Response(
-                {"detail": "Authentication credentials were not provided."}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-            
-        meal_plan = self.get_object(pk)
-        meal_plan.delete()
-        return Response(
-            {"detail": "식단 계획이 삭제되었습니다."},
-            status=status.HTTP_204_NO_CONTENT
-        )

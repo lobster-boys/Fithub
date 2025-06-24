@@ -175,7 +175,7 @@ class MealPlanWriteSerializer(BaseMealPlanSerializer):
             'difficulty',
             'items',
         ]
-        read_only_fields = ['id', 'total_calories']
+        read_only_fields = ['id']
         extra_kwargs = {"total_calories": {"required": False}}
 
     def validate(self, attrs):

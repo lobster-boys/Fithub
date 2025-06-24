@@ -213,3 +213,94 @@ python manage.py load_food_data --clear --collect-by-category
 # 크론탭 등록
 0 2 1 * * /path/to/python /path/to/manage.py load_food_data --collect-by-category --max-items 500
 ```
+
+## FitHub Backend
+
+## 설치 및 실행
+
+### 가상환경 설정
+```bash
+python -m venv fithub_env
+source fithub_env/bin/activate  # Windows: fithub_env\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 데이터베이스 마이그레이션
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+### 시드 데이터 생성
+
+#### 1. 음식 카테고리 시드 데이터
+```bash
+python manage.py food_categories_seed
+```
+
+#### 2. 음식 시드 데이터 (카테고리 생성 후 실행)
+```bash
+python manage.py foods_seed
+```
+
+#### 시드 데이터 재생성 (기존 데이터 삭제 후 새로 생성)
+```bash
+python manage.py food_categories_seed --clear
+python manage.py foods_seed --clear
+```
+
+### 서버 실행
+```bash
+python manage.py runserver
+```
+
+## 음식 검색 API 엔드포인트
+
+### 기본 음식 목록 조회
+```
+GET /api/diet/foods/
+```
+
+### 음식 검색
+```
+GET /api/diet/foods/?search=김치
+```
+
+### 카테고리별 조회
+```
+GET /api/diet/foods/?category=한식
+```
+
+### 카테고리 목록 조회
+```
+GET /api/diet/foods/categories/
+```
+
+### 사용 가능한 카테고리들
+- 탄수화물
+- 단백질
+- 지방
+- 채소
+- 과일
+- 유제품
+- 음료
+- 건강보조식품
+- 한식
+- 간식
+- 해산물
+- 기타
+
+## 프론트엔드에서 음식 검색 사용법
+
+```javascript
+// useFoods 훅 사용
+import { useFoods } from '../hooks/diet/useFoods';
+
+const { searchFoods, foods, loading, error } = useFoods();
+
+// 검색 실행
+const handleSearch = async (query) => {
+  const results = await searchFoods(query);
+  console.log('검색 결과:', results);
+};
+```

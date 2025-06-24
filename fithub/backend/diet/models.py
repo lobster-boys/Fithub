@@ -317,28 +317,33 @@ class MealPlan(models.Model):
     def _grams_from_quantity(self, item):
         """
         MealPlanFood.quantity를 실제 gram(혹은 ml)로 환산
-        1. 공공 API 데이터(is_public_data=True): quantity를 서빙 단위로 해석
-        2. 상품 연동 데이터: quantity(팩 수) x unit_weight_g
-        3. 사용자 커스텀 데이터: quantity를 g로 해석
+        quantity는 항상 "인분 수"를 의미함 (1 = 1인분)
+        1. 공공 API 데이터(is_public_data=True): quantity(인분수) × serving_size
+        2. 상품 연동 데이터: quantity(팩 수) × unit_weight_g
+        3. 사용자 커스텀 데이터: quantity(인분수) × serving_size
         """
         food = item.food
         product = food.product
         qty = Decimal(item.quantity)
         
-        # 공공 API 데이터인 경우: quantity를 서빙 단위로 해석
+        # 공공 API 데이터인 경우: quantity를 인분 수로 해석
         if food.is_public_data:
             try:
-                serving_g = food.get_standard_serving()  # 100g
-                return qty * serving_g  # quantity(서빙수) × 서빙크기(g)
+                serving_g = food.get_standard_serving()  # 예: 200g
+                return qty * serving_g  # quantity(인분수) × 1인분 크기(g)
             except Exception:
-                return qty  # 파싱 실패시 g로 간주
+                return qty * Decimal('100')  # 파싱 실패시 100g로 기본값
         
         # 상품 연동 데이터인 경우: 팩 수 × 단위 중량
         if product and product.is_food and product.unit_weight_g:
             return qty * Decimal(product.unit_weight_g)
         
-        # 사용자 커스텀 데이터인 경우: g로 간주
-        return qty
+        # 사용자 커스텀 데이터인 경우: quantity를 인분 수로 해석
+        try:
+            serving_g = food.get_standard_serving()  # 예: 100g
+            return qty * serving_g  # quantity(인분수) × 1인분 크기(g)
+        except Exception:
+            return qty * Decimal('100')  # 파싱 실패시 100g로 기본값
 
     def calculate_nutrition(self):
         """

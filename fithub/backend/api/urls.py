@@ -171,9 +171,9 @@ urlpatterns = [
     
     # =================== 식단 관련 ===================
     # diet URL은 router 기반 FoodViewSet 사용 (/api/diet/foods/)
-    # diet-MealPlan URL (새로 추가된 식단 계산 기능)
-    path('diet/mealplan/', mealplan_views.MealPlanListView.as_view(), name='mealplan-list-create'),
-    path('diet/mealplan/<int:pk>/', mealplan_views.MealPlanDetailView.as_view(), name='mealplan-detail'),
+    # diet-MealPlan URL (새로 추가된 식단 계산 기능) - ViewSet으로 통일하여 제거
+    # path('diet/mealplan/', mealplan_views.MealPlanListView.as_view(), name='mealplan-list-create'),
+    # path('diet/mealplan/<int:pk>/', mealplan_views.MealPlanDetailView.as_view(), name='mealplan-detail'),
     # diet-recommend URL
     path('diet/recommend/', recommend_views.DietRecommendView.as_view(), name='diet-recommend'),
     

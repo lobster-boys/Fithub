@@ -155,6 +155,26 @@ const AnimatedRoutes = () => {
             <DietLogPage />
           </ProtectedPage>
         } />
+        <Route path="/diet/log" element={
+          <ProtectedPage>
+            <DietLogPage />
+          </ProtectedPage>
+        } />
+        <Route path="/diet/recommendation" element={
+          <ProtectedPage>
+            <DietLogPage />
+          </ProtectedPage>
+        } />
+        <Route path="/diet/plans" element={
+          <ProtectedPage>
+            <DietLogPage />
+          </ProtectedPage>
+        } />
+        <Route path="/diet/stats" element={
+          <ProtectedPage>
+            <DietLogPage />
+          </ProtectedPage>
+        } />
         <Route path="/diet/ingredient/:mealId" element={
           <ProtectedPage>
             <IngredientDetailPage />

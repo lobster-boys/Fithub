@@ -171,3 +171,77 @@ class DietLogFromRecommendationSerializer(serializers.Serializer):
             created_logs.append(diet_log)
         
         return created_logs
+
+
+class MealFoodItemSerializer(serializers.Serializer):
+    """식사 내 개별 음식 항목"""
+    food_id = serializers.IntegerField()
+    quantity = serializers.DecimalField(max_digits=7, decimal_places=2)
+    
+    def validate_food_id(self, value):
+        try:
+            Food.objects.get(id=value)
+        except Food.DoesNotExist:
+            raise serializers.ValidationError(f"ID {value}에 해당하는 음식이 존재하지 않습니다.")
+        return value
+    
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("섭취량은 0보다 커야 합니다.")
+        return value
+
+
+class MealLogCreateSerializer(serializers.Serializer):
+    """복수 음식이 포함된 식사 기록 생성용 serializer"""
+    meal_name = serializers.CharField(max_length=200, required=False)
+    meal_time = serializers.ChoiceField(choices=['breakfast', 'lunch', 'dinner', 'snack'])
+    date = serializers.DateField()
+    foods = MealFoodItemSerializer(many=True)
+    notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    
+    def validate_meal_time(self, value):
+        if value not in ['breakfast', 'lunch', 'dinner', 'snack']:
+            raise serializers.ValidationError("meal_time은 breakfast, lunch, dinner, snack 중 하나여야 합니다.")
+        return value
+    
+    def validate_foods(self, value):
+        if not value:
+            raise serializers.ValidationError("최소 하나의 음식을 추가해야 합니다.")
+        return value
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        user = self.context['request'].user
+        foods_data = validated_data.pop('foods')
+        meal_time = validated_data['meal_time']
+        date = validated_data['date']
+        notes = validated_data.get('notes', '')
+        
+        created_logs = []
+        
+        for food_data in foods_data:
+            food = Food.objects.get(id=food_data['food_id'])
+            quantity = food_data['quantity']
+            
+            # 칼로리 계산
+            try:
+                serving_g = food.get_standard_serving()
+                ratio = quantity / serving_g if serving_g > 0 else 0
+                calculated_calories = food.calories * ratio
+            except Exception:
+                calculated_calories = 0
+            
+            # DietLog 생성
+            diet_log = DietLog.objects.create(
+                user=user,
+                food=food,
+                date=date,
+                meal_type=meal_time,
+                quantity=quantity,
+                calories=calculated_calories,
+                recommended_at=None  # 수동 생성은 추천 기반 아님
+            )
+            
+            created_logs.append(diet_log)
+        
+        return created_logs
