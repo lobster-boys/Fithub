@@ -159,13 +159,49 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             provider_id=str(sociallogin.account.uid)
         )
 
-    # def _initialize_user_data(self, user):
-    #     """사용자 기본 데이터 초기화"""
-    #     # UserPoint 초기화
-    #     UserPoint.objects.get_or_create(
-    #         user=user,
-    #         defaults={'balance': 0}
-    #     )
-        
-        # Cart 초기화
+    def pre_social_login(self, request, sociallogin):
+        """
+        소셜 계정 로그인 전에 호출됩니다.
+
+        1) 동일한 이메일로 이미 가입된 User 가 존재하면 해당 User 에 소셜 계정을 연결합니다.
+           (중복 이메일 오류 → 자동 연결 및 로그인 처리)
+        2) 별도의 유저가 없으면 기본 흐름대로 신규 User 가 생성됩니다.
+        """
+        logger.warning(f"[NAVER RAW] {sociallogin.account.extra_data}")
+        # 이미 social account 와 연결돼 있으면 아무 것도 하지 않음
+        if sociallogin.is_existing:
+            return
+
+        # extra_data 에서 이메일 추출 (provider 별 분기)
+        provider = sociallogin.account.provider
+        extra = sociallogin.account.extra_data or {}
+
+        email = None
+        try:
+            if provider == "kakao":
+                email = extra.get("kakao_account", {}).get("email")
+            elif provider == "naver":
+                email = extra.get("response", {}).get("email")
+            elif provider == "google":
+                email = extra.get("email")
+        except Exception as e:
+            logger.error(f"{provider} pre_social_login email 파싱 오류: {e}")
+
+        if not email:
+            # 이메일이 없으면 처리 불가 → 기본 플로우 진행 (allauth가 에러 응답하도록)
+            return
+
+        try:
+            existing_user = User.objects.filter(email__iexact=email).first()
+            if existing_user:
+                # 기존 유저와 연결 (새 SocialAccount 로 추가)
+                sociallogin.connect(request, existing_user)
+        except Exception as e:
+            logger.error(f"pre_social_login 연결 실패: {e}")
+
+    def _initialize_user_data(self, user):
+        """신규 사용자 기본 데이터 초기화 (현재는 비활성화)."""
+        # 예: 포인트, 장바구니 등 관련 모델 초기 생성
+        # UserPoint.objects.get_or_create(user=user, defaults={"balance": 0})
         # Cart.objects.get_or_create(user=user)
+        pass

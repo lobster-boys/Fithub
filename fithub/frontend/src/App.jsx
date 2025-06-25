@@ -34,6 +34,7 @@ import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
 
 import KakaoCallback from './pages/auth/KakaoCallback';
+import NaverCallback from './pages/auth/NaverCallback';
 
 // Placeholder Components - 실제 페이지 컴포넌트가 구현되기 전까지 사용
 const PlaceholderPage = ({ title }) => (
@@ -253,6 +254,7 @@ const AnimatedRoutes = () => {
         
         {/* 카카오 콜백 페이지 */}
         <Route path="/auth/kakao/callback/" element={<KakaoCallback />} />
+        <Route path="/auth/naver/callback/" element={<NaverCallback />} />
         
         {/* 404 페이지 */}
         <Route path="*" element={

@@ -14,6 +14,7 @@ const LoginForm = () => {
   const [localError, setLocalError] = useState('');
 
   const kakaoRestKey = import.meta.env.VITE_KAKAO_REST_KEY;
+  const naverClientId = import.meta.env.VITE_NAVER_CLIENT_ID;
 
   // Kakao SDK 초기화
   useEffect(() => {
@@ -21,6 +22,17 @@ const LoginForm = () => {
       window.Kakao.init(kakaoRestKey);
     }
   }, [kakaoRestKey]);
+
+  // Naver SDK 초기화
+  useEffect(() => {
+    if (naverClientId && !document.getElementById('naver-sdk')) {
+      const script = document.createElement('script');
+      script.id = 'naver-sdk';
+      script.src = 'https://static.nid.naver.com/js/naveridlogin_js_sdk_2.0.2.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, [naverClientId]);
 
   // 카카오 로그인 팝업
   const handleKakaoLogin = () => {
@@ -31,6 +43,24 @@ const LoginForm = () => {
     window.Kakao.Auth.authorize({
       redirectUri: `${window.location.origin}/auth/kakao/callback/`
     });
+  };
+
+  // 네이버 로그인 리다이렉트
+  const handleNaverLogin = () => {
+    if (!naverClientId) {
+      alert('Naver Client ID가 설정되지 않았습니다.');
+      return;
+    }
+
+    // state 파라미터 (임시 난수) 생성
+    const state = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('naver_auth_state', state);
+
+    const redirectUri = `${window.location.origin}/auth/naver/callback/`;
+    const scope = encodeURIComponent('name email profile_image gender birthday birthyear');
+    const authorizeUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${naverClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}`;
+
+    window.location.href = authorizeUrl;
   };
 
   const handleChange = (e) => {
@@ -106,6 +136,9 @@ const LoginForm = () => {
 
         <button className="w-full bg-yellow-400 text-black py-2 rounded font-semibold mb-2 hover:bg-yellow-500" onClick={handleKakaoLogin}>
           카카오로 시작하기
+        </button>
+        <button className="w-full bg-[#03C75A] text-white py-2 rounded font-semibold mb-2 hover:bg-green-600" onClick={handleNaverLogin}>
+          네이버로 시작하기
         </button>
         {/* 네이버, 구글 소셜 로그인은 추후 지원 예정 */}
 
