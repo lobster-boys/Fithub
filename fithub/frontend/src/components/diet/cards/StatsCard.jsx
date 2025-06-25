@@ -18,7 +18,8 @@ const StatsCard = ({
     total_carbs: 0,
     total_fat: 0,
     meal_count: 0,
-    water_intake: 0
+    water_intake: 0,
+    foods: [] // 새로 추가: 섭취 음식 목록
   };
 
   const currentStats = { ...defaultStats, ...stats };
@@ -136,6 +137,18 @@ const StatsCard = ({
               {currentStats.water_intake || 0}잔
             </span>
           </div>
+        </div>
+      )}
+
+      {/* 섭취 음식 리스트 */}
+      {Array.isArray(currentStats.foods) && currentStats.foods.length > 0 && (
+        <div className="border-t border-gray-200 pt-4 mt-4 max-h-48 overflow-y-auto">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">섭취 음식</h4>
+          <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+            {currentStats.foods.map((food, idx) => (
+              <li key={`food-${idx}`}>{food}</li>
+            ))}
+          </ul>
         </div>
       )}
 

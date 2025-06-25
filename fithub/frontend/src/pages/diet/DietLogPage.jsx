@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import PageTransition from '../../components/layout/PageTransition';
 import { useAuth } from '../../hooks/useAuth';
+import { useProfile } from '../../hooks/useProfile';
 
 // 모듈화된 diet 훅들
 import { 
@@ -67,6 +68,9 @@ const DietLogPage = () => {
     createMealPlan
   } = useMealPlans();
 
+  // 사용자 프로필 (목표 칼로리 등)
+  const { profile, loading: profileLoading } = useProfile();
+
   // 로컬 상태
   const [activeTab, setActiveTab] = useState('today');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -101,8 +105,78 @@ const DietLogPage = () => {
   
   console.log('DietLogPage - mealsByType:', mealsByType);
 
+  // 오늘 식사 데이터 기반 영양소 총합 & 음식 리스트 계산 (식사 시간대 포함 중복 제거)
+  const aggregatedStats = useMemo(() => {
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+    let totalCalories = 0;
+    const foodListWithMeal = [];
+
+    const mealTypeLabel = {
+      breakfast: '아침',
+      lunch: '점심',
+      dinner: '저녁',
+      snack: '간식'
+    };
+
+    todayMeals.forEach((meal) => {
+      // 식사별 칼로리 (meal 자체에 총칼로리가 있을 수 있음)
+      if (meal.calories) {
+        totalCalories += parseFloat(meal.calories) || 0;
+      }
+
+      // 음식 리스트 및 영양 계산
+      if (Array.isArray(meal.foods) && meal.foods.length > 0) {
+        meal.foods.forEach((food) => {
+          const protein = parseFloat(food.protein || food.protein_g || 0);
+          const carbs = parseFloat(food.carbs || food.carbohydrates || 0);
+          const fat = parseFloat(food.fat || food.fat_g || 0);
+          const calories = parseFloat(food.calories || 0);
+
+          totalProtein += protein;
+          totalCarbs += carbs;
+          totalFat += fat;
+          totalCalories += calories; // 음식 단위의 칼로리 합산
+
+          // 음식명 추출 (여러 데이터 구조 대응)
+          const foodName = food.name || food.food_name || food.food?.name;
+          if (foodName) {
+            const label = mealTypeLabel[meal.meal_time || meal.meal_type] || '기타';
+            foodListWithMeal.push(`${label}: ${foodName}`);
+          }
+        });
+      } else {
+        // foods 배열이 없고 단일 food 필드가 있는 경우
+        if (meal.food) {
+          const { protein = 0, carbs = 0, fat = 0, calories = 0, name } = meal.food;
+          totalProtein += parseFloat(protein);
+          totalCarbs += parseFloat(carbs);
+          totalFat += parseFloat(fat);
+          totalCalories += parseFloat(calories);
+          if (name) {
+            const label = mealTypeLabel[meal.meal_time || meal.meal_type] || '기타';
+            foodListWithMeal.push(`${label}: ${name}`);
+          }
+        }
+      }
+    });
+
+    // 중복 제거 (같은 식사 시간대·같은 음식명의 완전 일치한 항목만 제거)
+    const dedupedFoods = Array.from(new Set(foodListWithMeal));
+
+    return {
+      total_calories: Math.round(totalCalories),
+      total_protein: Math.round(totalProtein),
+      total_carbs: Math.round(totalCarbs),
+      total_fat: Math.round(totalFat),
+      meal_count: todayMeals.length,
+      foods: dedupedFoods
+    };
+  }, [todayMeals]);
+
   // 통합 로딩 상태
-  const totalLoading = logsLoading || statsLoading || recommendationLoading || mealPlansLoading;
+  const totalLoading = logsLoading || statsLoading || recommendationLoading || mealPlansLoading || profileLoading;
 
   // 식사 시간대 라벨
   const getMealTypeLabel = (type) => {
@@ -368,16 +442,12 @@ const DietLogPage = () => {
               {/* 오늘의 통계 카드 */}
               <StatsCard 
                 stats={{
-                  total_calories: todayStats?.totalCalories || 0,
-                  total_protein: todayStats?.totalProtein || 0,
-                  total_carbs: todayStats?.totalCarbs || 0,
-                  total_fat: todayStats?.totalFat || 0,
-                  completed_meals: todayStats?.completedMeals || 0,
+                  ...aggregatedStats,
                   water_intake: waterStats?.current || 0,
-                  target_water: waterStats?.target || 2000
                 }}
+                targetCalories={profile?.target_calories || 2000}
                 onWaterUpdate={handleWaterUpdate}
-                loading={statsLoading}
+                loading={statsLoading || profileLoading}
               />
 
               {/* 통합 식사 기록 섹션 */}
