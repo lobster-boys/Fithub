@@ -7,11 +7,13 @@ import ChallengeCard from '../../components/challenge/ChallengeCard';
 import WeeklyGoalTracker from '../../components/workout/WeeklyGoalTracker';
 
 import useWorkoutData from '../../hooks/useWorkoutData';
-import { useDiet } from '../../hooks/useDiet';
 import useEcommerce from '../../hooks/useEcommerce';
 import useCommunity from '../../hooks/useCommunity';
 import { useAuth } from '../../hooks/useAuth';
 import { useChallenge } from '../../hooks/useChallenge';
+import { useDietLogs } from '../../hooks/diet/useDietLogs';
+import useDietRecommendations from '../../hooks/diet/useDietRecommendations';
+import { transformDietLogsToMeals } from '../../utils/dietTransformers';
 
 function HomePage() {
   // AuthContext에서 실제 인증 상태와 사용자 정보 가져오기
@@ -114,30 +116,129 @@ function HomePage() {
     }
   }, [routines]);
 
-  // 식단 데이터 - 인증된 사용자만 사용하지만 무한 API 호출 방지를 위해 제거
-  // const dietData = isAuthenticated ? useDiet() : null;
-  const [dietData, setDietData] = useState(null);
-  
-  // 인증된 사용자에게만 간단한 식단 데이터 로드
+  /* ---------- 식단 기록 및 추천 훅 ---------- */
+  const {
+    todayMeals,
+    loading: dietLoading,
+    error: dietError,
+    fetchTodayDietLogs,
+    createMealLog
+  } = useDietLogs();
+
+  const {
+    getBasicRecommendation,
+    getRecommendationByMealType
+  } = useDietRecommendations();
+
+  const [isRecommending, setIsRecommending] = useState(false);
+
+  // 컴포넌트 마운트 시 오늘 식단 기록 로드
   useEffect(() => {
     if (isAuthenticated) {
-      // 홈페이지에서는 간단한 예시 데이터만 표시
-      const sampleDietData = {
-        loading: false,
-        error: null,
-        todayMealPlan: {
-          meals: [
-            { id: 1, name: '아침', foods: ['오트밀', '바나나', '우유'], calories: 350 },
-            { id: 2, name: '점심', foods: ['현미밥', '닭가슴살', '브로콜리'], calories: 450 },
-            { id: 3, name: '저녁', foods: ['연어', '고구마', '샐러드'], calories: 400 }
-          ]
-        }
-      };
-      setDietData(sampleDietData);
-    } else {
-      setDietData(null);
+      fetchTodayDietLogs();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchTodayDietLogs]);
+
+  // DietLogPage와 동일한 라벨 함수
+  const getMealTypeLabel = (type) => {
+    switch (type) {
+      case 'breakfast': return '아침';
+      case 'lunch': return '점심';
+      case 'dinner': return '저녁';
+      case 'snack': return '간식';
+      default: return type;
+    }
+  };
+
+  // 추천 생성 후 저장 로직 (DietLogPage 일부 차용)
+  const saveMealRecommendation = async (foods, mealType, date) => {
+    const mealLogData = {
+      meal_name: `AI 추천 ${getMealTypeLabel(mealType)}`,
+      meal_time: mealType,
+      date: date,
+      foods: foods.map(food => ({ id: food.id, quantity: (food.servings || 1) * 100 })),
+      notes: `AI가 추천한 ${getMealTypeLabel(mealType)} 식단`
+    };
+    await createMealLog(mealLogData);
+  };
+
+  const handleApplyRecommendations = async (recommendationData, mealType = null) => {
+    const today = new Date().toISOString().split('T')[0];
+    const mealsToApply = recommendationData.meals || [];
+    const processMeal = async (meal) => {
+      if (meal && Array.isArray(meal.foods) && meal.foods.length > 0) {
+        await saveMealRecommendation(meal.foods, meal.meal_type, today);
+      }
+    };
+    if (mealType) {
+      const meal = mealsToApply.find(m => m.meal_type === mealType);
+      await processMeal(meal);
+    } else {
+      for (const meal of mealsToApply) {
+        await processMeal(meal);
+      }
+    }
+    // 저장 후 오늘 식단 재로딩
+    await fetchTodayDietLogs();
+  };
+
+  const generateRecommendationSummary = (recommendationData, mealType) => {
+    const allMeals = recommendationData.meals || [];
+    let summary = '';
+    let totalCalories = 0;
+    const targetMeals = mealType ? allMeals.filter(m => m.meal_type === mealType) : allMeals;
+    targetMeals.forEach(meal => {
+      const mealCalories = meal.total_calories || meal.foods.reduce((sum, f) => sum + (f.calories || 0), 0);
+      totalCalories += mealCalories;
+      summary += `🍽️ ${getMealTypeLabel(meal.meal_type)}: ${Math.round(mealCalories)}kcal\n`;
+      meal.foods.forEach(food => {
+        summary += `   • ${food.name} (${Math.round(food.calories)}kcal)\n`;
+      });
+      summary += '\n';
+    });
+    summary += `📊 총 칼로리: ${Math.round(totalCalories)}kcal`;
+    return summary;
+  };
+
+  const handleGetRecommendation = async (mealType = null) => {
+    setIsRecommending(true);
+    try {
+      let recommendationData;
+      if (mealType) {
+        recommendationData = await getRecommendationByMealType(mealType);
+      } else {
+        recommendationData = await getBasicRecommendation();
+      }
+      if (recommendationData && recommendationData.meals && recommendationData.meals.length > 0) {
+        const summary = generateRecommendationSummary(recommendationData, mealType);
+        if (window.confirm(`AI 추천 식단을 생성했습니다!\n\n${summary}\n\n식단 기록에 추가하시겠습니까?`)) {
+          await handleApplyRecommendations(recommendationData, mealType);
+          alert('추천 식단이 저장되었습니다!');
+        }
+      } else {
+        alert('추천 데이터를 생성할 수 없습니다.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('추천 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsRecommending(false);
+    }
+  };
+
+  /* ---------- todayMeals를 HomePage UI 형식으로 변환 ---------- */
+  const mappedMeals = (todayMeals || []).map(meal => ({
+    id: meal.id,
+    name: getMealTypeLabel(meal.meal_time || meal.meal_type || meal.type),
+    foods: meal.foods.map(f => f.name),
+    calories: Math.round(meal.calories)
+  }));
+
+  const dietData = {
+    loading: dietLoading,
+    error: dietError,
+    todayMealPlan: { meals: mappedMeals }
+  };
 
   // 전자상거래 훅 사용
   const { products, loading: ecommerceLoading } = useEcommerce();
@@ -559,8 +660,11 @@ function HomePage() {
               {/* 식단 추천 버튼 */}
               <div className="p-4 border-t border-gray-100 bg-gray-50">
                 <button
-                  onClick={() => setShowDietModal(true)}
-                  className="w-full bg-primary text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center"
+                  onClick={() => handleGetRecommendation()}
+                  disabled={isRecommending}
+                  className={`w-full py-3 px-4 rounded-lg transition-colors font-medium flex items-center justify-center ${
+                    isRecommending ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-primary text-white hover:bg-orange-600'
+                  }`}
                 >
                   <i className="fas fa-lightbulb mr-2"></i>
                   맞춤 식단 추천 받기
@@ -584,8 +688,11 @@ function HomePage() {
               {isAuthenticated && (
                 <div className="p-4 border-t border-gray-100 bg-gray-50">
                   <button
-                    onClick={() => setShowDietModal(true)}
-                    className="w-full bg-primary text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center"
+                    onClick={() => handleGetRecommendation()}
+                    disabled={isRecommending}
+                    className={`w-full py-3 px-4 rounded-lg transition-colors font-medium flex items-center justify-center ${
+                      isRecommending ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-primary text-white hover:bg-orange-600'
+                    }`}
                   >
                     <i className="fas fa-lightbulb mr-2"></i>
                     맞춤 식단 추천 받기
@@ -596,8 +703,6 @@ function HomePage() {
           )}
         </div>
       </section>
-
-
 
       {/* 챌린지 섹션 - 인증된 사용자만 */}
       {isAuthenticated && (

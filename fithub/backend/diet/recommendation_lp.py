@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 SAMPLE_SIZE_PER_CATEGORY = getattr(settings, 'DIET_SAMPLE_SIZE_PER_CATEGORY', 15)
 RECENT_DAYS = getattr(settings, 'DIET_RECENT_DAYS', 7)
 FREQUENT_THRESHOLD = getattr(settings, 'DIET_FREQUENT_THRESHOLD', 3)
+# 최근 추천 음식 제외 여부 (기본: 제외하지 않음)
+EXCLUDE_RECENT_RECOMMENDATIONS = getattr(
+    settings,
+    'DIET_EXCLUDE_RECENT_RECOMMENDATIONS',
+    False  # 기본값 False → 기존 추천 음식도 다시 추천 가능
+)
 
 # 식사별 카테고리 → 필요한 아이템 개수 매핑
 MEAL_CATEGORY_MAPPING = {
@@ -125,8 +131,16 @@ def _get_candidate_foods_optimized(user, meal_type: str) -> Dict[str, List[Dict[
     )
     logger.info(f"[{meal_type}] 초기 필터링된 음식 수: {foods_qs.count()}개 (카테고리 기준)")
 
-    foods_qs = foods_qs.exclude(id__in=recent_ids)
-    logger.info(f"[{meal_type}] 최근 추천 제외 후 음식 수: {foods_qs.count()}개")
+    # 최근 추천 음식 제외 여부에 따라 필터링 적용
+    if EXCLUDE_RECENT_RECOMMENDATIONS and recent_ids:
+        foods_qs = foods_qs.exclude(id__in=recent_ids)
+        logger.info(
+            f"[{meal_type}] 최근 추천 제외 후 음식 수: {foods_qs.count()}개"
+        )
+    else:
+        logger.info(
+            f"[{meal_type}] 최근 추천 제외 없이 음식 수: {foods_qs.count()}개"
+        )
 
     foods_qs = foods_qs.select_related('category').annotate(
         is_frequent=models.Case(

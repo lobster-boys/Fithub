@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.db import transaction
 from django.utils import timezone
 from diet.models import DietLog, Food
+from decimal import Decimal
 
 class FoodBasicSerializer(serializers.ModelSerializer):
     """DietLog에서 사용할 기본 Food 정보"""
@@ -176,7 +177,8 @@ class DietLogFromRecommendationSerializer(serializers.Serializer):
 class MealFoodItemSerializer(serializers.Serializer):
     """식사 내 개별 음식 항목"""
     food_id = serializers.IntegerField()
-    quantity = serializers.DecimalField(max_digits=7, decimal_places=2)
+    # 프론트에서 숫자(float)로 전달돼도 허용하도록 FloatField 사용
+    quantity = serializers.FloatField()
     
     def validate_food_id(self, value):
         try:
@@ -186,9 +188,16 @@ class MealFoodItemSerializer(serializers.Serializer):
         return value
     
     def validate_quantity(self, value):
-        if value <= 0:
+        try:
+            numeric_val = float(value)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError("수량은 숫자여야 합니다.")
+
+        if numeric_val <= 0:
             raise serializers.ValidationError("섭취량은 0보다 커야 합니다.")
-        return value
+
+        # 소수점 둘째자리까지 반올림하여 반환
+        return round(numeric_val, 2)
 
 
 class MealLogCreateSerializer(serializers.Serializer):
@@ -222,14 +231,20 @@ class MealLogCreateSerializer(serializers.Serializer):
         for food_data in foods_data:
             food = Food.objects.get(id=food_data['food_id'])
             quantity = food_data['quantity']
-            
+
+            # 계산을 위해 Decimal 변환
+            try:
+                qty_dec = Decimal(str(quantity))
+            except Exception:
+                qty_dec = Decimal('0')
+
             # 칼로리 계산
             try:
-                serving_g = food.get_standard_serving()
-                ratio = quantity / serving_g if serving_g > 0 else 0
+                serving_g = food.get_standard_serving()  # Decimal 반환
+                ratio = qty_dec / serving_g if serving_g > 0 else Decimal('0')
                 calculated_calories = food.calories * ratio
             except Exception:
-                calculated_calories = 0
+                calculated_calories = Decimal('0')
             
             # DietLog 생성
             diet_log = DietLog.objects.create(
@@ -237,7 +252,7 @@ class MealLogCreateSerializer(serializers.Serializer):
                 food=food,
                 date=date,
                 meal_type=meal_time,
-                quantity=quantity,
+                quantity=qty_dec,
                 calories=calculated_calories,
                 recommended_at=None  # 수동 생성은 추천 기반 아님
             )

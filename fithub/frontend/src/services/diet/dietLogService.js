@@ -96,10 +96,15 @@ export const dietLogService = {
         meal_name: mealData.meal_name || '',
         meal_time: mealData.meal_time || mealData.meal_type || 'breakfast',
         date: formatDateForApi(mealData.date || new Date()),
-        foods: mealData.foods.map(food => ({
-          food_id: food.id,
-          quantity: parseFloat(food.quantity || 100)
-        })),
+        foods: mealData.foods.map(food => {
+          const rawQty = food.quantity ?? 100;
+          // 소수점 2자리까지 반올림 후 Number 타입 유지
+          const normalizedQty = Math.round(Number(rawQty) * 100) / 100;
+          return {
+            food_id: food.id,
+            quantity: normalizedQty
+          };
+        }),
         notes: mealData.notes || ''
       };
       
