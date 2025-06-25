@@ -33,6 +33,8 @@ import ProfilePage from './pages/ProfilePage';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
 
+import KakaoCallback from './pages/auth/KakaoCallback';
+
 // Placeholder Components - 실제 페이지 컴포넌트가 구현되기 전까지 사용
 const PlaceholderPage = ({ title }) => (
   <div className="container mx-auto px-4 py-8">
@@ -248,6 +250,9 @@ const AnimatedRoutes = () => {
             <SettingsPage />
           </ProtectedPage>
         } />
+        
+        {/* 카카오 콜백 페이지 */}
+        <Route path="/auth/kakao/callback/" element={<KakaoCallback />} />
         
         {/* 404 페이지 */}
         <Route path="*" element={

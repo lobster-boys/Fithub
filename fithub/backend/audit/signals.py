@@ -57,7 +57,7 @@ def log_model_changes(sender, instance, created, **kwargs):
     
     # 현재 요청의 사용자 정보 가져오기
     user = getattr(instance, '_current_user', None) or get_current_user()
-    if not user:
+    if not user or not getattr(user, 'is_authenticated', False):
         return
     
     action = 'create' if created else 'update'
@@ -97,7 +97,7 @@ def log_model_deletion(sender, instance, **kwargs):
         return
     
     user = getattr(instance, '_current_user', None) or get_current_user()
-    if not user:
+    if not user or not getattr(user, 'is_authenticated', False):
         return
     
     ChangeLog.objects.create(

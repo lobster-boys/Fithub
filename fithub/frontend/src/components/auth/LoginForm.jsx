@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -12,6 +12,26 @@ const LoginForm = () => {
   });
   
   const [localError, setLocalError] = useState('');
+
+  const kakaoRestKey = import.meta.env.VITE_KAKAO_REST_KEY;
+
+  // Kakao SDK 초기화
+  useEffect(() => {
+    if (window.Kakao && kakaoRestKey && !window.Kakao.isInitialized()) {
+      window.Kakao.init(kakaoRestKey);
+    }
+  }, [kakaoRestKey]);
+
+  // 카카오 로그인 팝업
+  const handleKakaoLogin = () => {
+    if (!window.Kakao || !window.Kakao.Auth) {
+      alert('Kakao SDK 로드 실패');
+      return;
+    }
+    window.Kakao.Auth.authorize({
+      redirectUri: `${window.location.origin}/auth/kakao/callback/`
+    });
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -84,15 +104,10 @@ const LoginForm = () => {
 
         <div className="text-center text-sm text-gray-400 mb-3">또는</div>
 
-        <button className="w-full bg-yellow-400 text-black py-2 rounded font-semibold mb-2 hover:bg-yellow-500">
+        <button className="w-full bg-yellow-400 text-black py-2 rounded font-semibold mb-2 hover:bg-yellow-500" onClick={handleKakaoLogin}>
           카카오로 시작하기
         </button>
-        <button className="w-full bg-green-500 text-white py-2 rounded font-semibold mb-2 hover:bg-green-600">
-          네이버로 시작하기
-        </button>
-        <button className="w-full bg-white border border-gray-400 text-black py-2 rounded font-semibold hover:bg-gray-100">
-          구글로 시작하기
-        </button>
+        {/* 네이버, 구글 소셜 로그인은 추후 지원 예정 */}
 
         <div className="text-center text-sm mt-6">
           계정이 없으신가요?{' '}

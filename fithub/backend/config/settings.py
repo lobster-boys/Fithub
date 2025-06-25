@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 from datetime import timedelta
-# from decouple import config  # 임시로 주석 처리
+from decouple import config  # 임시로 주석 처리
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -225,7 +225,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
-    'UNAUTHENTICATED_USER': None,  # 인증되지 않은 사용자 처리
+    # 'UNAUTHENTICATED_USER': None,  # 인증되지 않은 사용자 처리
 }
 
 # JWT setting
@@ -284,17 +284,14 @@ AUTHENTICATION_BACKENDS = [
 SOCIALACCOUNT_PROVIDERS = {
     "kakao": {
         "APP": {
-            "client_id": "",  # 개발 시에는 빈 값
-            "secret": "",     # 개발 시에는 빈 값
+            "client_id": config("KAKAO_CLIENT_ID", default=""),
+            "secret": config("KAKAO_SECRET", default=""),
             "key": "",
         },
         "SCOPE": [
             "profile_nickname",
             "profile_image",
-            "gender",
             "account_email",
-            "birthday",
-            "birthyear",
         ],
         "AUTH_PARAMS": {
             "access_type": "online",  
@@ -304,8 +301,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     "naver": {
         "APP": {
-            "client_id": "",  # 개발 시에는 빈 값
-            "secret": "",     # 개발 시에는 빈 값
+            "client_id": config("NAVER_CLIENT_ID", default=""),
+            "secret": config("NAVER_SECRET", default=""),
             "key": "",
         },
         "SCOPE": [
@@ -323,8 +320,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     'google': {
         "APP": {
-            "client_id": "",  # 개발 시에는 빈 값
-            "secret": "",     # 개발 시에는 빈 값
+            "client_id": config("GOOGLE_CLIENT_ID", default=""),
+            "secret": config("GOOGLE_SECRET", default=""),
             "key": "",
         },
         'SCOPE': [
