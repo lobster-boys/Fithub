@@ -1,0 +1,8 @@
+{
+    "python.analysis.extraPaths": [
+        "./fithub/backend",
+        "C:/Users/piome/AppData/Local/Programs/Python/Python312/Lib/site-packages"
+    ],
+    "python.defaultInterpreterPath": "C:/Users/piome/AppData/Local/Programs/Python/Python312/python.exe",
+    "python.pythonPath": "C:/Users/piome/AppData/Local/Programs/Python/Python312/python.exe"
+}

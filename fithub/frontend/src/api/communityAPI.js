@@ -25,7 +25,15 @@ export const getPost = async (id) => {
 // 게시글 생성
 export const createPost = async (postData) => {
   try {
-    const response = await axiosInstance.post('/community/posts/', postData);
+    // FormData인 경우 Content-Type 헤더를 제거하여 브라우저가 자동 설정하도록 함
+    const config = {};
+    if (postData instanceof FormData) {
+      config.headers = {
+        'Content-Type': undefined // 기본 Content-Type 헤더 제거
+      };
+    }
+    
+    const response = await axiosInstance.post('/community/posts/', postData, config);
     return response.data;
   } catch (error) {
     throw error;
@@ -35,7 +43,15 @@ export const createPost = async (postData) => {
 // 게시글 수정
 export const updatePost = async (id, postData) => {
   try {
-    const response = await axiosInstance.put(`/community/posts/${id}/`, postData);
+    // FormData인 경우 Content-Type 헤더를 제거하여 브라우저가 자동 설정하도록 함
+    const config = {};
+    if (postData instanceof FormData) {
+      config.headers = {
+        'Content-Type': undefined // 기본 Content-Type 헤더 제거
+      };
+    }
+    
+    const response = await axiosInstance.put(`/community/posts/${id}/`, postData, config);
     return response.data;
   } catch (error) {
     throw error;
@@ -66,6 +82,58 @@ export const getMyPosts = async () => {
 export const likePost = async (postId) => {
   try {
     const response = await axiosInstance.post(`/community/posts/${postId}/like/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== 댓글 (Comments) ==========
+
+// 특정 게시글의 댓글 목록 조회
+export const getComments = async (postId) => {
+  try {
+    const response = await axiosInstance.get(`/community/posts/${postId}/comments/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 댓글 생성
+export const createComment = async (postId, commentData) => {
+  try {
+    const response = await axiosInstance.post(`/community/posts/${postId}/comments/`, commentData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 댓글 수정
+export const updateComment = async (postId, commentId, commentData) => {
+  try {
+    const response = await axiosInstance.put(`/community/posts/${postId}/comments/${commentId}/`, commentData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 댓글 삭제
+export const deleteComment = async (postId, commentId) => {
+  try {
+    const response = await axiosInstance.delete(`/community/posts/${postId}/comments/${commentId}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 댓글 좋아요/좋아요 취소
+export const likeComment = async (commentId) => {
+  try {
+    const response = await axiosInstance.post(`/community/comments/${commentId}/like/`);
     return response.data;
   } catch (error) {
     throw error;

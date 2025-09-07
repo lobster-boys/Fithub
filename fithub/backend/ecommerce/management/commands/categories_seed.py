@@ -24,7 +24,7 @@ class Command(BaseCommand):
             },
             {
                 'name': '단백질',
-                'description': '근육 생성에 필요한 단백질 식품 (육류, 생선, 달걀 등)',
+                'description': '근육 생성에 필요한 단백질 식품 (육류, 생선, 달걀, 두부 등)',
                 'is_active': True,
             },
             {
@@ -44,7 +44,7 @@ class Command(BaseCommand):
             },
             {
                 'name': '유제품',
-                'description': '칼슘이 풍부한 유제품류 (우유, 치즈, 요거트 등)',
+                'description': '칼슘이 풍부한 유제품류 (우유, 요거트, 치즈 등)',
                 'is_active': True,
             },
             {
@@ -59,10 +59,21 @@ class Command(BaseCommand):
             },
             {
                 'name': '가전제품',
-                'description': '실생활에서 많이 사용하는 가전제품',
+                'description': '실생활에서 많이 사용하는 가전 제품',
                 'is_active': True,
             },
+            {
+                'name': '간식',
+                'description': '빵, 과자 등 간식과 관련된 식품',
+                'is_active': True,
+            },
+            {
+                'name': '기타',
+                'description': '음료, 차, 향신료 등',
+                'is_active': True,
+            }
         ]
+
 
         created_count = 0
         for category_data in categories_data:

@@ -7,13 +7,18 @@ from ..serializers.challenge_serializers import (
     ChallengeParticipantSerializer,
     ChallengePointSerializer,
     SocialShareSerializer,
+    # PointTransactionSerializer,  # Points 앱으로 이전됨
+    UserLogSerializer,
 )
 from challenge.models import (
     Challenge,
     ChallengeParticipant,
     ChallengePoint,
     SocialShare,
+    UserLog,
 )
+from points.services import PointService
+from django.db.models import Sum
 
 
 class IsCreatorOrReadOnly(permissions.BasePermission):
@@ -31,7 +36,8 @@ class IsCreatorOrReadOnly(permissions.BasePermission):
 
 class ChallengeViewSet(viewsets.ModelViewSet):
     """
-    챌린지 CRUD API
+    통합된 챌린지 CRUD API
+    공개 챌린지와 개인 챌린지 모두 지원
     """
 
     queryset = Challenge.objects.all().order_by("-start_date")
@@ -44,36 +50,117 @@ class ChallengeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Challenge.objects.all().order_by("-start_date")
-        # 필터링 예: ?is_active=true, ?period=W/M
+        
+        # 필터링 옵션들
         is_active = self.request.query_params.get("is_active")
         period = self.request.query_params.get("period")
+        is_personal = self.request.query_params.get("is_personal")
+        show_all = self.request.query_params.get("show_all")  # 모든 챌린지 표시 옵션
+        
         if is_active is not None:
             if is_active.lower() in ["true", "1"]:
                 qs = qs.filter(is_active=True)
             elif is_active.lower() in ["false", "0"]:
                 qs = qs.filter(is_active=False)
+                
         if period in [Challenge.WEEKLY, Challenge.MONTHLY]:
             qs = qs.filter(period=period)
+            
+        if is_personal is not None:
+            if is_personal.lower() in ["true", "1"]:
+                # 개인 챌린지는 본인 것만 조회 가능
+                qs = qs.filter(is_personal=True, creator=self.request.user)
+            elif is_personal.lower() in ["false", "0"]:
+                qs = qs.filter(is_personal=False)
+        elif show_all and show_all.lower() in ["true", "1"]:
+            # show_all=true인 경우: 공개 챌린지 + 본인의 개인 챌린지
+            from django.db.models import Q
+            qs = qs.filter(
+                Q(is_personal=False) |  # 모든 공개 챌린지
+                Q(is_personal=True, creator=self.request.user)  # 본인의 개인 챌린지
+            )
+        
         return qs
+
+    @action(detail=True, methods=["get"], url_path="rankings")
+    def rankings(self, request, pk=None):
+        """
+        GET /api/challenges/{pk}/rankings/
+        """
+        challenge = get_object_or_404(Challenge, pk=pk)
+
+        stats = (
+            UserLog.objects.filter(
+                user__in=ChallengeParticipant.objects.filter(
+                    challenge=challenge
+                ).values("user")
+            )
+            .filter(date__range=(challenge.start_date, challenge.end_date))
+            .values("user_id", "user__username")
+            .annotate(total=Sum("value"))
+            .order_by("-total")
+        )
+
+        ranking = [
+            {"rank": i, **e}
+            for i, e in enumerate(
+                [
+                    {
+                        "user_id": x["user_id"],
+                        "username": x["user__username"],
+                        "total": x["total"] or 0,
+                    }
+                    for x in stats
+                ],
+                start=1,
+            )
+        ]
+        return Response(ranking, status=status.HTTP_200_OK)
 
 
 class ChallengeParticipantViewSet(viewsets.ModelViewSet):
     """
-    챌린지 참여(Join) / 조회 / 보상(claim) API
+    통합된 챌린지 참여(Join) / 조회 / 보상(claim) API
+    challenge_checker의 기능 통합
     """
 
     serializer_class = ChallengeParticipantSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # 본인이 참여한 챌린지 정보만 리턴
+        # URL에서 challenge_pk가 있는 경우 (네스트된 라우팅)
+        challenge_pk = self.kwargs.get("challenge_pk")
+        if challenge_pk:
+            return ChallengeParticipant.objects.filter(challenge_id=challenge_pk)
+        
+        # 일반적인 경우: 본인이 참여한 챌린지 정보만 리턴
         return ChallengeParticipant.objects.filter(
             user=self.request.user
         ).select_related("challenge")
 
     def perform_create(self, serializer):
-        # validated_data에서 user가 없으므로 여기서 request.user 추가
-        serializer.save(user=self.request.user)
+        challenge_pk = self.kwargs.get("challenge_pk")
+        if challenge_pk:
+            # 네스트된 라우팅의 경우
+            challenge = get_object_or_404(Challenge, pk=challenge_pk)
+            serializer.save(challenge=challenge, user=self.request.user)
+        else:
+            # 일반적인 경우
+            serializer.save(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        # 이미 참여 중이라면 400 리턴
+        challenge_pk = kwargs.get("challenge_pk")
+        if challenge_pk:
+            exists = ChallengeParticipant.objects.filter(
+                challenge_id=challenge_pk, user=request.user
+            ).exists()
+            if exists:
+                return Response(
+                    {"detail": "이미 참여 중인 챌린지입니다."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        return super().create(request, *args, **kwargs)
 
     @action(
         detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated]
@@ -96,11 +183,23 @@ class ChallengeParticipantViewSet(viewsets.ModelViewSet):
             )
 
         points_awarded = participant.challenge.reward_points
+        
+        # ChallengePoint 생성
         ChallengePoint.objects.create(
             user_challenge=participant,
             points=points_awarded,
             reason=f"{participant.challenge.name} 챌린지 보상 ({points_awarded}P)",
         )
+        
+        # PointService를 사용하여 포인트 적립
+        PointService.earn_points(
+            user=participant.user,
+            amount=points_awarded,
+            reference_type="CHALLENGE_COMPLETION",
+            description=f"{participant.challenge.name} 챌린지 완료 보상",
+            related_object=participant.challenge
+        )
+        
         participant.reward_claimed = True
         participant.save(update_fields=["reward_claimed"])
 
@@ -123,6 +222,27 @@ class ChallengePointViewSet(viewsets.ReadOnlyModelViewSet):
         return ChallengePoint.objects.filter(
             user_challenge__user=self.request.user
         ).select_related("user_challenge", "user_challenge__challenge")
+
+
+# PointTransactionViewSet는 Points 앱으로 이전됨
+# api.views.points.point_views.PointTransactionViewSet을 사용하세요
+
+
+class UserLogViewSet(viewsets.ModelViewSet):
+    """
+    사용자 활동 로그 API
+    challenge_checker에서 이전됨
+    """
+    
+    serializer_class = UserLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # 본인의 활동 로그만 조회
+        return UserLog.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 class SocialShareViewSet(viewsets.ModelViewSet):

@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 from datetime import timedelta
-from decouple import config
+from decouple import config  # 임시로 주석 처리
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -48,11 +48,15 @@ INSTALLED_APPS = [
     "workouts",
     "challenge",
     "diet",
+    "onboarding",
+    "points",  # 새로 추가된 포인트 앱
     "api",
     "audit",
     # DRF & Auth
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_simplejwt",  # JWT 추가
+    "rest_framework_simplejwt.token_blacklist",  # JWT 블랙리스트
     "dj_rest_auth",
     "dj_rest_auth.registration",
     "allauth",
@@ -70,7 +74,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",  # CSRF 미들웨어 비활성화
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -81,31 +85,31 @@ MIDDLEWARE = [
 # CORS setting
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:3001",
 ]
 CORS_ORIGIN_ALLOW_ALL = False # 특정 도메인만 허용
 CORS_ALLOW_CREDENTIALS = True # 인증 정보 포함 요청 허용
 
-# 추가 CORS 설정 > 프론트+백엔드 통합 후 사용
-# CORS_ALLOW_HEADERS = [
-#     'accept',
-#     'accept-encoding',
-#     'authorization',
-#     'content-type',
-#     'dnt',
-#     'origin',
-#     'user-agent',
-#     'x-csrftoken',
-#     'x-requested-with',
-# ]
+# JWT 기반 CORS 설정
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',  # JWT Bearer 토큰을 위해 필수
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-requested-with',
+]
 
-# CORS_ALLOW_METHODS = [
-#     'DELETE',
-#     'GET',
-#     'OPTIONS',
-#     'PATCH',
-#     'POST',
-#     'PUT',
-# ]
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 ROOT_URLCONF = "config.urls"
 
@@ -209,41 +213,47 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # dj_rest_auth setting
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
+    "DEFAULT_AUTHENTICATION_CLASSES": [
         "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
-    ),
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",  # 읽기는 허용, 쓰기는 인증 필요
+    ],
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    # 'UNAUTHENTICATED_USER': None,  # 인증되지 않은 사용자 처리
 }
 
 # JWT setting
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=3000), # 테스트를 위한 access_token 시간 변경
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),  # 1시간
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # 7일
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 
 # dj-rest-auth setting
 REST_AUTH = {
-    "USE_JWT": True,
-    "JWT_AUTH_HTTPONLY": True, 
-    'JWT_AUTH_REFRESH_COOKIE' : "refresh_token", 
-    'SESSION_LOGIN' :False, 
+    "USE_JWT": True,  # JWT 활성화
+    "JWT_AUTH_HTTPONLY": False,  # 프론트엔드에서 토큰 접근 허용
+    "JWT_AUTH_REFRESH_COOKIE": "refresh_token", 
+    'SESSION_LOGIN': False,  # 세션 로그인 비활성화
+    'LOGOUT_ON_GET': True,  # GET 요청으로도 로그아웃 허용
     'JWT_AUTH_SAMESITE': 'Lax',
-    'JWT_AUTH_COOKIE_USE_CSRF' : False,
+    'JWT_AUTH_COOKIE_USE_CSRF': False,  # CSRF 사용 안함
     # users models 커스텀
     'USER_DETAILS_SERIALIZER': "api.serializers.users.registration_serializers.CustomLoginSerializer", 
     'REGISTER_SERIALIZER': 'api.serializers.users.registration_serializers.CustomRegisterSerializer',
 }
 
-# 로그인 방식: username or email
-# ACCOUNT_AUTHENTICATION_METHOD = "username_email"
-ACCOUNT_LOGIN_METHOD = {"email", "username"}
-# ACCOUNT_USERNAME_REQUIRED = False
-# ACCOUNT_EMAIL_REQUIRED = True
+# 로그인 방식: username or email (새로운 방식)
+ACCOUNT_LOGIN_METHODS = {"email", "username"}
 ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*", "first_name", "last_name"]
 ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
 
@@ -270,8 +280,7 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend", # allauth 인증 방식
 ]
 
-# 소셜 로그인 설정
-# pip install python-decouple
+# 소셜 로그인 설정을 간소화 (개발환경용)
 SOCIALACCOUNT_PROVIDERS = {
     "kakao": {
         "APP": {
@@ -282,11 +291,7 @@ SOCIALACCOUNT_PROVIDERS = {
         "SCOPE": [
             "profile_nickname",
             "profile_image",
-            "gender",
             "account_email",
-            "birthday",
-            "birthyear",
-
         ],
         "AUTH_PARAMS": {
             "access_type": "online",  
@@ -296,8 +301,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     "naver": {
         "APP": {
-            "client_id": config("NAVER_CLIENT_ID"),
-            "secret": config("NAVER_SECRET"),
+            "client_id": config("NAVER_CLIENT_ID", default=""),
+            "secret": config("NAVER_SECRET", default=""),
             "key": "",
         },
         "SCOPE": [
@@ -315,8 +320,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     'google': {
         "APP": {
-            "client_id": config("GOOGLE_CLIENT_ID"),
-            "secret": config("GOOGLE_SECRET"),
+            "client_id": config("GOOGLE_CLIENT_ID", default=""),
+            "secret": config("GOOGLE_SECRET", default=""),
             "key": "",
         },
         'SCOPE': [
@@ -336,3 +341,8 @@ SOCIALACCOUNT_ADAPTER = "users.adapters.CustomSocialAccountAdapter"
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_AUTO_SIGNUP = True
+
+# recommendation_lp.py 설정값
+DIET_SAMPLE_SIZE_PER_CATEGORY = 15
+DIET_RECENT_DAYS = 7
+DIET_FREQUENT_THRESHOLD = 3

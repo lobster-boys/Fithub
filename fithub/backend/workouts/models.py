@@ -103,6 +103,15 @@ class WorkoutRoutine(models.Model):
         verbose_name="템플릿 루틴",
         db_index=True
     )
+    copied_from = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="복사된 원본 루틴",
+        related_name='copied_routines',
+        help_text="다른 사용자의 루틴을 복사한 경우 원본 루틴을 저장"
+    )
     usage_count = models.PositiveIntegerField(
         default=0, 
         verbose_name="사용 횟수"
@@ -183,6 +192,11 @@ class RoutineExercise(models.Model):
     rest_time = models.PositiveIntegerField(
         default=60, 
         verbose_name="세트간 휴식시간(초)"
+    )
+    max_exercise_time = models.PositiveIntegerField(
+        default=180,
+        verbose_name="세트별 최대 운동시간(초)",
+        help_text="각 세트당 최대 운동 허용 시간"
     )
     order = models.PositiveIntegerField(verbose_name="순서")
     notes = models.TextField(blank=True, verbose_name="특이사항")
@@ -453,6 +467,203 @@ class WorkoutLogExercise(models.Model):
         """이 운동으로 소모한 예상 칼로리"""
         estimated_time = self.sets_completed * self.reps_completed * 0.5  # 대략적인 시간 계산
         return int(estimated_time * self.exercise.calories_per_minute)
+
+
+# ==================== Workout Session Models ====================
+class WorkoutSession(models.Model):
+    """실시간 운동 세션 모델"""
+    
+    STATUS_CHOICES = [
+        ('active', '진행 중'),
+        ('paused', '일시정지'),
+        ('completed', '완료'),
+        ('cancelled', '취소'),
+    ]
+    
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        verbose_name="사용자",
+        related_name='workout_sessions'
+    )
+    routine = models.ForeignKey(
+        WorkoutRoutine, 
+        on_delete=models.CASCADE, 
+        verbose_name="운동 루틴",
+        related_name='workout_sessions'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active',
+        verbose_name="세션 상태",
+        db_index=True
+    )
+    current_exercise_index = models.PositiveIntegerField(
+        default=0, 
+        verbose_name="현재 운동 인덱스"
+    )
+    current_set = models.PositiveIntegerField(
+        default=1, 
+        verbose_name="현재 세트"
+    )
+    session_start_time = models.DateTimeField(
+        auto_now_add=True, 
+        verbose_name="세션 시작 시간"
+    )
+    session_end_time = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        verbose_name="세션 종료 시간"
+    )
+    total_rest_time = models.PositiveIntegerField(
+        default=0, 
+        verbose_name="총 휴식 시간(초)"
+    )
+    total_workout_time = models.PositiveIntegerField(
+        default=0, 
+        verbose_name="총 운동 시간(초)"
+    )
+    notes = models.TextField(blank=True, verbose_name="세션 메모")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일")
+    
+    class Meta:
+        verbose_name = "운동 세션"
+        verbose_name_plural = "운동 세션"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['status']),
+        ]
+        
+    def __str__(self):
+        return f"{self.user.username} - {self.routine.name} ({self.get_status_display()})"
+    
+    @property
+    def total_duration_seconds(self):
+        """총 세션 시간(초)"""
+        if self.session_end_time:
+            return int((self.session_end_time - self.session_start_time).total_seconds())
+        return int((timezone.now() - self.session_start_time).total_seconds())
+    
+    @property
+    def is_active(self):
+        """세션이 활성 상태인지 확인"""
+        return self.status in ['active', 'paused']
+    
+    def complete_session(self):
+        """세션 완료 처리"""
+        self.status = 'completed'
+        self.session_end_time = timezone.now()
+        self.save(update_fields=['status', 'session_end_time'])
+    
+    def pause_session(self):
+        """세션 일시정지"""
+        self.status = 'paused'
+        self.save(update_fields=['status'])
+    
+    def resume_session(self):
+        """세션 재개"""
+        self.status = 'active'
+        self.save(update_fields=['status'])
+    
+    def cancel_session(self):
+        """세션 취소"""
+        self.status = 'cancelled'
+        self.session_end_time = timezone.now()
+        self.save(update_fields=['status', 'session_end_time'])
+
+
+class SessionExerciseLog(models.Model):
+    """세션별 운동 진행 기록"""
+    
+    session = models.ForeignKey(
+        WorkoutSession,
+        on_delete=models.CASCADE,
+        related_name='exercise_logs',
+        verbose_name="운동 세션"
+    )
+    routine_exercise = models.ForeignKey(
+        RoutineExercise,
+        on_delete=models.CASCADE,
+        verbose_name="루틴 운동"
+    )
+    set_number = models.PositiveIntegerField(verbose_name="세트 번호")
+    reps_completed = models.PositiveIntegerField(verbose_name="완료된 반복 횟수")
+    weight_used = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="사용된 무게(kg)"
+    )
+    rest_start_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="휴식 시작 시간"
+    )
+    rest_end_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="휴식 종료 시간"
+    )
+    exercise_start_time = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="운동 시작 시간"
+    )
+    exercise_end_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="운동 완료 시간"
+    )
+    is_completed = models.BooleanField(
+        default=False,
+        verbose_name="완료 여부"
+    )
+    notes = models.TextField(blank=True, verbose_name="세트별 메모")
+    
+    class Meta:
+        verbose_name = "세션 운동 로그"
+        verbose_name_plural = "세션 운동 로그"
+        ordering = ['set_number']
+        unique_together = ['session', 'routine_exercise', 'set_number']
+        indexes = [
+            models.Index(fields=['session', 'routine_exercise']),
+        ]
+        
+    def __str__(self):
+        return f"{self.session} - {self.routine_exercise.exercise.name} (세트 {self.set_number})"
+    
+    @property
+    def rest_duration_seconds(self):
+        """휴식 시간(초)"""
+        if self.rest_start_time and self.rest_end_time:
+            return int((self.rest_end_time - self.rest_start_time).total_seconds())
+        return 0
+    
+    @property
+    def exercise_duration_seconds(self):
+        """운동 시간(초)"""
+        if self.exercise_start_time and self.exercise_end_time:
+            return int((self.exercise_end_time - self.exercise_start_time).total_seconds())
+        return 0
+    
+    def complete_set(self, reps_completed, weight_used=None):
+        """세트 완료 처리"""
+        self.reps_completed = reps_completed
+        self.weight_used = weight_used
+        self.exercise_end_time = timezone.now()
+        self.is_completed = True
+        self.save()
+    
+    def start_rest(self):
+        """휴식 시작"""
+        self.rest_start_time = timezone.now()
+        self.save(update_fields=['rest_start_time'])
+    
+    def end_rest(self):
+        """휴식 종료"""
+        self.rest_end_time = timezone.now()
+        self.save(update_fields=['rest_end_time'])
 
 
 # ==================== Workout Type Models ====================

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from decimal import Decimal
 
 # 사용자 인증 및 기본 정보를 관리하는 모델
 class User(AbstractUser):
@@ -87,6 +88,21 @@ class UserProfile(models.Model):
         null=True, 
         blank=True,
     )
+
+    # 사용자 목표 대비 달성률 필드
+    target_calories = models.IntegerField(default=2000, help_text="목표 칼로리 (Kcal)")
+    target_protein = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('75.0'), help_text="목표 단백질 (g)")
+    target_carbs = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('250.0'), help_text="목표 탄수화물 (g)")
+    target_fat = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('70.0'), help_text="목표 지방 (g)")
+
+    # 온보딩 관련 필드
+    onboarding_completed = models.BooleanField(default=False, help_text="온보딩 완료 여부")
+    onboarding_data = models.JSONField(null=True, blank=True, help_text="온보딩 데이터 (JSON 형태)")
+    onboarding_completed_at = models.DateTimeField(null=True, blank=True, help_text="온보딩 완료 시간")
+
+    # 포인트 시스템 (accounts 앱에서 이식)
+    points = models.PositiveIntegerField(default=0, help_text="누적 포인트")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -107,6 +123,20 @@ class UserProfile(models.Model):
                 (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
             )
         return None
+    
+    def add_points(self, amount):
+        """포인트를 추가합니다. (accounts 앱에서 이식된 기능)"""
+        if amount > 0:
+            self.points += amount
+            self.save()
+    
+    def subtract_points(self, amount):
+        """포인트를 차감합니다. (accounts 앱에서 이식된 기능)"""
+        if amount > 0 and self.points >= amount:
+            self.points -= amount
+            self.save()
+            return True
+        return False
     
 # 소셜 로그인 
 class SocialAccount(models.Model):

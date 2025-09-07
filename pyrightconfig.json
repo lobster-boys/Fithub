@@ -9,7 +9,7 @@
     ],
     "extraPaths": [
         "fithub/backend",
-        "fithub_env/Lib/site-packages"
+        "C:/Users/piome/AppData/Local/Programs/Python/Python312/Lib/site-packages"
     ],
     "pythonVersion": "3.12",
     "pythonPlatform": "Windows",
@@ -25,10 +25,10 @@
         {
             "root": "fithub/backend",
             "pythonVersion": "3.12",
-            "pythonPath": "../../fithub_env/Scripts/python.exe",
+            "pythonPath": "C:/Users/piome/AppData/Local/Programs/Python/Python312/python.exe",
             "extraPaths": [
                 "fithub/backend",
-                "../../fithub_env/Lib/site-packages"
+                "C:/Users/piome/AppData/Local/Programs/Python/Python312/Lib/site-packages"
             ]
         }
     ]

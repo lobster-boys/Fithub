@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -7,11 +7,61 @@ const LoginForm = () => {
   const { login, isLoading, error } = useAuth();
   
   const [formData, setFormData] = useState({
-    userId: '',
+    username: '',
     password: ''
   });
   
   const [localError, setLocalError] = useState('');
+
+  const kakaoRestKey = import.meta.env.VITE_KAKAO_REST_KEY;
+  const naverClientId = import.meta.env.VITE_NAVER_CLIENT_ID;
+
+  // Kakao SDK 초기화
+  useEffect(() => {
+    if (window.Kakao && kakaoRestKey && !window.Kakao.isInitialized()) {
+      window.Kakao.init(kakaoRestKey);
+    }
+  }, [kakaoRestKey]);
+
+  // Naver SDK 초기화
+  useEffect(() => {
+    if (naverClientId && !document.getElementById('naver-sdk')) {
+      const script = document.createElement('script');
+      script.id = 'naver-sdk';
+      script.src = 'https://static.nid.naver.com/js/naveridlogin_js_sdk_2.0.2.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, [naverClientId]);
+
+  // 카카오 로그인 팝업
+  const handleKakaoLogin = () => {
+    if (!window.Kakao || !window.Kakao.Auth) {
+      alert('Kakao SDK 로드 실패');
+      return;
+    }
+    window.Kakao.Auth.authorize({
+      redirectUri: `${window.location.origin}/auth/kakao/callback/`
+    });
+  };
+
+  // 네이버 로그인 리다이렉트
+  const handleNaverLogin = () => {
+    if (!naverClientId) {
+      alert('Naver Client ID가 설정되지 않았습니다.');
+      return;
+    }
+
+    // state 파라미터 (임시 난수) 생성
+    const state = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('naver_auth_state', state);
+
+    const redirectUri = `${window.location.origin}/auth/naver/callback/`;
+    const scope = encodeURIComponent('name email profile_image gender birthday birthyear');
+    const authorizeUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${naverClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}`;
+
+    window.location.href = authorizeUrl;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,8 +77,8 @@ const LoginForm = () => {
     e.preventDefault();
     setLocalError('');
 
-    if (!formData.userId || !formData.password) {
-      setLocalError('아이디와 비밀번호를 입력해주세요.');
+    if (!formData.username || !formData.password) {
+      setLocalError('사용자명과 비밀번호를 입력해주세요.');
       return;
     }
 
@@ -49,10 +99,10 @@ const LoginForm = () => {
         <form onSubmit={handleSubmit}>
           <input
             type="text"
-            name="userId"
-            value={formData.userId}
+            name="username"
+            value={formData.username}
             onChange={handleChange}
-            placeholder="아이디 또는 이메일"
+            placeholder="사용자명 또는 이메일"
             className="w-full p-2 border border-gray-300 rounded mb-3"
             disabled={isLoading}
           />
@@ -84,15 +134,13 @@ const LoginForm = () => {
 
         <div className="text-center text-sm text-gray-400 mb-3">또는</div>
 
-        <button className="w-full bg-yellow-400 text-black py-2 rounded font-semibold mb-2 hover:bg-yellow-500">
+        <button className="w-full bg-yellow-400 text-black py-2 rounded font-semibold mb-2 hover:bg-yellow-500" onClick={handleKakaoLogin}>
           카카오로 시작하기
         </button>
-        <button className="w-full bg-green-500 text-white py-2 rounded font-semibold mb-2 hover:bg-green-600">
+        <button className="w-full bg-[#03C75A] text-white py-2 rounded font-semibold mb-2 hover:bg-green-600" onClick={handleNaverLogin}>
           네이버로 시작하기
         </button>
-        <button className="w-full bg-white border border-gray-400 text-black py-2 rounded font-semibold hover:bg-gray-100">
-          구글로 시작하기
-        </button>
+        {/* 네이버, 구글 소셜 로그인은 추후 지원 예정 */}
 
         <div className="text-center text-sm mt-6">
           계정이 없으신가요?{' '}

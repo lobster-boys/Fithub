@@ -1,38 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useCart } from '../../hooks/useCart';
+import { usePoints } from '../../hooks/usePoints';
 
 const Header = () => {
   const [showSearchBar, setShowSearchBar] = useState(false);
-  const [cartItemsCount, setCartItemsCount] = useState(0);
   const navigate = useNavigate();
   
   // AuthContext에서 실제 인증 상태 가져오기
   const { user, isAuthenticated, logout } = useAuth();
   
-  // 장바구니 아이템 수 가져오기
-  useEffect(() => {
-    const updateCartCount = () => {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      // 장바구니 내 모든 상품의 수량을 합산
-      const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
-      setCartItemsCount(totalQuantity);
-    };
-    
-    // 컴포넌트 마운트 시 초기 장바구니 수량 설정
-    updateCartCount();
-    
-    // 로컬 스토리지 변경 이벤트 리스너 등록
-    window.addEventListener('storage', updateCartCount);
-    
-    // 커스텀 이벤트 리스너 등록 (다른 컴포넌트에서 발생시킬 수 있음)
-    window.addEventListener('cartUpdated', updateCartCount);
-    
-    return () => {
-      window.removeEventListener('storage', updateCartCount);
-      window.removeEventListener('cartUpdated', updateCartCount);
-    };
-  }, []);
+  // 장바구니 상태 가져오기
+  const { cartItemsCount, loading: cartLoading } = useCart();
+  
+  // 포인트 정보 가져오기
+  const { pointBalance, loading: pointsLoading } = usePoints();
   
   const handleSearch = (e) => {
     e.preventDefault();
@@ -61,7 +44,17 @@ const Header = () => {
               >
                 <i className="fas fa-search text-gray-600"></i>
               </button>
-              <Link to="/shop/cart" className="p-2 rounded-full hover:bg-gray-100 relative">
+              {/* 포인트 표시 - 인증된 사용자만 표시 */}
+              {isAuthenticated && (
+                <div className="flex items-center gap-1 px-3 py-1 bg-yellow-50 rounded-full">
+                  <i className="fas fa-coins text-yellow-600 text-sm"></i>
+                  <span className="text-sm font-medium text-gray-700">
+                    {pointsLoading ? '...' : pointBalance.toLocaleString()}P
+                  </span>
+                </div>
+              )}
+              
+              <Link to="/cart" className="p-2 rounded-full hover:bg-gray-100 relative">
                 <i className="fas fa-shopping-cart text-gray-600"></i>
                 {cartItemsCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-primary text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
@@ -85,6 +78,26 @@ const Header = () => {
                     >
                       <i className="fas fa-user mr-2"></i>프로필
                     </Link>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <Link 
+                      to="/community" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <i className="fas fa-users mr-2"></i>커뮤니티
+                    </Link>
+                    {/* 슈퍼유저만 보이는 관리자 메뉴 */}
+                    {user?.is_superuser && (
+                      <>
+                        <div className="border-t border-gray-100 my-1"></div>
+                        <Link 
+                          to="/admin/products" 
+                          className="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium"
+                        >
+                          <i className="fas fa-cog mr-2"></i>관리자 페이지
+                        </Link>
+                      </>
+                    )}
+                    <div className="border-t border-gray-100 my-1"></div>
                     <Link 
                       to="/settings" 
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

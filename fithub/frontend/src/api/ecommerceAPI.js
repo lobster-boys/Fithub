@@ -110,7 +110,7 @@ export const getMyCart = async () => {
 export const addItemToCart = async (productId, quantity = 1) => {
   try {
     const response = await axiosInstance.post('/ecommerce/carts/add_item/', {
-      product: productId,
+      product_id: productId,
       quantity: quantity
     });
     return response.data;
@@ -320,4 +320,235 @@ export const addToCart = async (productId, quantity = 1) => {
 // 장바구니에서 상품 제거 (별칭)
 export const removeFromCart = async (itemId) => {
   return deleteCartItem(itemId);
+};
+
+// ========== 쿠폰 (Coupons) ==========
+
+// 쿠폰 목록 조회
+export const getCoupons = async (params) => {
+  try {
+    const response = await axiosInstance.get('/ecommerce/coupons/', { params });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 쿠폰 상세 조회
+export const getCoupon = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/ecommerce/coupons/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 쿠폰 사용
+export const useCoupon = async (couponCode) => {
+  try {
+    const response = await axiosInstance.post('/ecommerce/coupons/use_coupon/', {
+      coupon_code: couponCode
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 내 쿠폰 목록 조회
+export const getMyCoupons = async (params) => {
+  try {
+    const response = await axiosInstance.get('/ecommerce/user-coupons/', { params });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 포인트로 쿠폰 구매
+export const purchaseCouponWithPoints = async (couponId, pointCost) => {
+  try {
+    // 먼저 포인트 사용
+    const { usePointsForCoupon } = await import('./pointsAPI');
+    await usePointsForCoupon(couponId, pointCost);
+    
+    // 사용자 쿠폰 생성
+    const response = await axiosInstance.post('/ecommerce/user-coupons/', {
+      coupon: couponId
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== 배송 주소 (Shipping Addresses) ==========
+
+// 배송지 목록 조회
+export const getShippingAddresses = async () => {
+  try {
+    const response = await axiosInstance.get('/ecommerce/shipping-addresses/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 배송지 상세 조회
+export const getShippingAddress = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/ecommerce/shipping-addresses/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 배송지 생성
+export const createShippingAddress = async (addressData) => {
+  try {
+    const response = await axiosInstance.post('/ecommerce/shipping-addresses/', addressData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 배송지 수정
+export const updateShippingAddress = async (id, addressData) => {
+  try {
+    const response = await axiosInstance.put(`/ecommerce/shipping-addresses/${id}/`, addressData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 배송지 삭제
+export const deleteShippingAddress = async (id) => {
+  try {
+    const response = await axiosInstance.delete(`/ecommerce/shipping-addresses/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 기본 배송지 설정
+export const setDefaultShippingAddress = async (id) => {
+  try {
+    const response = await axiosInstance.patch(`/ecommerce/shipping-addresses/${id}/set_default/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== 추천 상품 ==========
+
+// 추천 상품 조회
+export const getRecommendedProducts = async (limit = 10) => {
+  try {
+    const response = await axiosInstance.get('/ecommerce/recommand/clicked/', {
+      params: { limit }
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 베스트 상품 조회
+export const getBestProducts = async (limit = 10) => {
+  try {
+    const response = await axiosInstance.get('/ecommerce/products/', {
+      params: { 
+        ordering: '-recommendations_score',
+        is_featured: true,
+        limit 
+      }
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 상품 클릭 기록 (추천 시스템용)
+export const recordProductClick = async (productId) => {
+  try {
+    const response = await axiosInstance.post('/ecommerce/recommand/clicked/', {
+      product_id: productId
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== 리뷰 관련 추가 기능 ==========
+
+// 내 리뷰 목록 조회
+export const getMyReviews = async (params) => {
+  try {
+    const response = await axiosInstance.get('/ecommerce/reviews/my_reviews/', { params });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 상품 리뷰 통계 조회
+export const getProductReviewStats = async (productId) => {
+  try {
+    const response = await axiosInstance.get(`/ecommerce/reviews/product/${productId}/stats/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 관리자 - 모든 상품 조회 (관리자용)
+export const getAllProducts = async () => {
+  try {
+    const response = await axiosInstance.get('/ecommerce/products/');
+    return response.data;
+  } catch (error) {
+    console.error('전체 상품 조회 실패:', error);
+    throw error;
+  }
+};
+
+// 관리자 - 상품 등록
+export const createProduct = async (productData) => {
+  try {
+    const response = await axiosInstance.post('/ecommerce/products/', productData);
+    return response.data;
+  } catch (error) {
+    console.error('상품 등록 실패:', error);
+    throw error;
+  }
+};
+
+// 관리자 - 상품 수정
+export const updateProduct = async (productId, productData) => {
+  try {
+    const response = await axiosInstance.put(`/ecommerce/products/${productId}/`, productData);
+    return response.data;
+  } catch (error) {
+    console.error('상품 수정 실패:', error);
+    throw error;
+  }
+};
+
+// 관리자 - 상품 삭제
+export const deleteProduct = async (productId) => {
+  try {
+    await axiosInstance.delete(`/ecommerce/products/${productId}/`);
+    return true;
+  } catch (error) {
+    console.error('상품 삭제 실패:', error);
+    throw error;
+  }
 }; 

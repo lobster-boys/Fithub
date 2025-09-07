@@ -2,19 +2,21 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from workouts.models import Exercise
 from api.serializers.workouts.exercise_serializers import ExerciseSerializer
+from api.permissions import PublicReadOnly
 
 
 class ExerciseViewSet(viewsets.ModelViewSet):
     """
     운동 종목 관리 ViewSet
-    프론트엔드 요구사항에 맞춘 단순화된 버전
+    - 읽기: 모든 사람 허용 (공통 데이터)
+    - 쓰기: 관리자만 허용
     """
     serializer_class = ExerciseSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PublicReadOnly]
     
     def get_queryset(self):
         """기본 운동 목록 조회"""

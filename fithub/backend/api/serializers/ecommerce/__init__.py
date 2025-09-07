@@ -36,12 +36,12 @@ from .coupon_serializers import (
     UserCouponCreateSerializer
 )
 
-# Point serializers
-from .point_serializers import (
-    UserPointSerializer,
-    PointTransactionSerializer,
-    PointTransactionCreateSerializer
-)
+# Point serializers는 Points 앱으로 이전됨
+# from api.serializers.points.point_serializers import (
+#     UserPointSerializer,
+#     PointTransactionSerializer,
+#     PointTransactionCreateSerializer
+# )
 
 # Review serializers
 from .review_serializers import (
@@ -77,10 +77,10 @@ __all__ = [
     'UserCouponSerializer',
     'UserCouponCreateSerializer',
     
-    # Point
-    'UserPointSerializer',
-    'PointTransactionSerializer',
-    'PointTransactionCreateSerializer',
+    # Point - Points 앱으로 이전됨
+    # 'UserPointSerializer',
+    # 'PointTransactionSerializer', 
+    # 'PointTransactionCreateSerializer',
     
     # Review
     'ReviewGeneratedSerializer',

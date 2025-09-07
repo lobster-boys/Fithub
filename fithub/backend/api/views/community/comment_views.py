@@ -4,12 +4,19 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from community.models import Post, Comment
-from ...serializers.community.comment_serializers import CommentCreateSerializer, CommentUpdateSerializer
+from ...serializers.community.comment_serializers import CommentCreateSerializer, CommentUpdateSerializer, CommentSerializer
 
-# 특정 게시물의 댓글 수정/삭제/작성 
+# 특정 게시물의 댓글 조회/수정/삭제/작성 
 class UserCommentDetail(APIView):
     
     permission_classes = [IsAuthenticated]
+
+    def get(self, request, post_id):
+        """특정 게시물의 댓글 목록 조회"""
+        post = get_object_or_404(Post, pk=post_id)
+        comments = Comment.objects.filter(post=post).order_by('created_at')
+        serializer = CommentSerializer(comments, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, post_id):
         post = get_object_or_404(Post, pk=post_id)

@@ -1,66 +1,71 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useProfile } from '../hooks/useProfile';
+import { useOnboarding } from '../hooks/useOnboarding';
 
 const ProfilePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { profile, updateProfile, createProfile, loading: profileLoading, error: profileError } = useProfile();
+  const { onboardingData, loading: onboardingLoading, error: onboardingError } = useOnboarding();
   
   const [form, setForm] = useState({
-    username: '',
-    avatar: '',
+    name: '',
+    birth_date: '',
+    gender: '',
     height: '',
     weight: '',
-    targetCalories: '',
-    targetFrequency: '',
-    fitnessLevel: '',
-    age: '',
-    goals: [],
-    methods: [],
-    equipment: [],
+    fitness_goal: '',
+    activity_level: '',
+    profile_image: '',
+    target_calories: 2000,
+    target_protein: 75,
+    target_carbs: 250,
+    target_fat: 70,
   });
 
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  // 온보딩 데이터 로드
+  // 프로필 및 온보딩 데이터 로드
   useEffect(() => {
     if (user) {
-      // 온보딩 데이터 가져오기
-      const onboardingData = localStorage.getItem(`fithub_onboarding_${user.id}`);
-      const isOnboarded = localStorage.getItem(`fithub_onboarded_${user.id}`) === 'true';
-      
-      if (isOnboarded && onboardingData) {
-        const parsedData = JSON.parse(onboardingData);
-        
+      // 프로필 데이터로 폼 초기화
+      if (profile) {
         setForm({
-          username: user?.username || '',
-          avatar: user?.avatar || '',
-          height: parsedData.height || '',
-          weight: parsedData.weight || '',
-          targetCalories: parsedData.targetCalories || '2000', // 기본값 설정
-          targetFrequency: parsedData.targetFrequency || '3', // 기본값 설정
-          fitnessLevel: parsedData.fitness_level || '',
-          age: parsedData.age || '',
-          goals: parsedData.goals || [],
-          methods: parsedData.methods || [],
-          equipment: parsedData.equipment || [],
+          name: profile.name || '',
+          birth_date: profile.birth_date || '',
+          gender: profile.gender || '',
+          height: profile.height || '',
+          weight: profile.weight || '',
+          fitness_goal: profile.fitness_goal || '',
+          activity_level: profile.activity_level || '',
+          profile_image: profile.profile_image || '',
+          target_calories: profile.target_calories || 2000,
+          target_protein: profile.target_protein || 75,
+          target_carbs: profile.target_carbs || 250,
+          target_fat: profile.target_fat || 70,
         });
-      } else {
-        // 온보딩 데이터가 없는 경우 기본값으로 설정
+
+        // 기존 프로필 사진이 있다면 미리보기 설정
+        if (profile.profile_image) {
+          setAvatarPreview(profile.profile_image);
+        }
+      } else if (onboardingData?.data) {
+        // 프로필이 없지만 온보딩 데이터가 있는 경우
+        const data = onboardingData.data;
         setForm(prev => ({
           ...prev,
-          username: user?.username || '',
-          avatar: user?.avatar || '',
+          height: data.height || '',
+          weight: data.weight || '',
+          fitness_goal: data.fitness_level || '', // 매핑 필요
         }));
       }
-      
-      // 기존 프로필 사진이 있다면 미리보기 설정
-      if (user?.avatar) {
-        setAvatarPreview(user.avatar);
-      }
     }
-  }, [user]);
+  }, [user, profile, onboardingData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -86,50 +91,130 @@ const ProfilePage = () => {
   const removeAvatar = () => {
     setAvatarFile(null);
     setAvatarPreview('');
-    setForm(prev => ({ ...prev, avatar: '' }));
+    setForm(prev => ({ ...prev, profile_image: '' }));
   };
 
-  const handleSave = () => {
-    // 프로필 사진 처리 (실제 구현에서는 서버에 업로드)
-    let avatarUrl = form.avatar;
-    if (avatarFile) {
-      // 임시로 로컬 스토리지에 base64로 저장 (실제로는 서버 업로드 필요)
-      avatarUrl = avatarPreview;
+  const handleSave = async () => {
+    // 기본적인 검증
+    if (!form.name.trim()) {
+      alert('이름을 입력해주세요.');
+      return;
     }
 
-    // 업데이트된 사용자 정보
-    const updatedUser = { 
-      ...user, 
-      ...form,
-      avatar: avatarUrl
-    };
-
-    // 로컬 스토리지에 프로필 정보 저장
-    if (user) {
-      localStorage.setItem(`fithub_user_${user.id}`, JSON.stringify(updatedUser));
+    // 생년월일 검증
+    if (form.birth_date) {
+      const birthDate = new Date(form.birth_date);
+      const today = new Date();
       
-      // 온보딩 데이터도 업데이트
-      const onboardingData = {
-        fitness_level: form.fitnessLevel,
-        height: form.height,
-        weight: form.weight,
-        age: form.age,
-        goals: form.goals,
-        methods: form.methods,
-        equipment: form.equipment,
-        targetCalories: form.targetCalories,
-        targetFrequency: form.targetFrequency,
+      if (birthDate > today) {
+        alert('생년월일은 오늘 날짜보다 이후일 수 없습니다.');
+        return;
+      }
+      
+      const age = today.getFullYear() - birthDate.getFullYear();
+      if (age < 13) {
+        alert('13세 이상만 가입 가능합니다.');
+        return;
+      }
+      if (age > 100) {
+        alert('올바른 생년월일을 입력해 주세요.');
+        return;
+      }
+    }
+
+    setSaving(true);
+    setSuccessMessage('');
+
+    try {
+      // 프로필 사진 처리 (실제 구현에서는 서버에 업로드)
+      let profileImageUrl = form.profile_image;
+      if (avatarFile) {
+        // TODO: 실제로는 서버에 파일 업로드 후 URL 받아와야 함
+        profileImageUrl = avatarPreview;
+      }
+
+      const profileData = {
+        name: form.name,
+        birth_date: form.birth_date && form.birth_date.trim() !== '' ? form.birth_date : null,
+        gender: form.gender && form.gender.trim() !== '' ? form.gender : null,
+        height: form.height ? parseFloat(form.height) : null,
+        weight: form.weight ? parseFloat(form.weight) : null,
+        fitness_goal: form.fitness_goal && form.fitness_goal.trim() !== '' ? form.fitness_goal : null,
+        activity_level: form.activity_level && form.activity_level.trim() !== '' ? form.activity_level : null,
+        profile_image: profileImageUrl || null,
+        target_calories: parseInt(form.target_calories) || 2000,
+        target_protein: parseFloat(form.target_protein) || 75,
+        target_carbs: parseFloat(form.target_carbs) || 250,
+        target_fat: parseFloat(form.target_fat) || 70,
       };
-      localStorage.setItem(`fithub_onboarding_${user.id}`, JSON.stringify(onboardingData));
-      
-      alert('프로필이 저장되었습니다.');
+
+      if (profile) {
+        // 기존 프로필 업데이트
+        await updateProfile(profileData);
+        setSuccessMessage('프로필이 성공적으로 업데이트되었습니다!');
+      } else {
+        // 새 프로필 생성
+        await createProfile(profileData);
+        setSuccessMessage('프로필이 성공적으로 생성되었습니다!');
+      }
+
+      // 성공 메시지 표시 후 홈으로 이동
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
+    } catch (error) {
+      console.error('프로필 저장 실패:', error);
+      alert('프로필 저장에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
     }
+  };
+
+  // BMR 계산 함수 (Harris-Benedict 공식)
+  const calculateBMR = (weight, height, age, gender = 'm') => {
+    if (!weight || !height || !age) return 0;
+    
+    const w = parseFloat(weight);
+    const h = parseInt(height);
+    const a = parseInt(age);
+    
+    if (gender === 'f') {
+      return 447.593 + (9.247 * w) + (3.098 * h) - (4.330 * a);
+    } else {
+      return 88.362 + (13.397 * w) + (4.799 * h) - (5.677 * a);
+    }
+  };
+
+  // 활동 수준에 따른 목표 칼로리 계산
+  const calculateTargetCalories = () => {
+    if (!form.weight || !form.height || !form.birth_date) return 0;
+    
+    const birthDate = new Date(form.birth_date);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    
+    const bmr = calculateBMR(form.weight, form.height, age, form.gender);
+    
+    // 활동 수준에 따른 계수
+    const activityMultipliers = {
+      'sedentary': 1.2,
+      'light': 1.375,
+      'moderate': 1.55,
+      'active': 1.725,
+      'very_active': 1.9
+    };
+    
+    const multiplier = activityMultipliers[form.activity_level] || 1.5;
+    return Math.round(bmr * multiplier);
   };
 
   // 목표 달성률 계산
-  const progress = form.targetCalories
-    ? Math.min(100, Math.round((user?.totalCalories || 0) / form.targetCalories * 100))
+  const progress = form.target_calories
+    ? Math.min(100, Math.round((user?.totalCalories || 0) / form.target_calories * 100))
     : 0;
+  
+  // 권장 칼로리 계산
+  const recommendedCalories = calculateTargetCalories();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -187,27 +272,27 @@ const ProfilePage = () => {
               </label>
               <input
                 type="text"
-                name="username"
-                value={form.username}
+                name="name"
+                value={form.name}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
                 placeholder="이름을 입력하세요"
               />
             </div>
 
-            {/* 나이 */}
+            {/* 생년월일 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                <i className="fas fa-birthday-cake mr-2 text-orange-500"></i>나이
+                <i className="fas fa-birthday-cake mr-2 text-orange-500"></i>생년월일
               </label>
               <input
-                type="number"
-                name="age"
-                value={form.age}
+                type="date"
+                name="birth_date"
+                value={form.birth_date}
                 onChange={handleChange}
+                max={new Date().toISOString().split('T')[0]} // 오늘 날짜까지만 선택 가능
+                min="1900-01-01" // 1900년부터 선택 가능
                 className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
-                placeholder="나이"
-                readOnly
               />
             </div>
           </div>
@@ -227,7 +312,6 @@ const ProfilePage = () => {
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
                   placeholder="170"
-                  readOnly
                 />
               </div>
               <div>
@@ -239,7 +323,6 @@ const ProfilePage = () => {
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
                   placeholder="70"
-                  readOnly
                 />
               </div>
             </div>
@@ -253,90 +336,183 @@ const ProfilePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">목표 칼로리 (kcal/일)</label>
-                <input
-                  type="number"
-                  name="targetCalories"
-                  value={form.targetCalories}
-                  onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
-                  placeholder="2000"
-                />
+                <div className="space-y-2">
+                  <input
+                    type="number"
+                    name="target_calories"
+                    value={form.target_calories}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                    placeholder="2000"
+                    min="1200"
+                    max="4000"
+                  />
+                  {recommendedCalories > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-green-600">권장: {recommendedCalories}kcal</span>
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, target_calories: recommendedCalories }))}
+                        className="text-blue-500 hover:text-blue-700 underline"
+                      >
+                        권장값 적용
+                      </button>
+                    </div>
+                  )}
+                  {!recommendedCalories && (
+                    <p className="text-xs text-gray-500">
+                      신체정보, 성별, 활동수준을 입력하면 권장 칼로리가 계산됩니다.
+                    </p>
+                  )}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">운동 빈도 (회/주)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">목표 단백질 (g/일)</label>
                 <input
                   type="number"
-                  name="targetFrequency"
-                  value={form.targetFrequency}
+                  name="target_protein"
+                  value={form.target_protein}
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
-                  placeholder="3"
+                  placeholder="75"
                 />
               </div>
             </div>
           </div>
 
-          {/* 목표 달성률 */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">
-              <i className="fas fa-chart-line mr-2 text-blue-500"></i>목표 달성률
-            </h3>
-            <div className="w-full bg-gray-200 h-6 rounded-full overflow-hidden">
-              <div
-                className="h-6 bg-gradient-to-r from-orange-400 to-orange-600 transition-all duration-500 flex items-center justify-end pr-2"
-                style={{ width: `${progress}%` }}
-              >
-                <span className="text-white text-xs font-medium">
-                  {progress > 10 ? `${progress}%` : ''}
-                </span>
-              </div>
-            </div>
-            <p className="mt-2 text-sm text-gray-600 text-center">
-              현재 진행률: <strong>{progress}%</strong>
-            </p>
-          </div>
-
-          {/* 온보딩 정보 */}
+          {/* 영양 정보 */}
           <div className="bg-purple-50 p-4 rounded-lg">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">
-              <i className="fas fa-info-circle mr-2 text-purple-500"></i>운동 프로필
+              <i className="fas fa-apple-alt mr-2 text-purple-500"></i>영양 목표
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="mb-2">
-                  <strong>피트니스 레벨:</strong><br/>
-                  <span className="text-purple-600">{form.fitnessLevel || '미설정'}</span>
-                </p>
-                <p>
-                  <strong>운동 목적:</strong><br/>
-                  <span className="text-purple-600">
-                    {form.goals.length ? form.goals.join(', ') : '미설정'}
-                  </span>
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-2">목표 탄수화물 (g/일)</label>
+                <input
+                  type="number"
+                  name="target_carbs"
+                  value={form.target_carbs}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                  placeholder="250"
+                />
               </div>
               <div>
-                <p className="mb-2">
-                  <strong>운동 방법:</strong><br/>
-                  <span className="text-purple-600">
-                    {form.methods.length ? form.methods.join(', ') : '미설정'}
-                  </span>
-                </p>
-                <p>
-                  <strong>운동 장비:</strong><br/>
-                  <span className="text-purple-600">
-                    {form.equipment.length ? form.equipment.join(', ') : '미설정'}
-                  </span>
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-2">목표 지방 (g/일)</label>
+                <input
+                  type="number"
+                  name="target_fat"
+                  value={form.target_fat}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                  placeholder="70"
+                />
               </div>
             </div>
           </div>
+
+          {/* 피트니스 정보 */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              <i className="fas fa-dumbbell mr-2 text-blue-500"></i>피트니스 정보
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">성별</label>
+                <select
+                  name="gender"
+                  value={form.gender}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                >
+                  <option value="">성별을 선택하세요</option>
+                  <option value="m">남성</option>
+                  <option value="f">여성</option>
+                  <option value="o">기타</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">피트니스 목표</label>
+                <select
+                  name="fitness_goal"
+                  value={form.fitness_goal}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                >
+                  <option value="">목표를 선택하세요</option>
+                  <option value="weight_loss">체중 감량</option>
+                  <option value="muscle_gain">근육 증가</option>
+                  <option value="maintenance">현상 유지</option>
+                  <option value="endurance">지구력 향상</option>
+                  <option value="strength">근력 향상</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">활동 수준</label>
+                <select
+                  name="activity_level"
+                  value={form.activity_level}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-3"
+                >
+                  <option value="">활동 수준을 선택하세요</option>
+                  <option value="sedentary">앉아있는 생활</option>
+                  <option value="light">가벼운 활동</option>
+                  <option value="moderate">보통 활동</option>
+                  <option value="active">활발한 활동</option>
+                  <option value="very_active">매우 활발한 활동</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* 로딩 상태 및 에러 표시 */}
+          {(profileLoading || onboardingLoading || saving) && (
+            <div className="text-center py-4">
+              <div className="inline-flex items-center px-4 py-2 bg-blue-100 rounded-lg">
+                <i className="fas fa-spinner fa-spin mr-2 text-blue-500"></i>
+                <span className="text-blue-700">처리 중...</span>
+              </div>
+            </div>
+          )}
+
+          {(profileError || onboardingError) && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <i className="fas fa-exclamation-triangle text-red-500 mr-2"></i>
+                <span className="text-red-700">{profileError || onboardingError}</span>
+              </div>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <i className="fas fa-check-circle text-green-500 mr-2"></i>
+                <span className="text-green-700">{successMessage}</span>
+              </div>
+            </div>
+          )}
 
           {/* 저장 버튼 */}
           <button
             onClick={handleSave}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 px-6 rounded-lg hover:from-orange-600 hover:to-orange-700 transition duration-200 font-semibold text-lg shadow-lg"
+            disabled={saving || profileLoading}
+            className={`w-full py-4 px-6 rounded-lg transition duration-200 font-semibold text-lg shadow-lg ${
+              saving || profileLoading
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700'
+            }`}
           >
-            <i className="fas fa-save mr-2"></i>프로필 저장
+            {saving ? (
+              <>
+                <i className="fas fa-spinner fa-spin mr-2"></i>저장 중...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-save mr-2"></i>프로필 저장
+              </>
+            )}
           </button>
 
           {/* 온보딩 재설정 버튼 */}

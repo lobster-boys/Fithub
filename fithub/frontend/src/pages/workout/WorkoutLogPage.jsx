@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageTransition from '../../components/layout/PageTransition';
 import useWorkoutData from '../../hooks/useWorkoutData';
+import { useAuth } from '../../context/AuthContext';
 
 const WorkoutLogPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   // 웹킷 스크롤바 숨기기 스타일 추가
   React.useEffect(() => {
@@ -27,61 +29,91 @@ const WorkoutLogPage = () => {
     setWorkoutLogs, 
     addWorkoutLog, 
     getWeeklyStats, 
-    getMonthlyStats 
+    getMonthlyStats,
+    bulkAddLogExercises,
+    fetchWorkoutLogs,
+    refreshWorkoutLogs,
+    createRoutine,
+    fetchExercises,
+    exercises,
+    routines: backendRoutines,
+    fetchRoutines,
+    loading: workoutLoading,
+    error: workoutError,
+    deleteRoutine,
+    toggleRoutinePublic,
+    checkCurrentUser
   } = useWorkoutData();
 
   // 주간 및 월간 통계 데이터
   const weeklyStats = getWeeklyStats();
   const monthlyStats = getMonthlyStats();
 
-  // 예시 루틴 데이터 - 상태를 최상단으로 이동
-  const [routines, setRoutines] = useState([
-    {
-      id: 1,
-      title: '상체 중점 루틴',
-      level: '중급',
-      duration: 60,
-      exercises: [
-        { name: '벤치 프레스', sets: 4, reps: 8 },
-        { name: '바벨 로우', sets: 4, reps: 10 },
-        { name: '오버헤드 프레스', sets: 3, reps: 12 }
-      ],
-      targetMuscles: ['가슴', '등', '어깨'],
-      image: 'https://picsum.photos/300/200?random=1'
-    },
-    {
-      id: 2,
-      title: '하체 강화 루틴',
-      level: '초급',
-      duration: 45,
-      exercises: [
-        { name: '스쿼트', sets: 3, reps: 12 },
-        { name: '런지', sets: 3, reps: 10 },
-        { name: '레그 프레스', sets: 3, reps: 15 }
-      ],
-      targetMuscles: ['대퇴사두', '둔근', '햄스트링'],
-      image: 'https://picsum.photos/300/200?random=2'
-    },
-    {
-      id: 3,
-      title: '전신 순환 루틴',
-      level: '중급',
-      duration: 50,
-      exercises: [
-        { name: '버피', sets: 3, reps: 15 },
-        { name: '마운틴 클라이머', sets: 3, reps: '30초' },
-        { name: '점프 스쿼트', sets: 3, reps: 12 }
-      ],
-      targetMuscles: ['전신', '심폐지구력'],
-      image: 'https://picsum.photos/300/200?random=3'
+  // 로컬 루틴 상태 (백엔드 데이터와 동기화)
+  const [routines, setRoutines] = useState([]);
+
+  // 백엔드에서 사용자의 루틴 및 운동 종목 가져오기
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        // 사용자의 개인 루틴 가져오기 (공개 루틴이 아닌)
+        await fetchRoutines({ is_public: false, limit: 10 }); // is_public: false로 변경
+        
+        // 운동 로그 가져오기
+        await fetchWorkoutLogs();
+        
+        // 운동 종목 가져오기 (실패해도 폴백 데이터 사용)
+        try {
+          await fetchExercises();
+        } catch (exerciseError) {
+          console.log('운동 종목 로드 실패, 폴백 데이터 사용:', exerciseError);
+        }
+      } catch (error) {
+        console.error('루틴 데이터 로드 실패:', error);
+        // 루틴 로드 실패 시 빈 배열로 설정하여 폴백 UI 표시
+        setRoutines([]);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // 백엔드 루틴 데이터가 로드되면 로컬 상태 동기화
+  useEffect(() => {
+    if (backendRoutines && backendRoutines.length > 0) {
+      const formattedRoutines = backendRoutines
+        .filter(routine => routine && routine.id) // id가 있는 루틴만 필터링
+        .map(routine => ({
+          id: routine.id,
+          title: routine.name || '제목 없음',
+          level: routine.difficulty_level === 'beginner' ? '초급' : 
+                 routine.difficulty_level === 'intermediate' ? '중급' : '고급',
+          duration: routine.estimated_duration || 30,
+          exercises: (routine.routine_exercises || []).map((re, index) => ({
+            name: re.exercise?.name || '운동',
+            sets: re.sets || 3,
+            reps: re.reps || 10
+          })),
+          targetMuscles: routine.target_muscle_groups ? 
+            routine.target_muscle_groups.split(',').map(muscle => muscle.trim()) : ['전신'],
+          image: `https://picsum.photos/300/200?random=${routine.id}`,
+          is_public: routine.is_public || false
+        }));
+      setRoutines(formattedRoutines);
+    } else if (backendRoutines && backendRoutines.length === 0) {
+      // 백엔드에서 빈 배열을 받은 경우 로컬 폴백 데이터 사용
+      console.log('백엔드에서 루틴 데이터가 없음, 폴백 데이터 사용');
+      setRoutines([]);
     }
-  ]);
+  }, [backendRoutines]);
 
   // 루틴 만들기 모달 상태
   const [showRoutineModal, setShowRoutineModal] = useState(false);
   const [selectedBodyPart, setSelectedBodyPart] = useState('');
   const [selectedWorkoutType, setSelectedWorkoutType] = useState('');
   const [showExercises, setShowExercises] = useState(false);
+  
+
   
   // 루틴 생성 관련 상태
   const [selectedExercises, setSelectedExercises] = useState([]);
@@ -103,7 +135,7 @@ const WorkoutLogPage = () => {
   const [newWorkout, setNewWorkout] = useState({
     title: '',
     date: new Date().toISOString().split('T')[0],
-    duration: 0,
+    duration: '',
     exercises: [],
     type: '근력 운동' // 기본값
   });
@@ -111,13 +143,28 @@ const WorkoutLogPage = () => {
   // 새 운동 종목 추가 상태
   const [newExercise, setNewExercise] = useState({
     name: '',
-    sets: 0,
-    reps: 0,
-    weight: 0
+    sets: '',
+    reps: '',
+    weight: ''
   });
 
   // 로그 필터 상태
   const [logPeriod, setLogPeriod] = useState('daily'); // 'daily', 'weekly', 'monthly'
+
+  // 글로벌 새로고침 함수 등록 (운동 완료 시 사용)
+  useEffect(() => {
+    if (refreshWorkoutLogs) {
+      console.log('🌐 WorkoutLogPage: 글로벌 새로고침 함수 등록');
+      window.refreshWorkoutLogs = refreshWorkoutLogs;
+    } else {
+      console.log('⚠️ WorkoutLogPage: refreshWorkoutLogs 함수가 없음');
+    }
+    
+    return () => {
+      console.log('🧹 WorkoutLogPage: 글로벌 새로고침 함수 해제');
+      delete window.refreshWorkoutLogs;
+    };
+  }, [refreshWorkoutLogs]);
 
   // 캐러셀 스크롤 상태 확인
   const checkScrollButtons = () => {
@@ -182,50 +229,102 @@ const WorkoutLogPage = () => {
     { value: 'performance', label: '퍼포먼스 (Performance)' }
   ];
 
-  // 부위별 운동 목록
-  const exercisesByBodyPart = {
-    chest: [
-      { id: 1, name: '벤치 프레스', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
-      { id: 2, name: '푸시업', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '초급' },
-      { id: 3, name: '덤벨 플라이', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' },
-      { id: 4, name: '딥스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '8-12', difficulty: '중급' }
-    ],
-    back: [
-      { id: 5, name: '풀업', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '5-10', difficulty: '고급' },
-      { id: 6, name: '바벨 로우', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
-      { id: 7, name: '랫 풀다운', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '초급' },
-      { id: 8, name: '시티드 로우', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '초급' }
-    ],
+  // 백엔드 데이터를 기반으로 부위별 운동 목록 생성
+  const getExercisesByBodyPart = (bodyPartValue) => {
+    if (!exercises || exercises.length === 0) {
+      // 폴백 데이터
+      return getDefaultExercisesByBodyPart(bodyPartValue);
+    }
+
+    // 부위별로 운동 필터링 (백엔드 데이터 기반)
+    const bodyPartMapping = {
+      chest: ['가슴', 'chest'],
+      back: ['등', 'back'],
+      shoulders: ['어깨', 'shoulder'],
+      arms: ['팔', '이두', '삼두', 'arm', 'bicep', 'tricep'],
+      legs: ['다리', '대퇴', '종아리', 'leg', 'quad', 'calf'],
+      core: ['코어', '복근', 'core', 'abs'],
+      fullbody: ['전신', 'fullbody']
+    };
+
+    const keywords = bodyPartMapping[bodyPartValue] || [];
+    
+    const filteredExercises = exercises.filter(exercise => {
+      const muscleGroups = exercise.muscle_groups?.toLowerCase() || '';
+      const exerciseName = exercise.name?.toLowerCase() || '';
+      const exerciseType = exercise.exercise_type?.name?.toLowerCase() || '';
+      
+      return keywords.some(keyword => 
+        muscleGroups.includes(keyword.toLowerCase()) || 
+        exerciseName.includes(keyword.toLowerCase()) ||
+        exerciseType.includes(keyword.toLowerCase())
+      );
+    }).map(exercise => ({
+      id: exercise.id,
+      name: exercise.name,
+      image: exercise.video_url || `https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80`,
+      sets: '3-4',
+      reps: '8-12',
+      difficulty: exercise.difficulty_level === 'beginner' ? '초급' : 
+                  exercise.difficulty_level === 'intermediate' ? '중급' : '고급'
+    }));
+    
+    // 필터링된 운동이 없으면 폴백 데이터 사용
+    if (filteredExercises.length === 0) {
+      return getDefaultExercisesByBodyPart(bodyPartValue);
+    }
+    
+    return filteredExercises;
+  };
+
+  // 폴백 운동 데이터 (백엔드 데이터가 없을 때)
+  const getDefaultExercisesByBodyPart = (bodyPartValue) => {
+    const defaultExercises = {
+      chest: [
+        { id: 'chest1', name: '벤치 프레스', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
+        { id: 'chest2', name: '푸시업', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '초급' },
+        { id: 'chest3', name: '덤벨 플라이', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' },
+        { id: 'chest4', name: '딥스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '8-12', difficulty: '중급' }
+      ],
+      back: [
+        { id: 'back1', name: '풀업', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '5-10', difficulty: '고급' },
+        { id: 'back2', name: '바벨 로우', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
+        { id: 'back3', name: '랫 풀다운', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '초급' },
+        { id: 'back4', name: '시티드 로우', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '초급' }
+      ],
     shoulders: [
-      { id: 9, name: '오버헤드 프레스', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
-      { id: 10, name: '레터럴 레이즈', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
-      { id: 11, name: '리어 델트 플라이', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
-      { id: 12, name: '숄더 쉬러그', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '15-20', difficulty: '초급' }
+      { id: 'shoulder1', name: '오버헤드 프레스', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '8-12', difficulty: '중급' },
+      { id: 'shoulder2', name: '레터럴 레이즈', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
+      { id: 'shoulder3', name: '리어 델트 플라이', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
+      { id: 'shoulder4', name: '숄더 쉬러그', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '15-20', difficulty: '초급' }
     ],
     arms: [
-      { id: 13, name: '바이셉 컬', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
-      { id: 14, name: '트라이셉 딥스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '중급' },
-      { id: 15, name: '해머 컬', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
-      { id: 16, name: '오버헤드 익스텐션', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' }
+      { id: 'arm1', name: '바이셉 컬', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
+      { id: 'arm2', name: '트라이셉 딥스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '중급' },
+      { id: 'arm3', name: '해머 컬', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' },
+      { id: 'arm4', name: '오버헤드 익스텐션', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' }
     ],
     legs: [
-      { id: 17, name: '스쿼트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '10-15', difficulty: '초급' },
-      { id: 18, name: '런지', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '초급' },
-      { id: 19, name: '데드리프트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '6-10', difficulty: '고급' },
-      { id: 20, name: '레그 프레스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' }
+      { id: 'leg1', name: '스쿼트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '10-15', difficulty: '초급' },
+      { id: 'leg2', name: '런지', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '초급' },
+      { id: 'leg3', name: '데드리프트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3-4', reps: '6-10', difficulty: '고급' },
+      { id: 'leg4', name: '레그 프레스', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '초급' }
     ],
     core: [
-      { id: 21, name: '플랭크', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30-60초', difficulty: '초급' },
-      { id: 22, name: '크런치', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '15-20', difficulty: '초급' },
-      { id: 23, name: '러시안 트위스트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '20-30', difficulty: '중급' },
-      { id: 24, name: '마운틴 클라이머', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30초', difficulty: '중급' }
+      { id: 'core1', name: '플랭크', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30-60초', difficulty: '초급' },
+      { id: 'core2', name: '크런치', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '15-20', difficulty: '초급' },
+      { id: 'core3', name: '러시안 트위스트', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '20-30', difficulty: '중급' },
+      { id: 'core4', name: '마운틴 클라이머', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30초', difficulty: '중급' }
     ],
     fullbody: [
-      { id: 25, name: '버피', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '중급' },
-      { id: 26, name: '점프 스쿼트', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' },
-      { id: 27, name: '스러스터', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '고급' },
-      { id: 28, name: '베어 크롤', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30초', difficulty: '중급' }
+      { id: 'fullbody1', name: '버피', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-15', difficulty: '중급' },
+      { id: 'fullbody2', name: '점프 스쿼트', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '12-15', difficulty: '중급' },
+      { id: 'fullbody3', name: '스러스터', image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '10-12', difficulty: '고급' },
+      { id: 'fullbody4', name: '베어 크롤', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', sets: '3', reps: '30초', difficulty: '중급' }
     ]
+    };
+
+    return defaultExercises[bodyPartValue] || [];
   };
 
   // 운동 선택 핸들러
@@ -252,30 +351,55 @@ const WorkoutLogPage = () => {
     setSelectedExercises(prev => prev.filter(ex => ex.id !== exerciseId));
   };
 
-  // 루틴 생성 핸들러
-  const handleCreateRoutine = () => {
+  // 루틴 생성 핸들러 (백엔드 API 연동)
+  const handleCreateRoutine = async () => {
     if (!routineTitle.trim() || selectedExercises.length === 0) {
-      alert('루틴 제목과 최소 1개의 운동을 선택해주세요.');
+      alert('루틴 제목과 운동을 선택해주세요.');
       return;
     }
 
-    const newRoutine = {
-      id: routines.length + 1,
-      title: routineTitle.trim(),
-      level: routineLevel,
-      duration: selectedExercises.length * 15, // 운동당 15분 예상
-      exercises: selectedExercises.map(ex => ({
-        name: ex.name,
-        sets: parseInt(ex.sets.split('-')[0]) || 3,
-        reps: parseInt(ex.reps.split('-')[0]) || 10
-      })),
-      targetMuscles: [bodyParts.find(p => p.value === selectedBodyPart)?.label],
-      image: `https://picsum.photos/300/200?random=${routines.length + 1}`
-    };
+    try {
+      // 난이도 매핑
+      const difficultyMap = { '초급': 'beginner', '중급': 'intermediate', '고급': 'advanced' };
+      
+      // 운동들을 routine_exercises 형태로 변환
+      const routineExercises = selectedExercises.map((exercise, index) => {
+        // sets와 reps 파싱 함수
+        const parseSetsReps = (value) => {
+          if (typeof value === 'string' && value.includes('x')) {
+            return parseInt(value.split('x')[0]) || 3;
+          }
+          return parseInt(value) || 3;
+        };
 
-    setRoutines(prev => [...prev, newRoutine]);
-    resetRoutineModal();
-    alert('새 루틴이 성공적으로 생성되었습니다!');
+        return {
+          exercise_id: exercise.id,
+          exercise_name: exercise.name,
+          sets: parseSetsReps(exercise.sets),
+          reps: parseSetsReps(exercise.reps),
+          order: index + 1
+        };
+      });
+
+      const routineData = {
+        name: routineTitle.trim(),
+        description: `${selectedExercises.map(ex => ex.name).join(', ')} 루틴`,
+        difficulty_level: difficultyMap[routineLevel] || 'beginner',
+        estimated_duration: selectedExercises.length * 15,
+        is_public: false,
+        routine_exercises: routineExercises
+      };
+
+      await createRoutine(routineData);
+      
+      // 성공 시 루틴 목록 새로고침
+      await fetchRoutines({ is_public: false, limit: 10 });
+      
+      resetRoutineModal();
+    } catch (error) {
+      console.error('루틴 생성 실패:', error);
+      alert('루틴 생성에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   // 모달 리셋
@@ -289,6 +413,47 @@ const WorkoutLogPage = () => {
     setRoutineLevel('초급');
   };
 
+  // 루틴 공개 상태 토글 핸들러
+  const handleToggleRoutinePublic = async (routine) => {
+    try {
+      const result = await toggleRoutinePublic(routine.id);
+      // 로컬 상태 업데이트
+      setRoutines(prev => prev.map(r => 
+        r.id === routine.id 
+          ? { ...r, is_public: result.is_public }
+          : r
+      ));
+    } catch (error) {
+      console.error('루틴 공개 상태 토글 실패:', error);
+    }
+  };
+
+  // 루틴 삭제 함수 추가
+  const handleDeleteRoutine = async (routineId, routineName) => {
+    try {
+      // 현재 사용자 정보 확인 (디버깅용)
+      await checkCurrentUser();
+      
+      console.log(`루틴 삭제 시도: ID=${routineId}, 이름=${routineName}`);
+      
+      await deleteRoutine(routineId);
+      
+      // 성공 시 루틴 목록 새로고침
+      await fetchRoutines({ is_public: false, limit: 10 });
+      
+    } catch (error) {
+      console.error('루틴 삭제 실패:', error);
+      
+      // 에러 상세 정보 출력
+      if (error.response) {
+        console.error('응답 상태:', error.response.status);
+        console.error('응답 데이터:', error.response.data);
+      }
+      
+      alert('루틴 삭제에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
   // 주간 데이터 계산 (차트용)
   const getWeeklyData = () => {
     const today = new Date();
@@ -300,12 +465,14 @@ const WorkoutLogPage = () => {
     const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
     
     workoutLogs.forEach(log => {
-      const logDate = new Date(log.date);
+      // 백엔드 데이터 구조에 맞게 날짜 필드 수정
+      const logDate = new Date(log.start_time || log.created_at || log.date);
       const diffTime = logDate.getTime() - weekStart.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       
       if (diffDays >= 0 && diffDays < 7) {
-        weeklyData[diffDays] += log.duration;
+        // 백엔드 데이터 구조에 맞게 기간 필드 수정
+        weeklyData[diffDays] += (log.duration_minutes || log.duration || 0);
       }
     });
     
@@ -313,37 +480,116 @@ const WorkoutLogPage = () => {
   };
 
   // 운동 로그 추가 핸들러
-  const handleAddWorkout = () => {
-    const caloriesEstimate = newWorkout.exercises.length * 70 + newWorkout.duration * 5;
+  const handleAddWorkout = async () => {
+    // 입력 값 검증
+    if (!newWorkout.title.trim()) {
+      alert('운동 제목을 입력해주세요.');
+      return;
+    }
+    
+    if (!newWorkout.duration || parseInt(newWorkout.duration) <= 0) {
+      alert('운동 시간을 입력해주세요.');
+      return;
+    }
+    
+    const durationMinutes = parseInt(newWorkout.duration);
+    const caloriesEstimate = newWorkout.exercises.length * 70 + durationMinutes * 5;
+    
+    // 백엔드 API 형식에 맞게 데이터 변환
+    const startDateTime = new Date(`${newWorkout.date}T09:00:00`); // 기본 시작 시간
+    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000); // 종료 시간 계산
     
     const workoutToAdd = {
-      ...newWorkout,
-      calories: caloriesEstimate,
-      completed: true
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      duration_minutes: durationMinutes,
+      calories_burned: caloriesEstimate,
+      rating: 3, // 기본값
+      mood: 'normal', // 기본값
+      workout_type: newWorkout.type === '근력 운동' ? 'strength' : 
+                   newWorkout.type === '유산소 운동' ? 'cardio' : 
+                   newWorkout.type === '유연성 운동' ? 'flexibility' :
+                   newWorkout.type === 'HIIT' ? 'hiit' : 
+                   newWorkout.type === '요가' ? 'yoga' : 'strength',
+      notes: newWorkout.title, // 제목을 notes로 저장
+      routine_id: null // 기본적으로 루틴 없음
     };
     
-    addWorkoutLog(workoutToAdd);
-    setShowAddForm(false);
-    setNewWorkout({
-      title: '',
-      date: new Date().toISOString().split('T')[0],
-      duration: 0,
-      exercises: [],
-      type: '근력 운동'
-    });
+    try {
+      const createdLog = await addWorkoutLog(workoutToAdd);
+      
+      // 운동 종목들이 있다면 추가
+      if (newWorkout.exercises && newWorkout.exercises.length > 0) {
+        try {
+          // 운동 종목 데이터를 백엔드 형식에 맞게 변환
+          const exercisesData = newWorkout.exercises.map((exercise, index) => ({
+            exercise_name: exercise.name,
+            sets_completed: exercise.sets,
+            reps_completed: exercise.reps,
+            weight_used: exercise.weight || 0,
+            order: index + 1
+          }));
+          
+          console.log('운동 종목들 저장 중:', exercisesData);
+          await bulkAddLogExercises(createdLog.id, exercisesData);
+          console.log('운동 종목들 저장 완료');
+        } catch (exerciseError) {
+          console.error('운동 종목 추가 실패:', exerciseError);
+          alert('운동 기록은 저장되었지만 운동 종목 저장에 실패했습니다.');
+        }
+      }
+      
+      // 운동 로그 목록 새로고침
+      await fetchWorkoutLogs();
+      
+      setShowAddForm(false);
+      setNewWorkout({
+        title: '',
+        date: new Date().toISOString().split('T')[0],
+        duration: '',
+        exercises: [],
+        type: '근력 운동'
+      });
+      // alert 제거로 UX 개선
+    } catch (error) {
+      console.error('운동 로그 추가 실패:', error);
+      alert('운동 기록 추가에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   // 운동 종목 추가 핸들러
   const handleAddExercise = () => {
+    if (!newExercise.name.trim()) {
+      alert('운동 이름을 입력해주세요.');
+      return;
+    }
+    
+    if (!newExercise.sets || parseInt(newExercise.sets) <= 0) {
+      alert('세트 수를 입력해주세요.');
+      return;
+    }
+    
+    if (!newExercise.reps || parseInt(newExercise.reps) <= 0) {
+      alert('반복 횟수를 입력해주세요.');
+      return;
+    }
+    
+    const exerciseToAdd = {
+      ...newExercise,
+      sets: parseInt(newExercise.sets),
+      reps: parseInt(newExercise.reps),
+      weight: newExercise.weight ? parseFloat(newExercise.weight) : 0
+    };
+    
     setNewWorkout({
       ...newWorkout,
-      exercises: [...newWorkout.exercises, newExercise]
+      exercises: [...newWorkout.exercises, exerciseToAdd]
     });
     setNewExercise({
       name: '',
-      sets: 0,
-      reps: 0,
-      weight: 0
+      sets: '',
+      reps: '',
+      weight: ''
     });
   };
 
@@ -372,16 +618,14 @@ const WorkoutLogPage = () => {
 
   // 운동 로그 삭제 핸들러
   const handleDeleteLog = (logId) => {
-    if (confirm('정말로 이 운동 기록을 삭제하시겠습니까?')) {
-      setWorkoutLogs(prev => prev.filter(log => log.id !== logId));
-      setShowDetailModal(false);
-      setShowEditModal(false);
-    }
+    setWorkoutLogs(prev => prev.filter(log => log.id !== logId));
+    setShowDetailModal(false);
+    setShowEditModal(false);
   };
 
   // 수정 중인 운동 종목 업데이트
   const handleUpdateExercise = (index, field, value) => {
-    const updatedExercises = [...editingLog.exercises];
+    const updatedExercises = [...(editingLog.exercises || [])];
     updatedExercises[index] = {
       ...updatedExercises[index],
       [field]: value
@@ -394,7 +638,7 @@ const WorkoutLogPage = () => {
 
   // 수정 중인 운동 종목 삭제
   const handleRemoveExerciseFromEdit = (index) => {
-    const updatedExercises = editingLog.exercises.filter((_, i) => i !== index);
+    const updatedExercises = (editingLog.exercises || []).filter((_, i) => i !== index);
     setEditingLog({
       ...editingLog,
       exercises: updatedExercises
@@ -406,7 +650,7 @@ const WorkoutLogPage = () => {
     setEditingLog({
       ...editingLog,
       exercises: [
-        ...editingLog.exercises,
+        ...(editingLog.exercises || []),
         { name: '', sets: 3, reps: 10, weight: 0 }
       ]
     });
@@ -429,7 +673,7 @@ const WorkoutLogPage = () => {
             <div className="bg-white p-4 rounded-xl shadow-sm min-w-[140px] w-full">
               <p className="text-gray-600 mb-1">총 운동 시간</p>
               <p className="text-2xl font-bold">
-                {workoutLogs.reduce((total, log) => total + log.duration, 0)} 분
+                {workoutLogs.reduce((total, log) => total + (log.duration_minutes || log.duration || 0), 0)} 분
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm min-w-[140px] w-full">
@@ -439,7 +683,7 @@ const WorkoutLogPage = () => {
             <div className="bg-white p-4 rounded-xl shadow-sm min-w-[140px] w-full">
               <p className="text-gray-600 mb-1">소모 칼로리</p>
               <p className="text-2xl font-bold">
-                {workoutLogs.reduce((total, log) => total + log.calories, 0)} kcal
+                {workoutLogs.reduce((total, log) => total + (log.calories_burned || log.calories || 0), 0)} kcal
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm min-w-[140px] w-full">
@@ -495,67 +739,126 @@ const WorkoutLogPage = () => {
               }}
               onScroll={checkScrollButtons}
             >
-              {routines.map((routine) => (
-                <div 
-                  key={routine.id} 
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0"
-                  style={{ 
-                    minWidth: '280px', 
-                    width: '280px',
-                    scrollSnapAlign: 'start'
-                  }}
-                >
-                  <img 
-                    src={routine.image}
-                    alt={routine.title}
-                    className="w-full h-40 object-cover"
-                  />
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-bold">{routine.title}</h3>
-                      <span className="bg-primary text-white text-xs px-2 py-1 rounded-full">
-                        {routine.level}
-                      </span>
-                    </div>
-                    
-                    <p className="text-sm text-gray-600 mb-3">
-                      <i className="far fa-clock mr-1"></i> {routine.duration}분 운동
-                    </p>
-                    
-                    <div className="mb-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">주요 운동:</h4>
-                      <ul className="text-sm text-gray-600">
-                        {routine.exercises.slice(0, 2).map((exercise, idx) => (
-                          <li key={idx} className="mb-1">- {exercise.name} ({exercise.sets}세트 x {exercise.reps}회)</li>
-                        ))}
-                        {routine.exercises.length > 2 && (
-                          <li className="text-gray-500">+ {routine.exercises.length - 2}개 더...</li>
-                        )}
-                      </ul>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {routine.targetMuscles.map((muscle, idx) => (
-                        <span key={idx} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
-                          {muscle}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <Link
-                        to={`/workouts/${routine.id}`}
-                        className="text-primary hover:text-primary-dark font-medium text-sm"
+              {(routines || []).filter(routine => routine && routine.id).map((routine) => {
+                // 디버깅: 루틴 데이터 확인
+                console.log('루틴 데이터:', {
+                  id: routine.id,
+                  name: routine.name,
+                  is_copied: routine.is_copied,
+                  user: routine.user,
+                  currentUser: user
+                });
+                
+                return (
+                  <div 
+                    key={routine.id} 
+                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0 relative group"
+                    style={{ 
+                      minWidth: '280px', 
+                      width: '280px',
+                      scrollSnapAlign: 'start'
+                    }}
+                  >
+                    {/* 삭제 버튼 - 복사된 루틴이거나 본인이 만든 루틴인 경우에만 표시 */}
+                    {/* 디버깅: 모든 루틴에 삭제 버튼 표시하여 데이터 확인 */}
+                    {(routine.is_copied || routine.user?.username === user?.username || true) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRoutine(routine.id, routine.name);
+                        }}
+                        className="absolute top-2 right-2 z-10 bg-white/80 hover:bg-orange-500 text-gray-600 hover:text-white w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm shadow-md"
+                        title="루틴 삭제"
                       >
-                        자세히 보기
-                      </Link>
-                      <button className="text-primary hover:text-primary-dark font-medium text-sm">
-                        시작하기
+                        <i className="fas fa-times text-sm"></i>
                       </button>
+                    )}
+                    
+                    <div className="aspect-video bg-gradient-to-r from-blue-400 to-blue-600 relative">
+                      <div className="absolute inset-0 flex flex-col justify-center items-center text-white p-4">
+                        <h3 className="font-bold text-lg mb-2 text-center">{routine.name || routine.title}</h3>
+                        
+                        {/* 복사된 루틴 표시 */}
+                        {routine.is_copied && routine.original_author && (
+                          <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs mb-2">
+                            <i className="fas fa-copy mr-1"></i>
+                            {routine.original_author}님의 루틴
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center space-x-4 text-sm">
+                          <span className="flex items-center">
+                            <i className="fas fa-clock mr-1"></i>
+                            {routine.estimated_duration || routine.duration || 30}분
+                          </span>
+                          <span className="flex items-center">
+                            <i className="fas fa-dumbbell mr-1"></i>
+                            {routine.exercise_count || (routine.exercises && routine.exercises.length) || 0}개
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-lg font-bold">{routine.title}</h3>
+                        <span className="bg-primary text-white text-xs px-2 py-1 rounded-full">
+                          {routine.level}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-3">
+                        <i className="far fa-clock mr-1"></i> {routine.duration}분 운동
+                      </p>
+                      
+                      <div className="mb-3">
+                        <h4 className="text-sm font-medium text-gray-700 mb-1">주요 운동:</h4>
+                        <ul className="text-sm text-gray-600">
+                          {(routine.exercises || []).slice(0, 2).map((exercise, idx) => (
+                            <li key={`${routine.id}-exercise-${idx}`} className="mb-1">- {exercise.name} ({exercise.sets}세트 x {exercise.reps}회)</li>
+                          ))}
+                          {(routine.exercises || []).length > 2 && (
+                            <li key={`${routine.id}-more`} className="text-gray-500">+ {(routine.exercises || []).length - 2}개 더...</li>
+                          )}
+                        </ul>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {(routine.targetMuscles || []).map((muscle, idx) => (
+                          <span key={`${routine.id}-muscle-${idx}`} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
+                            {muscle}
+                          </span>
+                        ))}
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/workouts/${routine.id}`}
+                            className="text-primary hover:text-primary-dark font-medium text-sm"
+                          >
+                            자세히 보기
+                          </Link>
+                          <button 
+                            onClick={() => handleToggleRoutinePublic(routine)}
+                            className={`font-medium text-sm flex items-center ${
+                              routine.is_public 
+                                ? 'text-green-600 hover:text-green-800' 
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                            title={routine.is_public ? '공개 중 (클릭하여 비공개로 변경)' : '비공개 (클릭하여 공개로 변경)'}
+                          >
+                            <i className={`fas ${routine.is_public ? 'fa-unlock' : 'fa-lock'} mr-1`}></i>
+                            {routine.is_public ? '공개' : '비공개'}
+                          </button>
+                        </div>
+                        <button className="text-primary hover:text-primary-dark font-medium text-sm">
+                          시작하기
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {/* 새 루틴 추가 카드 */}
               <div 
@@ -575,7 +878,7 @@ const WorkoutLogPage = () => {
             <div className="md:hidden flex justify-center mt-4 space-x-2">
               {Array.from({ length: Math.ceil((routines.length + 1) / 2) }).map((_, index) => (
                 <div
-                  key={index}
+                  key={`scroll-indicator-${index}`}
                   className="w-2 h-2 rounded-full bg-gray-300"
                 ></div>
               ))}
@@ -633,21 +936,21 @@ const WorkoutLogPage = () => {
                 >
                   <div className="p-4 border-b border-gray-100">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-500">{log.date}</span>
+                      <span className="text-sm text-gray-500">{new Date(log.start_time || log.date).toLocaleDateString()}</span>
                       <span className="text-xs bg-green-100 text-green-800 py-1 px-2 rounded-full">
                         완료
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold">{log.title}</h3>
+                    <h3 className="text-lg font-bold">{log.notes || '운동 기록'}</h3>
                     <div className="flex items-center text-gray-600 text-sm mt-1">
                       <i className="fas fa-clock mr-1"></i>
-                      <span>{log.duration} 분</span>
+                      <span>{log.duration_minutes || log.duration} 분</span>
                       <i className="fas fa-fire ml-3 mr-1"></i>
-                      <span>{log.calories} kcal</span>
-                      {log.type && (
+                      <span>{log.calories_burned || log.calories} kcal</span>
+                      {(log.workout_type || log.type) && (
                         <>
                           <i className="fas fa-tag ml-3 mr-1"></i>
-                          <span>{log.type}</span>
+                          <span>{log.workout_type || log.type}</span>
                         </>
                       )}
                     </div>
@@ -655,18 +958,21 @@ const WorkoutLogPage = () => {
                   <div className="p-4">
                     <h4 className="text-sm font-medium text-gray-600 mb-2">운동 내역</h4>
                     <ul className="space-y-2">
-                      {log.exercises.map((exercise, index) => (
-                        <li key={index} className="text-sm">
+                      {(log.exercises || []).map((exercise, index) => (
+                        <li key={`${log.id}-exercise-${index}`} className="text-sm">
                           <div className="flex justify-between">
-                            <span className="font-medium">{exercise.name}</span>
+                            <span className="font-medium">{exercise.exercise?.name || exercise.name || '운동'}</span>
                             {exercise.duration ? (
                               <span>{exercise.duration}분 ({exercise.distance}km)</span>
                             ) : (
-                              <span>{exercise.sets} x {exercise.reps} ({exercise.weight}kg)</span>
+                              <span>{exercise.sets_completed || exercise.sets || 0} x {exercise.reps_completed || exercise.reps || 0} ({exercise.weight_used || exercise.weight || 0}kg)</span>
                             )}
                           </div>
                         </li>
                       ))}
+                      {(!log.exercises || log.exercises.length === 0) && (
+                        <li key={`${log.id}-no-exercises`} className="text-sm text-gray-500 italic">운동 종목이 기록되지 않았습니다.</li>
+                      )}
                     </ul>
                   </div>
                   <div className="flex border-t border-gray-100">
@@ -694,7 +1000,7 @@ const WorkoutLogPage = () => {
               <div className="h-64 flex items-center justify-center">
                 <div className="grid grid-cols-7 w-full h-full gap-2">
                   {dayLabels.map((day, idx) => (
-                    <div key={idx} className="flex flex-col items-center">
+                    <div key={`weekly-day-${day}-${idx}`} className="flex flex-col items-center">
                       <div className="text-sm text-gray-500 mb-2">{day}</div>
                       <div className="flex-1 w-full bg-gray-100 rounded-lg relative">
                         <div 
@@ -747,8 +1053,8 @@ const WorkoutLogPage = () => {
                   <h4 className="text-md font-medium mb-3">운동 타입 분포</h4>
                   <div className="h-48 flex items-center justify-center">
                     <div className="w-full flex items-end h-full justify-around">
-                      {Object.entries(monthlyStats.typePercentages).map(([type, percentage], idx) => (
-                        <div key={idx} className="flex flex-col items-center">
+                      {Object.entries(monthlyStats?.typePercentages || {}).map(([type, percentage], idx) => (
+                        <div key={`monthly-type-${type}-${idx}`} className="flex flex-col items-center">
                           <div 
                             className={`w-16 rounded-t-lg ${idx === 0 ? 'bg-primary' : idx === 1 ? 'bg-orange-300' : 'bg-orange-200'}`} 
                             style={{ height: `${percentage}%` }}
@@ -766,36 +1072,36 @@ const WorkoutLogPage = () => {
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <div className="flex justify-between mb-1">
                         <span className="text-gray-600">총 운동 일수</span>
-                        <span className="font-medium">{monthlyStats.totalWorkouts}일</span>
+                        <span className="font-medium">{monthlyStats?.totalWorkouts || 0}일</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full" 
-                          style={{ width: `${(monthlyStats.totalWorkouts / 30) * 100}%` }}
+                          style={{ width: `${((monthlyStats?.totalWorkouts || 0) / 30) * 100}%` }}
                         ></div>
                       </div>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <div className="flex justify-between mb-1">
                         <span className="text-gray-600">목표 달성률</span>
-                        <span className="font-medium">{monthlyStats.completionRate}%</span>
+                        <span className="font-medium">{monthlyStats?.completionRate || 0}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full" 
-                          style={{ width: `${monthlyStats.completionRate}%` }}
+                          style={{ width: `${monthlyStats?.completionRate || 0}%` }}
                         ></div>
                       </div>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <div className="flex justify-between mb-1">
                         <span className="text-gray-600">총 소모 칼로리</span>
-                        <span className="font-medium">{monthlyStats.totalCalories.toLocaleString()} kcal</span>
+                        <span className="font-medium">{(monthlyStats?.totalCalories || 0).toLocaleString()} kcal</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full" 
-                          style={{ width: `${Math.min((monthlyStats.totalCalories / 10000) * 100, 100)}%` }}
+                          style={{ width: `${Math.min(((monthlyStats?.totalCalories || 0) / 10000) * 100, 100)}%` }}
                         ></div>
                       </div>
                     </div>
@@ -854,7 +1160,7 @@ const WorkoutLogPage = () => {
                     <input
                       type="number"
                       value={newWorkout.duration}
-                      onChange={(e) => setNewWorkout({...newWorkout, duration: parseInt(e.target.value)})}
+                      onChange={(e) => setNewWorkout({...newWorkout, duration: e.target.value})}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       placeholder="60"
                     />
@@ -870,8 +1176,10 @@ const WorkoutLogPage = () => {
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
                       <option value="근력 운동">근력 운동</option>
-                      <option value="유산소">유산소</option>
-                      <option value="유연성">유연성</option>
+                      <option value="유산소 운동">유산소 운동</option>
+                      <option value="유연성 운동">유연성 운동</option>
+                      <option value="HIIT">HIIT</option>
+                      <option value="요가">요가</option>
                     </select>
                   </div>
                   
@@ -889,7 +1197,7 @@ const WorkoutLogPage = () => {
                       <div className="bg-gray-50 p-3 rounded-lg mb-3">
                         <ul className="space-y-2">
                           {newWorkout.exercises.map((ex, idx) => (
-                            <li key={idx} className="text-sm flex justify-between">
+                            <li key={`new-exercise-${idx}`} className="text-sm flex justify-between">
                               <span>{ex.name}</span>
                               <span>{ex.sets} x {ex.reps} ({ex.weight}kg)</span>
                             </li>
@@ -919,7 +1227,7 @@ const WorkoutLogPage = () => {
                           <input
                             type="number"
                             value={newExercise.weight}
-                            onChange={(e) => setNewExercise({...newExercise, weight: parseInt(e.target.value)})}
+                            onChange={(e) => setNewExercise({...newExercise, weight: e.target.value})}
                             className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                             placeholder="60"
                           />
@@ -933,7 +1241,7 @@ const WorkoutLogPage = () => {
                           <input
                             type="number"
                             value={newExercise.sets}
-                            onChange={(e) => setNewExercise({...newExercise, sets: parseInt(e.target.value)})}
+                            onChange={(e) => setNewExercise({...newExercise, sets: e.target.value})}
                             className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                             placeholder="3"
                           />
@@ -945,7 +1253,7 @@ const WorkoutLogPage = () => {
                           <input
                             type="number"
                             value={newExercise.reps}
-                            onChange={(e) => setNewExercise({...newExercise, reps: parseInt(e.target.value)})}
+                            onChange={(e) => setNewExercise({...newExercise, reps: e.target.value})}
                             className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                             placeholder="10"
                           />
@@ -1087,7 +1395,7 @@ const WorkoutLogPage = () => {
                       </div>
                       
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto">
-                        {exercisesByBodyPart[selectedBodyPart]?.map((exercise) => {
+                        {getExercisesByBodyPart(selectedBodyPart)?.map((exercise) => {
                           const isSelected = selectedExercises.some(ex => ex.id === exercise.id);
                           return (
                             <div
@@ -1231,23 +1539,23 @@ const WorkoutLogPage = () => {
               <div className="flex-1 overflow-y-auto p-6">
                 {/* 기본 정보 */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h4 className="text-lg font-bold mb-3">{selectedLog.title}</h4>
+                  <h4 className="text-lg font-bold mb-3">{selectedLog.notes || '운동 기록'}</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-gray-600 text-sm">운동 날짜</span>
-                      <p className="font-medium">{selectedLog.date}</p>
+                      <p className="font-medium">{new Date(selectedLog.start_time || selectedLog.date).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">운동 시간</span>
-                      <p className="font-medium">{selectedLog.duration}분</p>
+                      <p className="font-medium">{selectedLog.duration_minutes || selectedLog.duration}분</p>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">소모 칼로리</span>
-                      <p className="font-medium">{selectedLog.calories} kcal</p>
+                      <p className="font-medium">{selectedLog.calories_burned || selectedLog.calories} kcal</p>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">운동 타입</span>
-                      <p className="font-medium">{selectedLog.type || '일반 운동'}</p>
+                      <p className="font-medium">{selectedLog.workout_type || selectedLog.type || '일반 운동'}</p>
                     </div>
                   </div>
                 </div>
@@ -1256,10 +1564,10 @@ const WorkoutLogPage = () => {
                 <div>
                   <h4 className="text-lg font-bold mb-4">운동 내역</h4>
                   <div className="space-y-3">
-                    {selectedLog.exercises.map((exercise, index) => (
-                      <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                    {(selectedLog.exercises || []).map((exercise, index) => (
+                      <div key={`detail-exercise-${index}`} className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
-                          <h5 className="font-bold text-gray-800">{exercise.name}</h5>
+                          <h5 className="font-bold text-gray-800">{exercise.exercise?.name || exercise.name || '운동'}</h5>
                           <span className="text-sm bg-primary text-white px-2 py-1 rounded-full">
                             {index + 1}
                           </span>
@@ -1284,15 +1592,15 @@ const WorkoutLogPage = () => {
                             <>
                               <div>
                                 <span className="text-gray-600">세트</span>
-                                <p className="font-medium">{exercise.sets}세트</p>
+                                <p className="font-medium">{exercise.sets_completed || exercise.sets || 0}세트</p>
                               </div>
                               <div>
                                 <span className="text-gray-600">반복</span>
-                                <p className="font-medium">{exercise.reps}회</p>
+                                <p className="font-medium">{exercise.reps_completed || exercise.reps || 0}회</p>
                               </div>
                               <div>
                                 <span className="text-gray-600">중량</span>
-                                <p className="font-medium">{exercise.weight}kg</p>
+                                <p className="font-medium">{exercise.weight_used || exercise.weight || 0}kg</p>
                               </div>
                             </>
                           )}
@@ -1346,8 +1654,8 @@ const WorkoutLogPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">운동 제목</label>
                       <input
                         type="text"
-                        value={editingLog.title}
-                        onChange={(e) => setEditingLog({...editingLog, title: e.target.value})}
+                        value={editingLog.notes || editingLog.title || ''}
+                        onChange={(e) => setEditingLog({...editingLog, notes: e.target.value})}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       />
                     </div>
@@ -1355,7 +1663,7 @@ const WorkoutLogPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">운동 날짜</label>
                       <input
                         type="date"
-                        value={editingLog.date}
+                        value={editingLog.date || (editingLog.start_time ? new Date(editingLog.start_time).toISOString().split('T')[0] : '')}
                         onChange={(e) => setEditingLog({...editingLog, date: e.target.value})}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       />
@@ -1364,7 +1672,7 @@ const WorkoutLogPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">운동 시간 (분)</label>
                       <input
                         type="number"
-                        value={editingLog.duration}
+                        value={editingLog.duration || editingLog.duration_minutes || ''}
                         onChange={(e) => setEditingLog({...editingLog, duration: parseInt(e.target.value)})}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       />
@@ -1372,7 +1680,7 @@ const WorkoutLogPage = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">운동 타입</label>
                       <select
-                        value={editingLog.type || '근력 운동'}
+                        value={editingLog.type || editingLog.workout_type || '근력 운동'}
                         onChange={(e) => setEditingLog({...editingLog, type: e.target.value})}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2"
                       >
@@ -1400,8 +1708,8 @@ const WorkoutLogPage = () => {
                   </div>
                   
                   <div className="space-y-4">
-                    {editingLog.exercises.map((exercise, index) => (
-                      <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                    {(editingLog.exercises || []).map((exercise, index) => (
+                      <div key={`edit-exercise-${index}`} className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-center mb-3">
                           <h5 className="font-bold text-gray-800">운동 #{index + 1}</h5>
                           <button
@@ -1417,7 +1725,7 @@ const WorkoutLogPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">운동명</label>
                             <input
                               type="text"
-                              value={exercise.name}
+                              value={exercise.name || exercise.exercise?.name || ''}
                               onChange={(e) => handleUpdateExercise(index, 'name', e.target.value)}
                               className="w-full border border-gray-300 rounded-lg px-3 py-2"
                               placeholder="운동명"
@@ -1430,7 +1738,7 @@ const WorkoutLogPage = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">시간 (분)</label>
                                 <input
                                   type="number"
-                                  value={exercise.duration}
+                                  value={exercise.duration || ''}
                                   onChange={(e) => handleUpdateExercise(index, 'duration', parseInt(e.target.value))}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
@@ -1440,8 +1748,8 @@ const WorkoutLogPage = () => {
                                 <input
                                   type="number"
                                   step="0.1"
-                                  value={exercise.distance || 0}
-                                  onChange={(e) => handleUpdateExercise(index, 'distance', parseFloat(e.target.value))}
+                                  value={exercise.distance || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'distance', parseFloat(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1450,8 +1758,8 @@ const WorkoutLogPage = () => {
                                 <input
                                   type="number"
                                   step="0.1"
-                                  value={exercise.speed || 0}
-                                  onChange={(e) => handleUpdateExercise(index, 'speed', parseFloat(e.target.value))}
+                                  value={exercise.speed || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'speed', parseFloat(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1462,8 +1770,8 @@ const WorkoutLogPage = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">세트</label>
                                 <input
                                   type="number"
-                                  value={exercise.sets}
-                                  onChange={(e) => handleUpdateExercise(index, 'sets', parseInt(e.target.value))}
+                                  value={exercise.sets || exercise.sets_completed || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'sets', parseInt(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1471,8 +1779,8 @@ const WorkoutLogPage = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">반복</label>
                                 <input
                                   type="number"
-                                  value={exercise.reps}
-                                  onChange={(e) => handleUpdateExercise(index, 'reps', parseInt(e.target.value))}
+                                  value={exercise.reps || exercise.reps_completed || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'reps', parseInt(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1481,8 +1789,8 @@ const WorkoutLogPage = () => {
                                 <input
                                   type="number"
                                   step="0.5"
-                                  value={exercise.weight}
-                                  onChange={(e) => handleUpdateExercise(index, 'weight', parseFloat(e.target.value))}
+                                  value={exercise.weight || exercise.weight_used || ''}
+                                  onChange={(e) => handleUpdateExercise(index, 'weight', parseFloat(e.target.value) || 0)}
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                                 />
                               </div>
@@ -1522,6 +1830,8 @@ const WorkoutLogPage = () => {
             </div>
           </div>
         )}
+
+
       </div>
     </PageTransition>
   );

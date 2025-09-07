@@ -12,19 +12,24 @@ const MobileNavigation = () => {
       label: '홈'
     },
     {
-      path: '/workouts/log',
+      path: '/workouts',
       icon: 'fas fa-dumbbell',
       label: '운동'
     },
     {
-      path: '/shop',
-      icon: 'fas fa-shopping-bag',
-      label: '스토어'
+      path: '/diet',
+      icon: 'fas fa-utensils',
+      label: '식단'
     },
     {
       path: '/community',
       icon: 'fas fa-users',
       label: '커뮤니티'
+    },
+    {
+      path: '/shop',
+      icon: 'fas fa-shopping-bag',
+      label: '스토어'
     },
     {
       path: '/profile',

@@ -146,6 +146,22 @@ export const completeWorkoutLog = async (id) => {
   }
 };
 
+// 최신 운동 로그 조회 (세션 완료 후 확인용)
+export const getLatestWorkoutLog = async () => {
+  try {
+    const response = await axiosInstance.get('/workouts/logs/', { 
+      params: { 
+        completed: true,
+        ordering: '-start_time',
+        page_size: 1 
+      } 
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // ========== 운동 로그 상세 (Log Exercises) ==========
 
 // 운동 로그 상세 목록 조회
@@ -268,3 +284,277 @@ export const getIncompleteWorkoutLogs = async () => {
 export const getRoutinesByDifficulty = async (difficulty) => {
   return getRoutines({ difficulty });
 }; 
+
+// ========== 루틴 공유 링크 (Routine Share Links) ==========
+
+// 공유 링크 목록 조회
+export const getShareLinks = async () => {
+  try {
+    const response = await axiosInstance.get('/routine-shares/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 공유 링크 생성
+export const createShareLink = async (linkData) => {
+  try {
+    const response = await axiosInstance.post('/routine-shares/', linkData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 공유 링크 상세 조회
+export const getShareLink = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/routine-shares/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 공유 링크 수정
+export const updateShareLink = async (id, linkData) => {
+  try {
+    const response = await axiosInstance.put(`/routine-shares/${id}/`, linkData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 공유 링크 삭제
+export const deleteShareLink = async (id) => {
+  try {
+    const response = await axiosInstance.delete(`/routine-shares/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== 루틴 공유 권한 (Routine Share Permissions) ==========
+
+// 공유 권한 목록 조회
+export const getSharePermissions = async () => {
+  try {
+    const response = await axiosInstance.get('/routine-share-permissions/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 공유 권한 생성
+export const createSharePermission = async (permissionData) => {
+  try {
+    const response = await axiosInstance.post('/routine-share-permissions/', permissionData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 공유 권한 상세 조회
+export const getSharePermission = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/routine-share-permissions/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 공유 권한 수정
+export const updateSharePermission = async (id, permissionData) => {
+  try {
+    const response = await axiosInstance.put(`/routine-share-permissions/${id}/`, permissionData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 공유 권한 삭제
+export const deleteSharePermission = async (id) => {
+  try {
+    const response = await axiosInstance.delete(`/routine-share-permissions/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== 피드 루틴 (Feed Routines) ==========
+
+// 피드 추천 루틴 목록 조회
+export const getFeedRoutines = async () => {
+  try {
+    const response = await axiosInstance.get('/feed/routines/');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 피드 루틴 상세 조회
+export const getFeedRoutine = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/feed/routines/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== 커뮤니티 루틴 (Community Routines) ==========
+
+// 커뮤니티 루틴 목록 조회
+export const getCommunityRoutines = async (params) => {
+  try {
+    const response = await axiosInstance.get('/routines/', { params });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 커뮤니티 루틴 생성
+export const createCommunityRoutine = async (routineData) => {
+  try {
+    const response = await axiosInstance.post('/routines/', routineData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 커뮤니티 루틴 상세 조회
+export const getCommunityRoutine = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/routines/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 커뮤니티 루틴 수정
+export const updateCommunityRoutine = async (id, routineData) => {
+  try {
+    const response = await axiosInstance.put(`/routines/${id}/`, routineData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 커뮤니티 루틴 삭제
+export const deleteCommunityRoutine = async (id) => {
+  try {
+    const response = await axiosInstance.delete(`/routines/${id}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 루틴 공개 상태 토글
+export const toggleRoutinePublic = async (id) => {
+  try {
+    const response = await axiosInstance.post(`/routines/${id}/toggle_public/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== 세션 관련 API ==========
+
+// 운동 세션 시작
+export const startSession = async (sessionData) => {
+  try {
+    const response = await axiosInstance.post('/workouts/sessions/', sessionData);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 진행 중인 세션 조회
+export const getActiveSession = async () => {
+  try {
+    const response = await axiosInstance.get('/workouts/sessions/active/');
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 세션 목록 조회
+export const getSessions = async (params = {}) => {
+  try {
+    const response = await axiosInstance.get('/workouts/sessions/', { params });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 세션 상세 조회
+export const getSession = async (sessionId) => {
+  try {
+    const response = await axiosInstance.get(`/workouts/sessions/${sessionId}/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 세션 제어 (일시정지, 재개, 완료, 취소, 다음 세트, 다음 운동)
+export const controlSession = async (sessionId, action, data = {}) => {
+  try {
+    const response = await axiosInstance.post(`/workouts/sessions/${sessionId}/control/`, {
+      action,
+      ...data
+    });
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 휴식 시작
+export const startRest = async (sessionId) => {
+  try {
+    const response = await axiosInstance.post(`/workouts/sessions/${sessionId}/start_rest/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 휴식 종료
+export const endRest = async (sessionId) => {
+  try {
+    const response = await axiosInstance.post(`/workouts/sessions/${sessionId}/end_rest/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 세션 현재 상태 조회
+export const getSessionStatus = async (sessionId) => {
+  try {
+    const response = await axiosInstance.get(`/workouts/sessions/${sessionId}/current_status/`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+

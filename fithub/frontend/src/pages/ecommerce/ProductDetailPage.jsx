@@ -1,560 +1,560 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Card from '../../components/common/Card';
+import ProductCardList from '../../components/ecommerce/ProductCardList';
+import useEcommerce from '../../hooks/useEcommerce';
+import { useCart } from '../../hooks/useCart';
+import { useAuth } from '../../hooks/useAuth';
+import axiosInstance from '../../api/axiosConfig';
 
 const ProductDetailPage = () => {
   const { productId } = useParams();
+  const navigate = useNavigate();
+  
+  // 훅 사용
+  const {
+    getProductById,
+    getRelatedProducts,
+    getProductReviews,
+    getProductReviewStats,
+    createReview,
+    loading,
+    error,
+    formatPrice,
+    calculateDiscountedPrice
+  } = useEcommerce();
+  
+  const { addToCart, isInCart, loading: cartLoading } = useCart();
+  const { user } = useAuth();
+
+  // 상태 관리
   const [product, setProduct] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [selectedTab, setSelectedTab] = useState('description');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [cartMessage, setCartMessage] = useState('');
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
   
-  console.log("ProductDetailPage 렌더링 - productId:", productId);
+  // 관리자용 할인율 조정 상태
+  const [showDiscountControl, setShowDiscountControl] = useState(false);
+  const [tempDiscountRate, setTempDiscountRate] = useState(0);
+  const [isUpdatingDiscount, setIsUpdatingDiscount] = useState(false);
 
-  // 데모 데이터 - 실제로는 API에서 가져올 것입니다
-  const demoProducts = [
-    {
-      id: 1,
-      name: '프리미엄 요가 매트',
-      category: 'equipment',
-      price: 39000,
-      discount: 10,
-      rating: 4.8,
-      reviewCount: 124,
-      stock: 50,
-      soldCount: 240,
-      image: 'https://images.unsplash.com/photo-1599447292461-38fb53fb0fee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-      additionalImages: [
-        'https://images.unsplash.com/photo-1600881333168-2ef49b341f30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
-        'https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1592432678016-e910b452f9a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'
-      ],
-      isBestseller: true,
-      description: `최고급 TPE 소재로 제작된 프리미엄 요가 매트입니다. 미끄럼 방지 표면과 쿠션감이 뛰어나 요가, 필라테스, 그리고 다양한 실내 운동에 적합합니다.
-      
-      • 두께: 6mm - 충분한 쿠션감 제공
-      • 크기: 183cm x 61cm - 대부분의 신체 크기에 적합
-      • 미끄럼 방지 표면 - 안정적인 자세 유지
-      • 무독성, 친환경 TPE 소재
-      • 가벼운 무게, 휴대용 스트랩 포함
-      • 손쉬운 세척, 빠른 건조`,
-      specifications: [
-        { name: '소재', value: 'TPE(열가소성 엘라스토머)' },
-        { name: '두께', value: '6mm' },
-        { name: '크기', value: '183cm x 61cm' },
-        { name: '무게', value: '1.2kg' },
-        { name: '색상', value: '퍼플 그라데이션' },
-        { name: '포함 액세서리', value: '휴대용 스트랩' },
-        { name: '생산국', value: '한국' }
-      ],
-      nutrition: null,
-      reviewDetails: [
-        { rating: 5, count: 98 },
-        { rating: 4, count: 20 },
-        { rating: 3, count: 5 },
-        { rating: 2, count: 1 },
-        { rating: 1, count: 0 }
-      ],
-      reviews: [
-        {
-          id: 1,
-          userId: 'user123',
-          userName: '요가러버',
-          avatar: 'https://randomuser.me/api/portraits/women/12.jpg',
-          rating: 5,
-          text: '정말 푹신하고 미끄러짐이 없어요! 매일 사용하는데 아직 손상 없이 잘 쓰고 있습니다. 두꺼운 쿠션감이 무릎 보호에 좋아요.',
-          date: '2023-04-15',
-          helpfulCount: 24
-        },
-        {
-          id: 2,
-          userId: 'user456',
-          userName: '헬린이',
-          avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-          rating: 4,
-          text: '품질이 좋고 디자인도 예뻐요. 다만 첫 개봉 시 약간의 냄새가 있었지만 2-3일 환기 후 사라졌어요.',
-          date: '2023-03-22',
-          helpfulCount: 15
+  // 카테고리 이름 안전하게 추출하는 함수
+  const getCategoryName = (product) => {
+    if (!product) return '카테고리 없음';
+    
+    // category_name이 있으면 사용
+    if (product.category_name && typeof product.category_name === 'string') {
+      // 중첩된 JSON 문자열 처리
+      if (product.category_name.includes('{') && product.category_name.includes('}')) {
+        try {
+          const parsed = JSON.parse(product.category_name);
+          return parsed.name || '카테고리 없음';
+        } catch (e) {
+          // JSON 파싱 실패 시 문자열에서 이름 추출 시도
+          const match = product.category_name.match(/'name':\s*'([^']+)'/);
+          if (match) return match[1];
         }
-      ],
-      relatedProducts: [2, 3, 6],
-      externalLink: 'https://www.coupang.com'
-    },
-    {
-      id: 2,
-      name: '조절식 덤벨 세트',
-      category: 'equipment',
-      price: 150000,
-      discount: 0,
-      rating: 4.9,
-      reviewCount: 89,
-      stock: 25,
-      soldCount: 320,
-      image: 'https://images.unsplash.com/photo-1638536532686-d610adba8c7c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
-      additionalImages: [
-        'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80'
-      ],
-      isBestseller: true,
-      description: `고품질 조절식 덤벨 세트로 다양한 무게 설정이 가능합니다. 한 세트로 여러 무게의 덤벨을 대체하여 공간을 절약하고 효율적인 근력 트레이닝을 가능하게 합니다.
-      
-      • 무게 범위: 2.5kg ~ 25kg (각 덤벨)
-      • 2.5kg 단위로 간편하게 무게 조절
-      • 내구성 있는 크롬 도금 스틸 소재
-      • 편안한 그립감의 고무 코팅 핸들
-      • 컴팩트한 사이즈로 공간 절약
-      • 무게 잠금 시스템으로 안전하게 사용 가능`,
-      specifications: [
-        { name: '소재', value: '크롬 도금 스틸, 고무 코팅 핸들' },
-        { name: '무게 범위', value: '2.5kg ~ 25kg (각 덤벨)' },
-        { name: '조절 단위', value: '2.5kg' },
-        { name: '크기', value: '40cm x 20cm x 20cm (각 덤벨)' },
-        { name: '총 무게', value: '50kg (세트)' },
-        { name: '포함 품목', value: '덤벨 2개, 보관용 트레이' },
-        { name: '생산국', value: '미국' }
-      ],
-      nutrition: null,
-      reviewDetails: [
-        { rating: 5, count: 75 },
-        { rating: 4, count: 10 },
-        { rating: 3, count: 3 },
-        { rating: 2, count: 1 },
-        { rating: 1, count: 0 }
-      ],
-      reviews: [
-        {
-          id: 1,
-          userId: 'user789',
-          userName: '헬스마니아',
-          avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
-          rating: 5,
-          text: '정말 편리합니다! 이제 여러 덤벨을 구매할 필요가 없어요. 무게 조절도 간단하고 튼튼해 보입니다.',
-          date: '2023-05-20',
-          helpfulCount: 32
-        },
-        {
-          id: 2,
-          userId: 'user012',
-          userName: '홈트레이닝러버',
-          avatar: 'https://randomuser.me/api/portraits/women/28.jpg',
-          rating: 4,
-          text: '공간을 많이 차지하지 않으면서 다양한 무게로 운동할 수 있어 좋습니다. 무게 변경이 조금 번거롭지만 전반적으로 만족합니다.',
-          date: '2023-04-12',
-          helpfulCount: 18
-        }
-      ],
-      relatedProducts: [1, 3, 6],
-      externalLink: 'https://www.coupang.com'
-    },
-    {
-      id: 3,
-      name: '운동용 저항 밴드 세트',
-      category: 'equipment',
-      price: 25000,
-      discount: 20,
-      rating: 4.6,
-      reviewCount: 245,
-      stock: 100,
-      soldCount: 520,
-      image: 'https://images.unsplash.com/photo-1598550480917-1c485268a92a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-      additionalImages: [
-        'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1518310952931-b1932651351c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1601422407692-ec4eeec1d9b3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'
-      ],
-      isBestseller: false,
-      description: `다양한 강도의 저항 밴드 5종 세트입니다. 홈트레이닝부터 재활운동까지 활용도가 높으며, 휴대성이 좋아 언제 어디서나 운동이 가능합니다.
-      
-      • 5가지 강도: 초경량(노랑), 경량(초록), 중간(파랑), 고강도(빨강), 초고강도(검정)
-      • 내구성 높은 천연 라텍스 소재
-      • 신축성과 복원력이 뛰어남
-      • 손잡이와 발걸이 포함
-      • 휴대용 메쉬 가방 포함
-      • 운동 가이드북 포함`,
-      specifications: [
-        { name: '소재', value: '천연 라텍스' },
-        { name: '밴드 개수', value: '5개' },
-        { name: '강도', value: '초경량, 경량, 중간, 고강도, 초고강도' },
-        { name: '길이', value: '120cm' },
-        { name: '부속품', value: '손잡이, 발걸이, 휴대용 가방, 운동 가이드북' },
-        { name: '생산국', value: '태국' }
-      ],
-      nutrition: null,
-      reviewDetails: [
-        { rating: 5, count: 180 },
-        { rating: 4, count: 45 },
-        { rating: 3, count: 15 },
-        { rating: 2, count: 3 },
-        { rating: 1, count: 2 }
-      ],
-      reviews: [
-        {
-          id: 1,
-          userId: 'user555',
-          userName: '홈트의달인',
-          avatar: 'https://randomuser.me/api/portraits/women/33.jpg',
-          rating: 5,
-          text: '가격 대비 품질이 훌륭합니다. 5가지 강도가 있어 다양한 운동에 활용하고 있어요. 특히 초보자부터 상급자까지 모두 사용할 수 있어 좋습니다.',
-          date: '2023-03-15',
-          helpfulCount: 42
-        },
-        {
-          id: 2,
-          userId: 'user777',
-          userName: '피트니스맘',
-          avatar: 'https://randomuser.me/api/portraits/women/55.jpg',
-          rating: 4,
-          text: '아이 키우면서 짬짬이 운동하기 좋아요. 공간도 많이 차지하지 않고 효과도 좋습니다. 초고강도 밴드는 생각보다 강해서 주의해서 사용해야 해요.',
-          date: '2023-02-28',
-          helpfulCount: 28
-        }
-      ],
-      relatedProducts: [1, 2, 6],
-      externalLink: 'https://www.coupang.com'
-    },
-    {
-      id: 4,
-      name: '프로틴 쉐이커 보틀',
-      category: 'accessories',
-      price: 15000,
-      discount: 0,
-      rating: 4.5,
-      reviewCount: 156,
-      stock: 200,
-      soldCount: 430,
-      image: 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1480&q=80',
-      additionalImages: [
-        'https://images.unsplash.com/photo-1514995669114-6081e934b693?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1550759506-b7e03d1265d7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1579722821273-0f6c1b933c0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'
-      ],
-      isBestseller: false,
-      description: `BPA free 재질의 고품질 프로틴 쉐이커입니다. 특수 설계된 믹서볼이 부드럽고 완벽한 혼합을 보장하며, 누수 방지 설계로 안심하고 가방에 넣을 수 있습니다.
-      
-      • 용량: 700ml
-      • BPA free 트라이탄 플라스틱 소재
-      • 스테인리스 믹서볼 포함
-      • 뚜껑 잠금 장치로 누수 방지
-      • 인체공학적 디자인의 손잡이
-      • 용량 표시 눈금
-      • 식기세척기 사용 가능`,
-      specifications: [
-        { name: '소재', value: 'BPA free 트라이탄 플라스틱, 스테인리스 스틸' },
-        { name: '용량', value: '700ml' },
-        { name: '크기', value: '23cm x 9cm (지름)' },
-        { name: '무게', value: '180g' },
-        { name: '색상', value: '블랙' },
-        { name: '부속품', value: '믹서볼, 측정 눈금' },
-        { name: '생산국', value: '한국' }
-      ],
-      nutrition: null,
-      reviewDetails: [
-        { rating: 5, count: 110 },
-        { rating: 4, count: 36 },
-        { rating: 3, count: 8 },
-        { rating: 2, count: 2 },
-        { rating: 1, count: 0 }
-      ],
-      reviews: [
-        {
-          id: 1,
-          userId: 'user888',
-          userName: '헬스장주민',
-          avatar: 'https://randomuser.me/api/portraits/men/67.jpg',
-          rating: 5,
-          text: '매일 사용하는데 정말 만족합니다. 잘 섞이고 세척도 간편해요. 특히 누수가 전혀 없어서 가방에 넣어도 안심이에요.',
-          date: '2023-06-10',
-          helpfulCount: 19
-        },
-        {
-          id: 2,
-          userId: 'user999',
-          userName: '프로틴러버',
-          avatar: 'https://randomuser.me/api/portraits/women/62.jpg',
-          rating: 4,
-          text: '디자인도 심플하고 기능도 좋아요. 덩어리 없이 프로틴 파우더가 잘 섞여요. 다만 세척할 때 믹서볼 주변을 꼼꼼히 해야 합니다.',
-          date: '2023-05-22',
-          helpfulCount: 15
-        }
-      ],
-      relatedProducts: [5, 6],
-      externalLink: 'https://www.coupang.com'
-    },
-    {
-      id: 5,
-      name: '프리미엄 웨이트 프로틴',
-      category: 'nutrition',
-      price: 59000,
-      discount: 5,
-      rating: 4.7,
-      reviewCount: 312,
-      stock: 150,
-      soldCount: 760,
-      image: 'https://images.unsplash.com/photo-1579722821273-0f6c1b933c0c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-      additionalImages: [
-        'https://images.unsplash.com/photo-1614243339734-ad2a32350daa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1505253668822-42074d58a7c6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
-        'https://images.unsplash.com/photo-1594204072086-b3448d0aa50a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'
-      ],
-      isBestseller: true,
-      description: `고품질 분리 유청 단백질(WPI)을 주원료로 한 프리미엄 웨이트 프로틴입니다. 근육 성장과 회복을 위한 필수 영양소를 함유하고 있으며, 맛과 용해도가 뛰어납니다.
-      
-      • 중량: 2kg (약 66회 제공량)
-      • 제공량당 단백질: 27g
-      • 저지방, 저당
-      • BCAA 및 글루타민 강화
-      • 인공 감미료, 색소, 방부제 무첨가
-      • 다양한 맛: 초콜릿, 바닐라, 딸기, 바나나
-      • 빠른 용해력과 부드러운 맛`,
-      specifications: [
-        { name: '중량', value: '2kg' },
-        { name: '제공량', value: '30g (1스쿱)' },
-        { name: '총 제공량', value: '약 66회' },
-        { name: '맛', value: '초콜릿' },
-        { name: '유통기한', value: '제조일로부터 24개월' },
-        { name: '보관방법', value: '직사광선을 피해 서늘하고 건조한 곳에 보관' },
-        { name: '생산국', value: '미국' }
-      ],
-      nutrition: [
-        { name: '열량', value: '120kcal' },
-        { name: '단백질', value: '27g' },
-        { name: '지방', value: '1.5g' },
-        { name: '탄수화물', value: '3g' },
-        { name: '당류', value: '1g' },
-        { name: '나트륨', value: '80mg' },
-        { name: 'BCAA', value: '5.5g' },
-        { name: '글루타민', value: '4g' }
-      ],
-      reviewDetails: [
-        { rating: 5, count: 255 },
-        { rating: 4, count: 42 },
-        { rating: 3, count: 10 },
-        { rating: 2, count: 3 },
-        { rating: 1, count: 2 }
-      ],
-      reviews: [
-        {
-          id: 1,
-          userId: 'user111',
-          userName: '근육맨',
-          avatar: 'https://randomuser.me/api/portraits/men/22.jpg',
-          rating: 5,
-          text: '3년째 애용중인 프로틴입니다. 맛도 좋고 용해도도 뛰어나서 덩어리 없이 잘 섞여요. 운동 후 회복에도 효과가 좋은 것 같습니다.',
-          date: '2023-05-05',
-          helpfulCount: 45
-        },
-        {
-          id: 2,
-          userId: 'user222',
-          userName: '헬린이탈출',
-          avatar: 'https://randomuser.me/api/portraits/men/36.jpg',
-          rating: 4,
-          text: '초코맛이 달지 않고 적당해서 좋아요. 거품도 적고 소화도 잘 됩니다. 근손실 방지에 도움이 되는 것 같아요.',
-          date: '2023-04-18',
-          helpfulCount: 32
-        }
-      ],
-      relatedProducts: [4, 6],
-      externalLink: 'https://www.coupang.com'
-    },
-    {
-      id: 6,
-      name: '스포츠 손목 밴드',
-      category: 'accessories',
-      price: 12000,
-      discount: 0,
-      rating: 4.3,
-      reviewCount: 68,
-      stock: 300,
-      soldCount: 120,
-      image: 'https://images.unsplash.com/photo-1531917115039-473db54f8482?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-      additionalImages: [
-        'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-        'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'
-      ],
-      isBestseller: false,
-      description: `전문 운동선수들도 사용하는 고급 스포츠 손목 밴드입니다. 무거운 웨이트 트레이닝 시 손목을 안정화하고 부상을 방지해 줍니다.
-      
-      • 강력한 지지력과 압박감
-      • 내구성 있는 면 소재와 탄성 섬유 혼방
-      • 조절 가능한 벨크로 스트랩
-      • 엄지 루프로 편안한 착용감
-      • 땀 흡수 기능
-      • 한 쌍(2개) 제공`,
-      specifications: [
-        { name: '소재', value: '면 60%, 폴리에스터 25%, 스판덱스 15%' },
-        { name: '길이', value: '50cm' },
-        { name: '너비', value: '8cm' },
-        { name: '무게', value: '80g (쌍)' },
-        { name: '색상', value: '블랙' },
-        { name: '포함 수량', value: '2개 (한 쌍)' },
-        { name: '세탁 방법', value: '손세탁 권장' },
-        { name: '생산국', value: '대한민국' }
-      ],
-      nutrition: null,
-      reviewDetails: [
-        { rating: 5, count: 42 },
-        { rating: 4, count: 20 },
-        { rating: 3, count: 5 },
-        { rating: 2, count: 1 },
-        { rating: 1, count: 0 }
-      ],
-      reviews: [
-        {
-          id: 1,
-          userId: 'user333',
-          userName: '역도선수',
-          avatar: 'https://randomuser.me/api/portraits/men/81.jpg',
-          rating: 5,
-          text: '데드리프트나 벤치프레스 할 때 손목이 많이 아팠는데, 이 손목 밴드를 사용하고 나서는 훨씬 안정적으로 운동할 수 있게 됐어요. 지지력이 정말 좋습니다.',
-          date: '2023-03-30',
-          helpfulCount: 12
-        },
-        {
-          id: 2,
-          userId: 'user444',
-          userName: '크로스핏러',
-          avatar: 'https://randomuser.me/api/portraits/women/75.jpg',
-          rating: 4,
-          text: '손목을 단단히 고정해줘서 좋아요. 다만 처음에는 조금 빡빡할 수 있으니 적응이 필요합니다. 세탁 후에도 탄력이 유지돼요.',
-          date: '2023-02-15',
-          helpfulCount: 8
-        }
-      ],
-      relatedProducts: [1, 3, 4],
-      externalLink: 'https://www.coupang.com'
+      }
+      return product.category_name;
     }
-  ];
+    
+    // category 객체에서 이름 추출
+    if (product.category) {
+      if (typeof product.category === 'string') {
+        // 문자열로 된 카테고리인 경우 JSON 파싱 시도
+        if (product.category.includes('{') && product.category.includes('}')) {
+          try {
+            const parsed = JSON.parse(product.category);
+            return parsed.name || '카테고리 없음';
+          } catch (e) {
+            // JSON 파싱 실패 시 문자열에서 이름 추출 시도
+            const match = product.category.match(/'name':\s*'([^']+)'/);
+            if (match) return match[1];
+          }
+        }
+        return product.category;
+      } else if (typeof product.category === 'object' && product.category.name) {
+        // 객체인 경우 name 필드 사용
+        if (typeof product.category.name === 'string' && 
+            product.category.name.includes('{') && 
+            product.category.name.includes('}')) {
+          try {
+            const parsed = JSON.parse(product.category.name);
+            return parsed.name || '카테고리 없음';
+          } catch (e) {
+            // JSON 파싱 실패 시 문자열에서 이름 추출 시도
+            const match = product.category.name.match(/'name':\s*'([^']+)'/);
+            if (match) return match[1];
+          }
+        }
+        return product.category.name;
+      }
+    }
+    
+    return '카테고리 없음';
+  };
 
+  // 상품 데이터 로드
   useEffect(() => {
-    // 실제로는 API 호출로 대체
-    const fetchProduct = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      // 디버깅 용도
-      console.log("=============== 상품 디버깅 정보 ===============");
-      console.log("전체 상품 목록 ID:", demoProducts.map(p => `${p.name} (ID: ${p.id}, 타입: ${typeof p.id})`));
-      console.log("현재 URL의 productId:", productId, "타입:", typeof productId);
-      
+    const loadProductData = async () => {
+      if (!productId) return;
+
       try {
-        // 데모용 API 지연 시뮬레이션
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // 문자열 productId를 숫자로 변환
-        const numericId = parseInt(productId);
-        console.log("변환된 ID:", numericId, "타입:", typeof numericId);
-        
-        // ID 비교를 엄격하게 수행
-        let foundProduct = demoProducts.find(p => p.id === numericId);
-        
-        if (!foundProduct) {
-          console.log("숫자 ID로 찾지 못함, 문자열로 시도:", productId);
-          foundProduct = demoProducts.find(p => String(p.id) === productId);
+        // 상품 정보 로드
+        const productData = await getProductById(productId);
+        if (productData) {
+          setProduct(productData);
+          
+          // 병렬로 리뷰, 리뷰 통계, 관련 상품 로드
+          const [reviewsData, reviewStatsData, relatedData] = await Promise.all([
+            getProductReviews(productId),
+            getProductReviewStats(productId),
+            getRelatedProducts(productId, 4)
+          ]);
+          
+          setReviews(reviewsData || []);
+          setReviewStats(reviewStatsData || null);
+          setRelatedProducts(relatedData || []);
+
+          // 리뷰 통계 데이터로 상품 정보 동기화
+          if (reviewStatsData) {
+            setProduct(prev => ({
+              ...prev,
+              rating: reviewStatsData.average_rating || 0,
+              review_count: reviewStatsData.total_reviews || 0
+            }));
+          }
         }
-        
-        console.log("찾은 상품:", foundProduct ? `${foundProduct.name} (ID: ${foundProduct.id})` : "없음");
-        setProduct(foundProduct || null);
-        
-        if (!foundProduct) {
-          setError(`ID ${productId}에 해당하는 상품을 찾을 수 없습니다.`);
-        }
-      } catch (error) {
-        console.error('상품 정보를 불러오는데 실패했습니다:', error);
-        setError('상품 정보를 불러오는데 실패했습니다. 다시 시도해주세요.');
-      } finally {
-        setIsLoading(false);
+      } catch (err) {
+        console.error('상품 데이터 로드 실패:', err);
       }
     };
 
-    fetchProduct();
-  }, [productId]);
+    loadProductData();
+  }, [productId, getProductById, getProductReviews, getProductReviewStats, getRelatedProducts]);
 
+  // 수량 변경
   const handleQuantityChange = (amount) => {
     const newQuantity = quantity + amount;
-    if (newQuantity >= 1 && newQuantity <= (product?.stock || 10)) {
+    const maxQuantity = product?.stock_quantity || product?.stock || 10;
+    if (newQuantity >= 1 && newQuantity <= maxQuantity) {
       setQuantity(newQuantity);
     }
   };
 
-  const calculateDiscountedPrice = (price, discount) => {
-    if (!discount) return price;
-    return Math.round(price * (1 - discount / 100));
+  // 장바구니 추가
+  const handleAddToCart = async () => {
+    if (!product) return;
+
+    try {
+      await addToCart(product.id, quantity);
+      setCartMessage('장바구니에 추가되었습니다!');
+      setTimeout(() => setCartMessage(''), 3000);
+    } catch (err) {
+      console.error('장바구니 추가 실패:', err);
+      setCartMessage('장바구니 추가에 실패했습니다.');
+      setTimeout(() => setCartMessage(''), 3000);
+    }
   };
 
-  if (isLoading) {
+  // 바로 구매
+  const handleBuyNow = async () => {
+    if (!product) return;
+
+    try {
+      // 바로 구매할 상품 정보 생성
+      const purchaseItem = {
+        id: `temp_${Date.now()}`, // 임시 ID
+        product: product,
+        quantity: quantity
+      };
+
+      // 결제 페이지로 바로 이동 (장바구니를 거치지 않음)
+      navigate('/billing', { 
+        state: { 
+          selectedItems: [purchaseItem],
+          fromCart: false,
+          directPurchase: true
+        } 
+      });
+    } catch (err) {
+      console.error('바로 구매 실패:', err);
+      alert('구매 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 리뷰 작성
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    
+    // 유효성 검사
+    if (!reviewForm.title.trim()) {
+      alert('리뷰 제목을 입력해주세요.');
+      return;
+    }
+    
+    if (!reviewForm.comment.trim()) {
+      alert('리뷰 내용을 입력해주세요.');
+      return;
+    }
+    
+    setReviewLoading(true);
+    
+    try {
+      const reviewData = {
+        product: product.id,
+        rating: reviewForm.rating,
+        title: reviewForm.title.trim(),
+        content: reviewForm.comment.trim()
+      };
+      
+      const newReview = await createReview(reviewData);
+      if (newReview) {
+        // 리뷰 목록 다시 불러오기 (확실한 동기화를 위해)
+        const [updatedReviews, updatedStats] = await Promise.all([
+          getProductReviews(productId),
+          getProductReviewStats(productId)
+        ]);
+        
+        setReviews(updatedReviews || []);
+        setReviewStats(updatedStats);
+
+        // 상품 정보도 업데이트된 통계로 동기화
+        if (updatedStats) {
+          setProduct(prev => ({
+            ...prev,
+            rating: updatedStats.average_rating || 0,
+            review_count: updatedStats.total_reviews || 0
+          }));
+        }
+        
+        // 폼 초기화
+        setReviewForm({ rating: 5, title: '', comment: '' });
+        setShowReviewForm(false);
+        
+        alert('리뷰가 성공적으로 작성되었습니다!');
+      }
+    } catch (err) {
+      console.error('리뷰 작성 실패:', err);
+      const errorMessage = err.response?.data?.detail || 
+                          err.response?.data?.message || 
+                          '리뷰 작성에 실패했습니다.';
+      alert(errorMessage);
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  // 관리자 할인율 조정 함수
+  const handleDiscountUpdate = async () => {
+    if ((!user?.is_superuser && !user?.is_staff) || !product) return;
+
+    setIsUpdatingDiscount(true);
+    try {
+      // 할인율을 백분율로 변환하여 sale_price 계산
+      const discountRate = tempDiscountRate / 100;
+      const originalPrice = parseFloat(product.price);
+      const newSalePrice = discountRate > 0 ? originalPrice * (1 - discountRate) : null;
+
+      // 백엔드에서 요구하는 전체 데이터 형식으로 구성
+      const updateData = {
+        name: product.name,
+        description: product.description || '',
+        price: originalPrice.toString(),
+        sale_price: newSalePrice ? newSalePrice.toString() : null,
+        stock_quantity: product.stock_quantity || product.stock || 0,
+        is_food: product.is_food || false,
+        is_active: product.is_active !== false,
+        is_featured: product.is_featured || false,
+        category: product.category?.id || product.category_id || 1
+      };
+
+      console.log('할인율 업데이트 데이터:', {
+        originalPrice,
+        discountRate: tempDiscountRate,
+        newSalePrice,
+        updateData
+      });
+
+      const response = await axiosInstance.put(`/ecommerce/products/${product.id}/`, updateData);
+      
+      if (response.data) {
+        // 상품 정보 업데이트
+        setProduct(prev => ({
+          ...prev,
+          sale_price: newSalePrice
+        }));
+        
+        setCartMessage('할인율이 성공적으로 적용되었습니다!');
+        setTimeout(() => setCartMessage(''), 3000);
+        setShowDiscountControl(false);
+      }
+    } catch (err) {
+      console.error('할인율 업데이트 실패:', err);
+      
+      // 오류 세부 정보 표시
+      if (err.response?.data) {
+        console.error('서버 응답:', err.response.data);
+        const errorMessages = Object.values(err.response.data).flat();
+        setCartMessage(`할인율 적용 실패: ${errorMessages.join(', ')}`);
+      } else {
+        setCartMessage('할인율 적용에 실패했습니다. 관리자 권한을 확인해주세요.');
+      }
+      setTimeout(() => setCartMessage(''), 5000);
+    } finally {
+      setIsUpdatingDiscount(false);
+    }
+  };
+
+  // 할인율 초기화 함수
+  const handleDiscountReset = async () => {
+    if ((!user?.is_superuser && !user?.is_staff) || !product) return;
+
+    setIsUpdatingDiscount(true);
+    try {
+      // 백엔드에서 요구하는 전체 데이터 형식으로 구성
+      const updateData = {
+        name: product.name,
+        description: product.description || '',
+        price: parseFloat(product.price).toString(),
+        sale_price: null,
+        stock_quantity: product.stock_quantity || product.stock || 0,
+        is_food: product.is_food || false,
+        is_active: product.is_active !== false,
+        is_featured: product.is_featured || false,
+        category: product.category?.id || product.category_id || 1
+      };
+
+      const response = await axiosInstance.put(`/ecommerce/products/${product.id}/`, updateData);
+      
+      if (response.data) {
+        setProduct(prev => ({
+          ...prev,
+          sale_price: null
+        }));
+        
+        setTempDiscountRate(0);
+        setCartMessage('할인율이 초기화되었습니다.');
+        setTimeout(() => setCartMessage(''), 3000);
+      }
+    } catch (err) {
+      console.error('할인율 초기화 실패:', err);
+      
+      // 오류 세부 정보 표시
+      if (err.response?.data) {
+        console.error('서버 응답:', err.response.data);
+        const errorMessages = Object.values(err.response.data).flat();
+        setCartMessage(`할인율 초기화 실패: ${errorMessages.join(', ')}`);
+      } else {
+        setCartMessage('할인율 초기화에 실패했습니다. 관리자 권한을 확인해주세요.');
+      }
+      setTimeout(() => setCartMessage(''), 5000);
+    } finally {
+      setIsUpdatingDiscount(false);
+    }
+  };
+
+  // 기본 이미지 설정 (SVG 데이터 URL)
+  const defaultImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNzUgMTUwQzE3NSAxNDQuNDc3IDE3OS40NzcgMTQwIDE4NSAxNDBIMjE1QzIyMC41MjMgMTQwIDIyNSAxNDQuNDc3IDIyNSAxNTBWMTgwQzIyNSAxODUuNTIzIDIyMC41MjMgMTkwIDIxNSAxOTBIMTg1QzE3OS40NzcgMTkwIDE3NSAxODUuNTIzIDE3NSAxODBWMTUwWiIgZmlsbD0iI0Q1RDNEQ0EiIHN0cm9rZT0iIzk5OSIgc3Ryb2tlLXdpZHRoPSIxIi8+Cjx0ZXh0IHg9IjIwMCIgeT0iMjUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiPuydtOuvuOydhCDsl4bsnYw8L3RleHQ+Cjwvc3ZnPgo=';
+
+  // 썸네일용 기본 이미지 (작은 크기)
+  const defaultThumbnail = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNSAzMEMzNSAyOC45IDM1LjkgMjggMzcgMjhINDNDNDQuMSAyOCA0NSAyOC45IDQ1IDMwVjM2QzQ1IDM3LjEgNDQuMSAzOCA0MyAzOEgzN0MzNS45IDM4IDM1IDM3LjEgMzUgMzZWMzBaIiBmaWxsPSIjRDVEM0RDQSIgc3Ryb2tlPSIjOTk5IiBzdHJva2Utd2lkdGg9IjEiLz4KPHR4dCB4PSI0MCIgeT0iNTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM2NjYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI4Ij7snbTrr7ztlIwg7JeG7J2MPC90ZXh0Pgo8L3N2Zz4K';
+
+  // 이미지 오류 처리 함수
+  const handleImageError = (e, isThumbnail = false) => {
+    // 이미 기본 이미지인 경우 더 이상 변경하지 않음 (무한 루프 방지)
+    if (e.target.src.startsWith('data:image/svg+xml')) {
+      return;
+    }
+    
+    // 오류 발생한 이미지를 기본 이미지로 교체
+    e.target.src = isThumbnail ? defaultThumbnail : defaultImage;
+  };
+
+  // PATCH를 사용한 부분 업데이트 함수 (대안)
+  const handleDiscountUpdatePatch = async () => {
+    if ((!user?.is_superuser && !user?.is_staff) || !product) return;
+
+    setIsUpdatingDiscount(true);
+    try {
+      // 할인율을 백분율로 변환하여 sale_price 계산
+      const discountRate = tempDiscountRate / 100;
+      const originalPrice = parseFloat(product.price);
+      const newSalePrice = discountRate > 0 ? originalPrice * (1 - discountRate) : null;
+
+      // PATCH로 부분 업데이트
+      const updateData = {
+        sale_price: newSalePrice ? newSalePrice.toString() : null
+      };
+
+      console.log('PATCH 할인율 업데이트 데이터:', updateData);
+
+      const response = await axiosInstance.patch(`/ecommerce/products/${product.id}/`, updateData);
+      
+      if (response.data) {
+        setProduct(prev => ({
+          ...prev,
+          sale_price: newSalePrice
+        }));
+        
+        setCartMessage('할인율이 성공적으로 적용되었습니다!');
+        setTimeout(() => setCartMessage(''), 3000);
+        setShowDiscountControl(false);
+      }
+    } catch (err) {
+      console.error('PATCH 할인율 업데이트 실패:', err);
+      
+      // PUT 방식으로 재시도
+      console.log('PUT 방식으로 재시도합니다...');
+      return handleDiscountUpdate();
+    } finally {
+      setIsUpdatingDiscount(false);
+    }
+  };
+
+  // 이미지 갤러리 처리
+  const productImages = product ? [
+    product.image || defaultImage,
+    ...(product.additional_images || [])
+  ].filter(Boolean) : [];
+
+  // 기본 이미지가 없는 경우 플레이스홀더 사용
+  const mainImage = productImages[selectedImageIndex] || defaultImage;
+
+  // 로딩 상태
+  if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex justify-center items-center h-64">
-        <div className="flex flex-col items-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-600">상품 정보를 불러오는 중...</p>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600">상품 정보를 불러오는 중...</p>
+          </div>
         </div>
       </div>
     );
   }
 
+  // 에러 상태
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Card className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">오류가 발생했습니다</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <pre className="bg-gray-100 p-4 mb-6 text-left text-sm overflow-auto max-h-40 rounded">
-            {`요청한 ID: ${productId}\n사용 가능한 상품 ID: ${demoProducts.map(p => p.id).join(', ')}`}
-          </pre>
-          <Link to="/shop" className="bg-primary text-white px-6 py-2 rounded-lg inline-block">
+        <div className="text-center bg-red-50 p-8 rounded-lg">
+          <i className="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+          <h2 className="text-xl font-bold text-red-800 mb-2">오류 발생</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => navigate('/shop')}
+            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition-colors"
+          >
             상품 목록으로 돌아가기
-          </Link>
-        </Card>
+          </button>
+        </div>
       </div>
     );
   }
 
+  // 상품이 없는 경우
   if (!product) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Card className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">상품을 찾을 수 없습니다</h2>
-          <p className="text-gray-600 mb-6">요청하신 상품이 존재하지 않거나 삭제되었을 수 있습니다.</p>
-          <pre className="bg-gray-100 p-4 mb-6 text-left text-sm overflow-auto max-h-40 rounded">
-            {`요청한 ID: ${productId}\n사용 가능한 상품 ID: ${demoProducts.map(p => p.id).join(', ')}`}
-          </pre>
-          <Link to="/shop" className="bg-primary text-white px-6 py-2 rounded-lg inline-block">
+        <div className="text-center bg-yellow-50 p-8 rounded-lg">
+          <i className="fas fa-search text-yellow-500 text-4xl mb-4"></i>
+          <h2 className="text-xl font-bold text-yellow-800 mb-2">상품을 찾을 수 없습니다</h2>
+          <p className="text-yellow-600 mb-4">요청하신 상품이 존재하지 않거나 삭제되었습니다.</p>
+          <button 
+            onClick={() => navigate('/shop')}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg transition-colors"
+          >
             상품 목록으로 돌아가기
-          </Link>
-        </Card>
+          </button>
+        </div>
       </div>
     );
   }
 
-  const discountedPrice = calculateDiscountedPrice(product.price, product.discount);
+  // 실제 판매가격 계산
+  const originalPrice = parseFloat(product.price) || 0;
+  const salePrice = product.sale_price && parseFloat(product.sale_price) > 0 ? parseFloat(product.sale_price) : null;
+  const actualPrice = salePrice || originalPrice;
+  const discountRate = salePrice ? Math.round((1 - salePrice / originalPrice) * 100) : 0;
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* 뒤로가기 버튼 */}
+      <button
+        onClick={() => navigate('/shop')}
+        className="flex items-center text-gray-600 hover:text-gray-800 mb-6 transition-colors"
+      >
+        <i className="fas fa-arrow-left mr-2"></i>
+        상품 목록으로 돌아가기
+      </button>
+
+      {/* 장바구니 추가 메시지 */}
+      {cartMessage && (
+        <div className={`fixed top-4 right-4 p-4 rounded-lg z-50 transition-all ${
+          cartMessage.includes('성공') || cartMessage.includes('추가') 
+            ? 'bg-green-500 text-white' 
+            : 'bg-red-500 text-white'
+        }`}>
+          <i className={`fas ${
+            cartMessage.includes('성공') || cartMessage.includes('추가') 
+              ? 'fa-check' 
+              : 'fa-exclamation-triangle'
+          } mr-2`}></i>
+          {cartMessage}
+        </div>
+      )}
+
       {/* 상품 기본 정보 */}
-      <div className="flex flex-col lg:flex-row gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* 이미지 갤러리 */}
-        <div className="lg:w-1/2">
-          <div className="bg-white rounded-xl overflow-hidden shadow-sm mb-4">
+        <div>
+          {/* 메인 이미지 */}
+          <div className="bg-white rounded-xl overflow-hidden shadow-sm mb-4 relative">
             <img 
-              src={product.image} 
+              src={mainImage} 
               alt={product.name} 
-              className="w-full h-96 object-cover"
+              className="w-full h-96 object-cover cursor-zoom-in"
+              onClick={() => setIsImageModalOpen(true)}
+              onError={(e) => handleImageError(e, false)}
             />
+            {product.discount > 0 && (
+              <span className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-lg">
+                {product.discount}% 할인
+              </span>
+            )}
+            {product.is_bestseller && (
+              <span className="absolute top-4 right-4 bg-yellow-500 text-white text-sm font-bold px-3 py-1 rounded-lg">
+                베스트셀러
+              </span>
+            )}
           </div>
           
-          {/* 추가 이미지 */}
-          {product.additionalImages && (
-            <div className="grid grid-cols-3 gap-4">
-              {product.additionalImages.map((img, index) => (
-                <div key={index} className="bg-white rounded-lg overflow-hidden shadow-sm cursor-pointer">
+          {/* 이미지 썸네일 */}
+          {productImages.length > 1 && (
+            <div className="grid grid-cols-4 gap-2">
+              {productImages.map((img, index) => (
+                <div 
+                  key={`product-image-${product.id}-${index}`} 
+                  className={`bg-white rounded-lg overflow-hidden shadow-sm cursor-pointer border-2 transition-colors ${
+                    selectedImageIndex === index ? 'border-primary' : 'border-transparent'
+                  }`}
+                  onClick={() => setSelectedImageIndex(index)}
+                >
                   <img 
                     src={img} 
-                    alt={`${product.name} ${index+1}`} 
-                    className="w-full h-24 object-cover"
+                    alt={`${product.name} ${index + 1}`} 
+                    className="w-full h-20 object-cover"
+                    onError={(e) => handleImageError(e, true)}
                   />
                 </div>
               ))}
@@ -563,16 +563,21 @@ const ProductDetailPage = () => {
         </div>
         
         {/* 상품 정보 */}
-        <div className="lg:w-1/2">
+        <div>
           <div className="bg-white rounded-xl shadow-sm p-6">
             {/* 카테고리 및 태그 */}
-            <div className="flex gap-2 mb-2">
-              <span className="text-sm text-gray-500 capitalize">
-                {product.category}
+            <div className="flex flex-wrap gap-2 mb-3">
+              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                {getCategoryName(product)}
               </span>
-              {product.isBestseller && (
-                <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded">
-                  베스트셀러
+              {product.is_bestseller && (
+                <span className="bg-yellow-100 text-yellow-800 text-sm px-2 py-1 rounded">
+                  🏆 베스트셀러
+                </span>
+              )}
+              {(product.stock_quantity || product.stock) <= 10 && (product.stock_quantity || product.stock) > 0 && (
+                <span className="bg-orange-100 text-orange-800 text-sm px-2 py-1 rounded">
+                  ⚠️ 품절 임박
                 </span>
               )}
             </div>
@@ -580,156 +585,219 @@ const ProductDetailPage = () => {
             {/* 상품명 */}
             <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
             
-            {/* 별점 */}
+            {/* 별점 및 리뷰 */}
             <div className="flex items-center mb-4">
               <div className="flex text-yellow-400">
                 {[...Array(5)].map((_, i) => (
                   <i 
-                    key={i} 
-                    className={`fas fa-star ${i < Math.floor(product.rating) ? '' : i < product.rating ? 'fas fa-star-half-alt' : 'far fa-star'}`}
+                    key={`product-rating-star-${i}`} 
+                    className={`${i < Math.floor(product.rating || 0) ? 'fas' : i < (product.rating || 0) ? 'fas fa-star-half-alt' : 'far'} fa-star`}
                   ></i>
                 ))}
               </div>
               <span className="text-gray-500 ml-2">
-                {product.rating} ({product.reviewCount} 리뷰)
+                {product.rating ? product.rating.toFixed(1) : '0.0'} ({product.review_count || 0} 리뷰)
               </span>
             </div>
             
             {/* 가격 */}
             <div className="mb-6">
-              {product.discount > 0 ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl font-bold text-primary">
-                    {discountedPrice.toLocaleString()}원
-                  </span>
+              {salePrice ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-3xl font-bold text-primary">
+                      {actualPrice.toLocaleString()}원
+                    </span>
+                    <span className="text-red-500 font-medium bg-red-100 px-2 py-1 rounded text-sm">
+                      {discountRate}% 할인
+                    </span>
+                  </div>
                   <span className="text-lg text-gray-500 line-through">
-                    {product.price.toLocaleString()}원
-                  </span>
-                  <span className="bg-red-500 text-white text-sm px-2 py-1 rounded">
-                    {product.discount}% 할인
+                    {originalPrice.toLocaleString()}원
                   </span>
                 </div>
               ) : (
                 <span className="text-3xl font-bold text-primary">
-                  {product.price.toLocaleString()}원
+                  {originalPrice.toLocaleString()}원
                 </span>
               )}
             </div>
-            
-            {/* 구매 수량 */}
+
+            {/* 관리자용 할인율 조정 */}
+            {(user?.is_superuser || user?.is_staff) && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-blue-800">
+                    <i className="fas fa-user-shield mr-2"></i>
+                    관리자 할인율 조정
+                  </h4>
+                  <button
+                    onClick={() => setShowDiscountControl(!showDiscountControl)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    {showDiscountControl ? '숨기기' : '표시'}
+                  </button>
+                </div>
+                
+                {showDiscountControl && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 mb-2">
+                        할인율: {tempDiscountRate}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="80"
+                        step="5"
+                        value={tempDiscountRate}
+                        onChange={(e) => setTempDiscountRate(parseInt(e.target.value))}
+                        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider"
+                      />
+                      <div className="flex justify-between text-xs text-blue-600 mt-1">
+                        <span>0%</span>
+                        <span>20%</span>
+                        <span>40%</span>
+                        <span>60%</span>
+                        <span>80%</span>
+                      </div>
+                    </div>
+                    
+                    {tempDiscountRate > 0 && (
+                      <div className="text-sm text-blue-700 bg-blue-100 p-2 rounded">
+                        할인 적용 시 가격: {(originalPrice * (1 - tempDiscountRate / 100)).toLocaleString()}원
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDiscountUpdatePatch}
+                        disabled={isUpdatingDiscount}
+                        className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+                      >
+                        {isUpdatingDiscount ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin mr-1"></i>
+                            적용 중...
+                          </>
+                        ) : (
+                          '할인율 적용'
+                        )}
+                      </button>
+                      <button
+                        onClick={handleDiscountReset}
+                        disabled={isUpdatingDiscount}
+                        className="flex-1 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 text-sm"
+                      >
+                        초기화
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 재고 정보 */}
             <div className="mb-6">
-              <div className="text-gray-700 mb-2">수량</div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-700">재고</span>
+                <span className={`font-medium ${
+                  (product.stock_quantity || product.stock || 0) > 10 ? 'text-green-600' : 
+                  (product.stock_quantity || product.stock || 0) > 0 ? 'text-orange-600' : 'text-red-600'
+                }`}>
+                  {(product.stock_quantity || product.stock || 0) > 0 ? `${product.stock_quantity || product.stock}개 남음` : '품절'}
+                </span>
+              </div>
+              {(product.stock_quantity || product.stock || 0) <= 10 && (product.stock_quantity || product.stock || 0) > 0 && (
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-orange-500 h-2 rounded-full" 
+                    style={{ width: `${((product.stock_quantity || product.stock) / 20) * 100}%` }}
+                  ></div>
+                </div>
+              )}
+            </div>
+            
+            {/* 수량 선택 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">수량</label>
               <div className="flex items-center">
                 <button 
                   onClick={() => handleQuantityChange(-1)}
-                  className="px-3 py-1 bg-gray-100 border border-gray-300 text-gray-700 rounded-l-lg"
+                  className="w-10 h-10 border border-gray-300 rounded-l-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
                   disabled={quantity <= 1}
                 >
                   <i className="fas fa-minus"></i>
                 </button>
-                <div className="w-14 px-3 py-1 border-t border-b border-gray-300 text-center">
+                <div className="w-16 h-10 border-t border-b border-gray-300 flex items-center justify-center font-medium">
                   {quantity}
                 </div>
                 <button 
                   onClick={() => handleQuantityChange(1)}
-                  className="px-3 py-1 bg-gray-100 border border-gray-300 text-gray-700 rounded-r-lg"
-                  disabled={quantity >= product.stock}
+                  className="w-10 h-10 border border-gray-300 rounded-r-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
+                  disabled={quantity >= (product.stock_quantity || product.stock || 10)}
                 >
                   <i className="fas fa-plus"></i>
                 </button>
-                <div className="ml-4 text-sm text-gray-500">
-                  재고: {product.stock}개
-                </div>
-              </div>
-            </div>
-            
-            {/* 총 가격 */}
-            <div className="p-4 bg-gray-50 rounded-lg mb-6">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700">총 금액:</span>
-                <span className="text-xl font-bold text-primary">
-                  {(discountedPrice * quantity).toLocaleString()}원
-                </span>
               </div>
             </div>
             
             {/* 구매 버튼 */}
-            <div className="flex gap-3 mb-6">
-              <a 
-                href={product.externalLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 bg-primary text-white py-3 rounded-lg font-medium hover:bg-orange-600 text-center"
-              >
-                <i className="fas fa-external-link-alt mr-2"></i>
-                구매 사이트로 이동
-              </a>
+            <div className="space-y-3 mb-6">
               <button 
-                onClick={() => {
-                  // 장바구니에 추가
-                  const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-                  
-                  // 이미 장바구니에 있는지 확인
-                  const existingItemIndex = cart.findIndex(item => item.id === product.id);
-                  
-                  if (existingItemIndex >= 0) {
-                    // 이미 장바구니에 있으면 수량 증가
-                    cart[existingItemIndex].quantity += quantity;
-                  } else {
-                    // 장바구니에 없으면 새 아이템 추가
-                    cart.push({
-                      id: product.id,
-                      name: product.name,
-                      price: product.price,
-                      discount: product.discount,
-                      discountedPrice: discountedPrice,
-                      image: product.image,
-                      quantity: quantity
-                    });
-                  }
-                  
-                  // 로컬 스토리지에 장바구니 저장
-                  localStorage.setItem('cart', JSON.stringify(cart));
-                  
-                  // 장바구니 업데이트 이벤트 발생
-                  window.dispatchEvent(new Event('cartUpdated'));
-                  
-                  // 성공 메시지 표시 (필요시)
-                  alert('장바구니에 상품이 추가되었습니다.');
-                }}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 text-center"
+                onClick={handleAddToCart}
+                disabled={cartLoading || (product.stock_quantity || product.stock || 0) <= 0}
+                className="w-full py-3 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <i className="fas fa-shopping-cart mr-2"></i>
-                장바구니에 담기
+                {cartLoading ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    처리 중...
+                  </>
+                ) : (product.stock_quantity || product.stock || 0) <= 0 ? (
+                  '품절'
+                ) : isInCart(product.id) ? (
+                  <>
+                    <i className="fas fa-plus mr-2"></i>
+                    수량 추가
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-shopping-cart mr-2"></i>
+                    장바구니에 담기
+                  </>
+                )}
               </button>
-              <button className="w-12 h-12 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100">
-                <i className="far fa-heart text-gray-500"></i>
+              
+              <button 
+                onClick={handleBuyNow}
+                disabled={cartLoading || (product.stock_quantity || product.stock || 0) <= 0}
+                className="w-full py-3 bg-primary text-white rounded-lg font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {(product.stock_quantity || product.stock || 0) <= 0 ? '품절' : '바로 구매'}
               </button>
             </div>
             
-            {/* 판매 현황 */}
-            <div className="mb-6">
-              <div className="text-sm text-gray-500 mb-2">
-                {product.soldCount}명이 이 상품을 구매했습니다
-              </div>
-              <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, product.soldCount / 5)}%` }}></div>
-              </div>
-            </div>
-            
-            {/* 무료배송 등 정책 */}
-            <div className="flex flex-col gap-2 text-sm text-gray-700">
-              <div className="flex items-center">
-                <i className="fas fa-truck text-primary w-6"></i>
-                <span>50,000원 이상 무료배송</span>
-              </div>
-              <div className="flex items-center">
-                <i className="fas fa-undo text-primary w-6"></i>
-                <span>30일 이내 무료 반품</span>
-              </div>
-              <div className="flex items-center">
-                <i className="fas fa-shield-alt text-primary w-6"></i>
-                <span>100% 정품 보증</span>
+            {/* 배송 및 서비스 정보 */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-medium mb-3">배송 및 서비스</h3>
+              <div className="space-y-2 text-sm text-gray-700">
+                <div className="flex items-center">
+                  <i className="fas fa-truck text-primary w-5"></i>
+                  <span>무료배송 (50,000원 이상 구매 시)</span>
+                </div>
+                <div className="flex items-center">
+                  <i className="fas fa-undo text-primary w-5"></i>
+                  <span>30일 무료 반품/교환</span>
+                </div>
+                <div className="flex items-center">
+                  <i className="fas fa-shield-alt text-primary w-5"></i>
+                  <span>100% 정품 보증</span>
+                </div>
+                <div className="flex items-center">
+                  <i className="fas fa-headset text-primary w-5"></i>
+                  <span>24시간 고객 지원</span>
+                </div>
               </div>
             </div>
           </div>
@@ -741,22 +809,34 @@ const ProductDetailPage = () => {
         {/* 탭 메뉴 */}
         <div className="flex border-b">
           <button 
-            className={`flex-1 py-4 font-medium ${selectedTab === 'description' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}
+            className={`flex-1 py-4 px-6 font-medium transition-colors ${
+              selectedTab === 'description' 
+                ? 'text-primary border-b-2 border-primary bg-orange-50' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
             onClick={() => setSelectedTab('description')}
           >
             상품 설명
           </button>
           <button 
-            className={`flex-1 py-4 font-medium ${selectedTab === 'specs' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}
+            className={`flex-1 py-4 px-6 font-medium transition-colors ${
+              selectedTab === 'specs' 
+                ? 'text-primary border-b-2 border-primary bg-orange-50' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
             onClick={() => setSelectedTab('specs')}
           >
             상세 정보
           </button>
           <button 
-            className={`flex-1 py-4 font-medium ${selectedTab === 'reviews' ? 'text-primary border-b-2 border-primary' : 'text-gray-500'}`}
+            className={`flex-1 py-4 px-6 font-medium transition-colors ${
+              selectedTab === 'reviews' 
+                ? 'text-primary border-b-2 border-primary bg-orange-50' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
             onClick={() => setSelectedTab('reviews')}
           >
-            리뷰 ({product.reviewCount})
+            리뷰 ({reviewStats?.total_reviews || reviews.length})
           </button>
         </div>
         
@@ -764,157 +844,310 @@ const ProductDetailPage = () => {
         <div className="p-6">
           {/* 상품 설명 */}
           {selectedTab === 'description' && (
-            <div className="whitespace-pre-line text-gray-700">
-              {product.description}
+            <div className="prose max-w-none">
+              <div className="whitespace-pre-line text-gray-700 leading-relaxed">
+                {product.description || '상품 설명이 없습니다.'}
+              </div>
             </div>
           )}
           
           {/* 상세 정보 */}
           {selectedTab === 'specs' && (
             <div>
-              <h3 className="text-lg font-bold mb-4">상품 스펙</h3>
-              <table className="w-full border-collapse">
-                <tbody>
+              <h3 className="text-lg font-bold mb-4">상품 상세 정보</h3>
+              {product.specifications && product.specifications.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {product.specifications.map((spec, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                      <td className="py-3 px-4 border-b border-gray-200 font-medium w-1/3">{spec.name}</td>
-                      <td className="py-3 px-4 border-b border-gray-200 text-gray-700">{spec.value}</td>
-                    </tr>
+                    <div key={`spec-${spec.name}-${index}`} className="bg-gray-50 p-3 rounded-lg">
+                      <div className="font-medium text-gray-800">{spec.name}</div>
+                      <div className="text-gray-600">{spec.value}</div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-              
-              {/* 영양 정보 (있을 경우에만) */}
-              {product.nutrition && (
-                <div className="mt-8">
-                  <h3 className="text-lg font-bold mb-4">영양 정보</h3>
-                  <table className="w-full border-collapse">
-                    <tbody>
-                      {product.nutrition.map((item, index) => (
-                        <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                          <td className="py-3 px-4 border-b border-gray-200 font-medium w-1/3">{item.name}</td>
-                          <td className="py-3 px-4 border-b border-gray-200 text-gray-700">{item.value}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <i className="fas fa-info-circle text-3xl mb-3"></i>
+                  <p>상세 정보가 없습니다.</p>
                 </div>
               )}
             </div>
           )}
           
-          {/* 리뷰 */}
+          {/* 리뷰 섹션 */}
           {selectedTab === 'reviews' && (
             <div>
-              {/* 평점 요약 */}
-              <div className="flex flex-col md:flex-row gap-8 mb-8">
-                <div className="md:w-1/3 flex flex-col items-center justify-center">
-                  <div className="text-5xl font-bold text-primary mb-2">{product.rating}</div>
-                  <div className="flex text-yellow-400 mb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <i 
-                        key={i} 
-                        className={`fas fa-star ${i < Math.floor(product.rating) ? '' : i < product.rating ? 'fas fa-star-half-alt' : 'far fa-star'}`}
-                      ></i>
-                    ))}
-                  </div>
-                  <div className="text-gray-500 text-sm">{product.reviewCount} 리뷰 기준</div>
-                </div>
-                
-                <div className="md:w-2/3">
-                  {product.reviewDetails.map((detail) => (
-                    <div key={detail.rating} className="flex items-center mb-2">
-                      <div className="w-16 text-sm">{detail.rating}점</div>
-                      <div className="flex-1 mx-4">
-                        <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-yellow-400 rounded-full" 
-                            style={{ width: `${(detail.count / product.reviewCount) * 100}%` }}
-                          ></div>
-                        </div>
+              {/* 리뷰 통계 */}
+              {reviewStats && (
+                <div className="bg-gray-50 p-6 rounded-lg mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* 평균 평점 */}
+                    <div className="text-center md:text-left">
+                      <div className="text-3xl font-bold text-gray-800 mb-2">
+                        {reviewStats.average_rating ? reviewStats.average_rating.toFixed(1) : '0.0'}
+                        <span className="text-lg text-gray-500 ml-1">/ 5.0</span>
                       </div>
-                      <div className="w-12 text-sm text-gray-500 text-right">{detail.count}</div>
+                      <div className="flex items-center justify-center md:justify-start mb-2">
+                        {[...Array(5)].map((_, i) => (
+                          <i 
+                            key={i} 
+                            className={`fas fa-star text-lg ${
+                              i < Math.round(reviewStats.average_rating || 0) 
+                                ? 'text-yellow-400' 
+                                : 'text-gray-300'
+                            }`}
+                          ></i>
+                        ))}
+                      </div>
+                      <p className="text-gray-600">
+                        총 {reviewStats.total_reviews}개의 리뷰
+                      </p>
                     </div>
-                  ))}
+                    
+                    {/* 평점 분포 */}
+                    <div className="space-y-2">
+                      {[5, 4, 3, 2, 1].map((rating) => {
+                        const count = reviewStats[`rating_${rating}`] || 0;
+                        const percentage = reviewStats.total_reviews > 0 
+                          ? (count / reviewStats.total_reviews) * 100 
+                          : 0;
+                        
+                        return (
+                          <div key={`rating-${rating}`} className="flex items-center gap-2">
+                            <span className="text-sm w-6">{rating}점</span>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm w-8 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
+              )}
+              
+              {/* 리뷰 작성 버튼 */}
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold">고객 리뷰</h3>
+                {user ? (
+                  <button
+                    onClick={() => setShowReviewForm(!showReviewForm)}
+                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                    disabled={reviewLoading}
+                  >
+                    <i className="fas fa-star mr-2"></i>
+                    {reviewLoading ? '작성 중...' : '리뷰 작성'}
+                  </button>
+                ) : (
+                  <p className="text-gray-500">리뷰를 작성하려면 로그인이 필요합니다.</p>
+                )}
               </div>
+
+              {/* 리뷰 작성 폼 */}
+              {showReviewForm && user && (
+                <div className="bg-gray-50 p-6 rounded-lg mb-6">
+                  <h4 className="text-lg font-semibold mb-4">리뷰 작성</h4>
+                  <form onSubmit={handleReviewSubmit}>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">평점 *</label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
+                            className={`text-2xl transition-colors hover:scale-110 ${
+                              star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-300'
+                            }`}
+                          >
+                            <i className="fas fa-star"></i>
+                          </button>
+                        ))}
+                        <span className="ml-2 text-sm text-gray-600 self-center">
+                          ({reviewForm.rating}점)
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">리뷰 제목 *</label>
+                      <input
+                        value={reviewForm.title}
+                        onChange={(e) => setReviewForm(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="리뷰 제목을 입력해주세요..."
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                        disabled={reviewLoading}
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">리뷰 내용 *</label>
+                      <textarea
+                        value={reviewForm.comment}
+                        onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                        placeholder="상품에 대한 솔직한 리뷰를 작성해주세요..."
+                        rows={4}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                        disabled={reviewLoading}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={reviewLoading}
+                      >
+                        {reviewLoading ? (
+                          <>
+                            <i className="fas fa-spinner fa-spin mr-2"></i>
+                            등록 중...
+                          </>
+                        ) : (
+                          '리뷰 등록'
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowReviewForm(false)}
+                        className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                        disabled={reviewLoading}
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
               
               {/* 리뷰 목록 */}
-              <div>
-                <h3 className="text-lg font-bold mb-4">고객 리뷰</h3>
-                {product.reviews.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">아직 리뷰가 없습니다.</p>
-                ) : (
-                  <div className="space-y-6">
-                    {product.reviews.map((review) => (
-                      <div key={review.id} className="border-b border-gray-200 pb-6">
-                        <div className="flex items-center mb-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
-                            <img src={review.avatar} alt={review.userName} className="w-full h-full object-cover" />
+              {loading ? (
+                <div className="text-center py-8">
+                  <i className="fas fa-spinner fa-spin text-2xl text-gray-400 mb-4"></i>
+                  <p className="text-gray-500">리뷰를 불러오는 중...</p>
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-12">
+                  <i className="fas fa-star text-gray-300 text-4xl mb-4"></i>
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">아직 리뷰가 없습니다</h3>
+                  <p className="text-gray-500">첫 번째 리뷰를 작성해보세요!</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-shadow">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center">
+                          <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden mr-4">
+                            <img 
+                              src={review.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(review.user?.username || review.user || '사용자')}&background=random`}
+                              alt={review.user?.username || review.user} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => handleImageError(e, true)}
+                            />
                           </div>
                           <div>
-                            <div className="font-medium">{review.userName}</div>
-                            <div className="flex items-center text-sm">
-                              <div className="flex text-yellow-400 mr-2">
-                                {[...Array(5)].map((_, i) => (
-                                  <i key={i} className={`fas fa-star ${i < review.rating ? '' : 'text-gray-300'}`}></i>
-                                ))}
-                              </div>
-                              <span className="text-gray-500">{review.date}</span>
+                            <div className="font-semibold text-gray-800">
+                              {review.user?.username || review.user || '익명 사용자'}
+                            </div>
+                            <div className="flex items-center text-sm text-gray-500">
+                              <span>{new Date(review.created_at).toLocaleDateString()}</span>
+                              {review.is_verified_purchase && (
+                                <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                  구매 확인
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
-                        <p className="text-gray-700 mb-3">{review.text}</p>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <button className="flex items-center mr-4 hover:text-primary">
-                            <i className="far fa-thumbs-up mr-1"></i>
-                            유용해요 ({review.helpfulCount})
-                          </button>
-                          <button className="hover:text-primary">
-                            <i className="far fa-comment-alt mr-1"></i>
-                            댓글 달기
-                          </button>
+                        <div className="flex items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <i 
+                              key={i} 
+                              className={`fas fa-star text-sm ${
+                                i < review.rating ? 'text-yellow-400' : 'text-gray-300'
+                              }`}
+                            ></i>
+                          ))}
+                          <span className="ml-2 text-sm text-gray-600">
+                            {review.rating}.0
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* 더보기 버튼 */}
-                {product.reviews.length > 0 && (
-                  <div className="text-center mt-6">
-                    <button className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                      리뷰 더보기
-                    </button>
-                  </div>
-                )}
-              </div>
+                      
+                      {/* 리뷰 제목 */}
+                      {review.title && (
+                        <h4 className="font-medium text-gray-800 mb-2">{review.title}</h4>
+                      )}
+                      
+                      {/* 리뷰 내용 */}
+                      <p className="text-gray-700 leading-relaxed mb-4">
+                        {review.content || review.comment}
+                      </p>
+                      
+                      {/* 리뷰 이미지 (있는 경우) */}
+                      {review.images && review.images.length > 0 && (
+                        <div className="flex gap-2 flex-wrap">
+                          {review.images.map((image, index) => (
+                            <img
+                              key={`review-${review.id}-image-${index}`}
+                              src={image}
+                              alt={`리뷰 이미지 ${index + 1}`}
+                              className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                              onError={(e) => handleImageError(e)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
       
-      {/* 추천 상품 */}
-      {product.relatedProducts && product.relatedProducts.length > 0 && (
+      {/* 관련 상품 추천 */}
+      {relatedProducts.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4">함께 구매하면 좋은 상품</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* 여기에 관련 상품 컴포넌트 추가 */}
-            {/* 실제로는 ProductCard 컴포넌트를 사용할 것 */}
-            {product.relatedProducts.map((id) => (
-              <div key={id} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                <div className="h-40 bg-gray-200"></div>
-                <div className="p-4">
-                  <h3 className="font-medium">관련 상품 {id}</h3>
-                  <p className="text-primary font-bold">가격 정보</p>
-                </div>
-              </div>
-            ))}
+          <ProductCardList
+            title="이 상품과 함께 구매하면 좋은 상품"
+            viewAllLink={
+              <Link to="/shop" className="text-primary font-medium hover:text-orange-600">
+                더 많은 상품 보기
+              </Link>
+            }
+            products={relatedProducts}
+            gridCols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+            compact={true}
+          />
+        </div>
+      )}
+
+      {/* 이미지 모달 */}
+      {isImageModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={() => setIsImageModalOpen(false)}>
+          <div className="relative max-w-4xl max-h-full p-4">
+            <img 
+              src={productImages[selectedImageIndex] || product.image} 
+              alt={product.name} 
+              className="max-w-full max-h-full object-contain"
+              onError={(e) => handleImageError(e, false)}
+            />
+            <button
+              onClick={() => setIsImageModalOpen(false)}
+              className="absolute top-4 right-4 text-white text-2xl hover:text-gray-300"
+            >
+              <i className="fas fa-times"></i>
+            </button>
           </div>
         </div>
       )}
     </div>
   );
-};
-
-export default ProductDetailPage; 
+  };
+  
+  export default ProductDetailPage; 

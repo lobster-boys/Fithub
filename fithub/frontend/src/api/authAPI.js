@@ -54,9 +54,23 @@ export const deleteUserProfile = async (id) => {
 
 // ========== 편의 함수들 (기존 코드와의 호환성을 위해) ==========
 
-// 회원가입 (createUserProfile의 별칭)
+// JWT 토큰 기반 회원가입
 export const registerUser = async (userData) => {
-  return createUserProfile(userData);
+  try {
+    const response = await axiosInstance.post('/dj-rest-auth/registration/', userData);
+    if (response.data.access_token || response.data.access) {
+      const accessToken = response.data.access_token || response.data.access;
+      const refreshToken = response.data.refresh_token || response.data.refresh;
+      
+      localStorage.setItem('access_token', accessToken);
+      if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
+      }
+    }
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 };
 
 // 현재 사용자 프로필 조회 (토큰 기반)
@@ -80,17 +94,19 @@ export const updateCurrentUserProfile = async (profileData) => {
   }
 };
 
-// ========== 인증 관련 함수들 (JWT 토큰 관리) ==========
+// ========== JWT 토큰 기반 인증 관리 ==========
 
 // 로그인 (JWT 토큰 발급)
 export const loginUser = async (credentials) => {
   try {
-    const response = await axiosInstance.post('/auth/login/', credentials);
-    if (response.data.token || response.data.access) {
-      const token = response.data.token || response.data.access;
-      localStorage.setItem('token', token);
-      if (response.data.refresh) {
-        localStorage.setItem('refreshToken', response.data.refresh);
+    const response = await axiosInstance.post('/dj-rest-auth/login/', credentials);
+    if (response.data.access_token || response.data.access) {
+      const accessToken = response.data.access_token || response.data.access;
+      const refreshToken = response.data.refresh_token || response.data.refresh;
+      
+      localStorage.setItem('access_token', accessToken);
+      if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
       }
     }
     return response.data;
@@ -99,28 +115,41 @@ export const loginUser = async (credentials) => {
   }
 };
 
-// 로그아웃
+// 로그아웃 (JWT 토큰 무효화)
 export const logoutUser = async () => {
   try {
-    const response = await axiosInstance.post('/auth/logout/');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    const response = await axiosInstance.post('/dj-rest-auth/logout/');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     return response.data;
   } catch (error) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     throw error;
   }
 };
 
-// 토큰 새로고침
+// JWT 토큰 새로고침
 export const refreshToken = async () => {
   try {
-    const refreshToken = localStorage.getItem('refreshToken');
-    const response = await axiosInstance.post('/auth/refresh/', { refresh: refreshToken });
+    const refreshToken = localStorage.getItem('refresh_token');
+    const response = await axiosInstance.post('/dj-rest-auth/token/refresh/', { refresh: refreshToken });
     if (response.data.access) {
-      localStorage.setItem('token', response.data.access);
+      localStorage.setItem('access_token', response.data.access);
+      if (response.data.refresh) {
+        localStorage.setItem('refresh_token', response.data.refresh);
+      }
     }
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 현재 사용자 정보 조회 (JWT 토큰 기반)
+export const getCurrentUser = async () => {
+  try {
+    const response = await axiosInstance.get('/dj-rest-auth/user/');
     return response.data;
   } catch (error) {
     throw error;

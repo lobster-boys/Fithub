@@ -18,15 +18,23 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProductDetailPage from './pages/ecommerce/ProductDetailPage';
 import ShoppingCartPage from './pages/ecommerce/ShoppingCartPage';
+import BillingPage from './pages/ecommerce/BillingPage';
+import CouponsPage from './pages/ecommerce/CouponsPage';
+import ShippingAddressPage from './pages/ecommerce/ShippingAddressPage';
+import AdminProductPage from './pages/admin/AdminProductPage';
 import WorkoutDetailPage from './pages/workout/WorkoutDetailPage';
 import IngredientDetailPage from './pages/diet/IngredientDetailPage';
 import DietLogPage from './pages/diet/DietLogPage';
+
 import OnboardingPage from './pages/OnboardingPage';
-import ProfilePage from './pages/ProfilePage.jsx';
+import ProfilePage from './pages/ProfilePage';
 
 // Context and Hooks
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
+
+import KakaoCallback from './pages/auth/KakaoCallback';
+import NaverCallback from './pages/auth/NaverCallback';
 
 // Placeholder Components - 실제 페이지 컴포넌트가 구현되기 전까지 사용
 const PlaceholderPage = ({ title }) => (
@@ -37,13 +45,33 @@ const PlaceholderPage = ({ title }) => (
 );
 
 // 아직 구현되지 않은 페이지들은 플레이스홀더로 대체
-const CheckoutPage = () => <PlaceholderPage title="결제" />;
 const OrderHistoryPage = () => <PlaceholderPage title="주문 내역" />;
 const SettingsPage = () => <PlaceholderPage title="설정" />;
 
+// 관리자 권한이 필요한 페이지들을 보호하는 컴포넌트
+const AdminProtectedPage = ({ children }) => {
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  // 로딩 중
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">로딩 중...</div>
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 경우 또는 관리자가 아닌 경우
+  if (!isAuthenticated || !user?.is_superuser) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
 // 인증이 필요한 페이지들을 보호하는 컴포넌트
 const ProtectedPage = ({ children }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, onboardingCompleted, isLoading } = useAuth();
   const location = useLocation();
 
   // 로딩 중
@@ -60,17 +88,15 @@ const ProtectedPage = ({ children }) => {
     return <Navigate to="/" replace />;
   }
 
-  // 온보딩 체크
+  // 온보딩 체크 - 백엔드 상태 기준
   if (user) {
-    const onboarded = localStorage.getItem(`fithub_onboarded_${user.id}`) === 'true';
-    
     // 온보딩이 안 끝났으면 온보딩 페이지로
-    if (!onboarded && location.pathname !== '/onboarding') {
+    if (!onboardingCompleted && location.pathname !== '/onboarding') {
       return <Navigate to="/onboarding" replace />;
     }
     
     // 온보딩이 끝났는데 온보딩 페이지에 있으면 홈으로
-    if (onboarded && location.pathname === '/onboarding') {
+    if (onboardingCompleted && location.pathname === '/onboarding') {
       return <Navigate to="/" replace />;
     }
   }
@@ -81,7 +107,16 @@ const ProtectedPage = ({ children }) => {
 // 애니메이션이 있는 라우트 컴포넌트
 const AnimatedRoutes = () => {
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // 로딩 중일 때는 안전한 로딩 화면 표시
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">로딩 중...</div>
+      </div>
+    );
+  }
   
   return (
     <AnimatePresence mode="wait">
@@ -89,9 +124,9 @@ const AnimatedRoutes = () => {
         {/* 기본 페이지 */}
         <Route path="/" element={isAuthenticated ? <HomePage /> : <WelcomePage />} />
         
-        {/* 인증 관련 페이지 (로그인하지 않은 사용자만 접근 가능) */}
-        <Route path="/auth/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" replace />} />
-        <Route path="/auth/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/" replace />} />
+        {/* 인증 관련 페이지 - 로딩 완료된 후에만 리다이렉트 */}
+        <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/register" element={<RegisterPage />} />
         
         {/* 온보딩 페이지 (로그인한 사용자만 접근 가능) */}
         <Route path="/onboarding" element={
@@ -123,12 +158,32 @@ const AnimatedRoutes = () => {
             <DietLogPage />
           </ProtectedPage>
         } />
+        <Route path="/diet/log" element={
+          <ProtectedPage>
+            <DietLogPage />
+          </ProtectedPage>
+        } />
+        <Route path="/diet/recommendation" element={
+          <ProtectedPage>
+            <DietLogPage />
+          </ProtectedPage>
+        } />
+        <Route path="/diet/plans" element={
+          <ProtectedPage>
+            <DietLogPage />
+          </ProtectedPage>
+        } />
+        <Route path="/diet/stats" element={
+          <ProtectedPage>
+            <DietLogPage />
+          </ProtectedPage>
+        } />
         <Route path="/diet/ingredient/:mealId" element={
           <ProtectedPage>
             <IngredientDetailPage />
           </ProtectedPage>
         } />
-        
+
         {/* 커뮤니티 관련 페이지 (인증 필요) */}
         <Route path="/community" element={
           <ProtectedPage>
@@ -147,25 +202,42 @@ const AnimatedRoutes = () => {
             <EcommercePage />
           </ProtectedPage>
         } />
-        <Route path="/shop/:productId" element={
+        <Route path="/products/:productId" element={
           <ProtectedPage>
             <ProductDetailPage />
           </ProtectedPage>
         } />
-        <Route path="/shop/cart" element={
+        <Route path="/cart" element={
           <ProtectedPage>
             <ShoppingCartPage />
           </ProtectedPage>
         } />
-        <Route path="/shop/checkout" element={
+        <Route path="/billing" element={
           <ProtectedPage>
-            <CheckoutPage />
+            <BillingPage />
           </ProtectedPage>
         } />
-        <Route path="/shop/orders" element={
+        <Route path="/coupons" element={
+          <ProtectedPage>
+            <CouponsPage />
+          </ProtectedPage>
+        } />
+        <Route path="/shipping-address" element={
+          <ProtectedPage>
+            <ShippingAddressPage />
+          </ProtectedPage>
+        } />
+        <Route path="/orders" element={
           <ProtectedPage>
             <OrderHistoryPage />
           </ProtectedPage>
+        } />
+
+        {/* 관리자 페이지 (슈퍼유저만 접근 가능) */}
+        <Route path="/admin/products" element={
+          <AdminProtectedPage>
+            <AdminProductPage />
+          </AdminProtectedPage>
         } />
         
         {/* 사용자 프로필 및 설정 관련 페이지 (인증 필요) */}
@@ -179,6 +251,10 @@ const AnimatedRoutes = () => {
             <SettingsPage />
           </ProtectedPage>
         } />
+        
+        {/* 카카오 콜백 페이지 */}
+        <Route path="/auth/kakao/callback/" element={<KakaoCallback />} />
+        <Route path="/auth/naver/callback/" element={<NaverCallback />} />
         
         {/* 404 페이지 */}
         <Route path="*" element={
