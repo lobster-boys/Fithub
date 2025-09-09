@@ -8,6 +8,7 @@ class UserBasicSerializer(serializers.ModelSerializer):
         User = get_user_model()
         model = User
         fields = ["id", "username", "first_name", "last_name"]
+        ref_name = 'ReviewUserBasic'
 
 class ReviewGeneratedSerializer(serializers.ModelSerializer):
     user = UserBasicSerializer(read_only=True)
