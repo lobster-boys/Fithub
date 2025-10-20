@@ -19,6 +19,10 @@ class RoutineSharePermissionViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsSharedRoutine]
 
     def get_queryset(self):
+        # swagger 스키마 생성 시 단축 처리
+        if getattr(self, 'swagger_fake_view', False):
+            return self.queryset.none()
+        
         # 본인이 부여한 권한 목록만 반환
         return self.queryset.filter(granted_by=self.request.user)
 

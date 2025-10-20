@@ -67,6 +67,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google', # 구글
     # CORS
     "corsheaders",
+    # SWAGGER
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [

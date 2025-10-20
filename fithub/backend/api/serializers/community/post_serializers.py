@@ -11,6 +11,7 @@ class UserBasicSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name']
         read_only_fields = ['id', 'username', 'first_name', 'last_name']
+        ref_name = 'CommentUserBasic'
 
 # 게시글 시리얼라이즈 공통 검증 로직
 class BaseUserPostSerializer(serializers.ModelSerializer):
